@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{E36CA8FD-AB61-4271-990E-C0A14B8E535F}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Asmuth</RootNamespace>
+    <AssemblyName>Asmuth</AssemblyName>
+    <FileAlignment>512</FileAlignment>
+    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <TargetFrameworkProfile>Profile111</TargetFrameworkProfile>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.Experimental.Collections">
+      <HintPath>packages\Microsoft.Experimental.Collections.1.0.3-alpha\lib\portable-net45+win8+wp8\Microsoft.Experimental.Collections.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Collections.Immutable, Version=1.0.34.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>packages\Microsoft.Bcl.Immutable.1.0.34\lib\portable-net45+win8+wp8+wpa81\System.Collections.Immutable.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AccessType.cs" />
+    <Compile Include="Boxed.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="UnreachableException.cs" />
+    <Compile Include="X86\Bits.cs" />
+    <Compile Include="X86\Raw\ConditionCode.cs" />
+    <Compile Include="X86\Raw\EFlags.cs" />
+    <Compile Include="X86\Raw\Gpr.cs" />
+    <Compile Include="X86\Raw\ImmediateType.cs" />
+    <Compile Include="X86\Raw\InstructionDecoder.cs" />
+    <Compile Include="X86\Raw\InstructionDefinition.cs" />
+    <Compile Include="X86\Raw\InstructionDictionary.cs" />
+    <Compile Include="X86\Raw\InstructionFields.cs" />
+    <Compile Include="X86\Raw\IInstructionDecoderLookup.cs" />
+    <Compile Include="X86\Raw\InstructionOperandFields.cs" />
+    <Compile Include="X86\Raw\InterruptVector.cs" />
+    <Compile Include="X86\Raw\LegacyPrefix.cs" />
+    <Compile Include="X86\Raw\Instruction.cs" />
+    <Compile Include="X86\Raw\LegacyPrefixList.cs" />
+    <Compile Include="X86\Raw\ModRM.cs" />
+    <Compile Include="X86\Raw\Nasm\NasmInstructionFlag.cs" />
+    <Compile Include="X86\Raw\Nasm\NasmInsns.cs" />
+    <Compile Include="X86\Raw\Nasm\NasmInstructionTemplate.cs" />
+    <Compile Include="X86\Raw\Nasm\NasmOperand.cs" />
+    <Compile Include="X86\Raw\Nasm\NasmPrefix.cs" />
+    <Compile Include="X86\Raw\Opcode.cs" />
+    <Compile Include="X86\Raw\OpcodeMap.cs" />
+    <Compile Include="X86\Raw\OperandField.cs" />
+    <Compile Include="X86\Raw\OperandSizePolicy.cs" />
+    <Compile Include="X86\Raw\ProcessorMode.cs" />
+    <Compile Include="X86\Raw\SegmentRegister.cs" />
+    <Compile Include="X86\Raw\Sib.cs" />
+    <Compile Include="X86\Raw\Xex.cs" />
+    <Compile Include="X86\Raw\VexOpcodeEncoding.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
+</Project>
