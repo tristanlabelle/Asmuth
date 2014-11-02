@@ -10,17 +10,19 @@ namespace Asmuth.X86.Raw
 	/// Identifies one or more fields within an instruction which can encode operands.
 	/// </summary>
 	[Flags]
-	public enum InstructionOperandFields : byte
+	public enum OperandFields : byte
 	{
 		None = 0,
-		EVex_Opmask = 1 << 0,
-		Vex_V = 1 << 1,
-		Opcode_Low3 = 1 << 2,
-		ModRM_Reg = 1 << 3,
-		ModRM_RM = 1 << 4,
-		Sib_Base = 1 << 5,
-		Sib_Index = 1 << 6,
+		Opcode_Low3 = 1 << 0,
+		ModRM_Reg = Opcode_Low3,
+		ModRM_RM = 1 << 1,
+		Sib_Base = 1 << 2,
+		Sib_Index = 1 << 3,
+		Immediate = 1 << 4,
+		Vex_V = 1 << 5,
 		EVex_Vidx = Sib_Index,
-		EVex_IS4 = 1 << 7
+		EVex_Opmask = 1 << 6,
+		EVex_IS4 = Immediate,
+		SecondImmediate = 1 << 7
 	}
 }

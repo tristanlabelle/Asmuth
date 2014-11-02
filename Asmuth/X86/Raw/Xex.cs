@@ -295,7 +295,7 @@ namespace Asmuth.X86.Raw
 
 		[Pure]
 		public static bool IsSingleField(this XexFields fields)
-			=> fields == XexFields.mmmmm || Bits.HasSingle((uint)fields);
+			=> fields == XexFields.mmmmm || Bits.IsSingle((uint)fields);
 
 		[Pure]
 		public static int TryGetFieldOffset(this XexType type, XexFields field)

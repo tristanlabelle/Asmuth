@@ -21,22 +21,7 @@ namespace Asmuth.X86.Raw
 
 		public InstructionDefinition Find(Opcode opcode)
 		{
-			var lookupKey = GetOpcodeLookupKey(opcode);
-
-			IReadOnlyCollection<InstructionDefinition> candidates;
-			if (!byOpcode.TryGetValue(lookupKey, out candidates)) return null;
-
-			InstructionDefinition instruction = null;
-			foreach (var candidate in candidates)
-			{
-				if (candidate.IsMatch(opcode)
-					&& (instruction == null || (candidate.OpcodeMask & ~instruction.OpcodeMask) != 0))
-				{
-					instruction = candidate;
-				}
-			}
-
-			return instruction;
+			throw new NotImplementedException();
 		}
 
 		private static Opcode GetOpcodeLookupKey(Opcode opcode)

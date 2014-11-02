@@ -8,6 +8,104 @@ namespace Asmuth.X86.Raw.Nasm
 {
 	public struct NasmOperand
 	{
-		public OperandFields Field;
+		public readonly NasmOperandType Type;
+		public readonly OperandFields Field;
+
+		public NasmOperand(OperandFields field, NasmOperandType type)
+		{
+			this.Field = field;
+			this.Type = type;
+		}
+	}
+
+	public enum NasmOperandType : byte
+	{
+		Void,
+
+		Unity,
+
+		Imm,
+		Imm8,
+		Imm16,
+		Imm32,
+		Imm64,
+
+		SByteWord,
+		SByteDword,
+		SByteWord16,
+		SByteDword32,
+		UDword,
+		SDword,
+
+		Reg8,
+		Reg16,
+		Reg32,
+		Reg32NA,
+		Reg64,
+		Reg_AL,
+		Reg_AX,
+		Reg_Eax,
+		Reg_Rax,
+		Reg_DX,
+		Reg_CX,
+		Reg_CL,
+		Reg_Ecx,
+		Reg_Rcx,
+		Reg_Edx,
+
+		RM8,
+		RM16,
+		RM32,
+		RM64,
+
+		Reg_SReg,
+		Reg_ES,
+		Reg_CS,
+		Reg_SS,
+		Reg_DS,
+		Reg_FS,
+		Reg_GS,
+
+		Reg_CReg,
+		Reg_DReg,
+		Reg_TReg,
+
+		FpuReg,
+		Fpu0,
+		MmxReg,
+		MmxRM,
+		MmxRM64,
+
+		Mem,
+		Mem8,
+		Mem16,
+		Mem32,
+		Mem64,
+		Mem80,
+		Mem128,
+		Mem256,
+		Mem512,
+		Mem_Offs,
+
+		XmmReg, // There's also xmmreg*...?
+		XmmRM,
+		XmmRM32,
+		XmmRM64,
+		XmmRM128,
+
+		YmmReg,	// There's also ymmreg*...?
+		YmmRM256,
+
+		ZmmReg,
+		ZmmRM512,
+
+		YMem64,
+		ZMem32,
+		ZMem64,
+
+		KReg,
+		KRM16,
+
+		BndReg
 	}
 }

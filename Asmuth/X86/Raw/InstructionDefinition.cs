@@ -10,42 +10,52 @@ namespace Asmuth.X86.Raw
 	public struct InstructionDefinitionData
 	{
 		public string Mnemonic;
-		public string Name;	// Human-readable
-		public Opcode OpcodeMask;
-		public Opcode OpcodeValue;
-		public byte SupportedProcessorModes;
-		public byte ImmediateSize;
-		public Mode64OperandSizePolicy mode64OperandSizePolicy;
-		public EFlags FlagsAffectedMask;
+		public InstructionEncoding Encoding;
+		public CpuidFeatureFlags RequiredFeatureFlags;
+		public EFlags AffectedFlags;
+		public OperandDefinition[] Operands;
 	}
 
 	public sealed class InstructionDefinition
 	{
-		public const Opcode RequiredMask = Opcode.SimdPrefix_Mask | Opcode.Map_Mask | Opcode.MainByte_High5Mask;
+		#region Fields
 		private readonly InstructionDefinitionData data;
+		#endregion
 
+		#region Constructor
 		public InstructionDefinition(InstructionDefinitionData data)
 		{
-			Contract.Requires((data.OpcodeMask & RequiredMask) == RequiredMask);
+			Contract.Requires(data.Mnemonic != null);
+			Contract.Requires(data.Operands != null);
 			this.data = data;
 		}
+		#endregion
 
 		#region Properties
 		public string Mnemonic => data.Mnemonic;
-		public string Name => data.Name;
-		public Opcode OpcodeMask => data.OpcodeMask;
-		public Opcode OpcodeValue => data.OpcodeValue;
-
-		// Even if ModRM is not in the required mask, it can be set in the value to indicate that some value is expected.
-		public bool HasModRM => ((OpcodeMask | OpcodeValue) & Opcode.ModRM_Mask) != 0;
+		public InstructionEncoding Encoding => data.Encoding;
+		public IReadOnlyList<OperandDefinition> Operands => data.Operands;
 		#endregion
 
-		public bool IsMatch(Opcode opcode) => (opcode & OpcodeMask) == OpcodeValue;
+		#region Methods
+		public override string ToString()
+		{
+			return Mnemonic;
+		}
+		#endregion
 	}
 
-	public sealed class OperandDefinition
+	public struct OperandDefinition
 	{
-		public InstructionOperandFields Field;
-		public AccessType AccessType;
+		public readonly OperandEncoding Encoding;
+		public readonly OperandFields Field;
+		public readonly AccessType AccessType;
+
+		public OperandDefinition(OperandFields field, OperandEncoding encoding, AccessType accessType)
+		{
+			this.Field = field;
+			this.Encoding = encoding;
+			this.AccessType = accessType;
+		}
 	}
 }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86.Raw.Nasm
 {
-	public enum NasmInstructionFlag
+	public enum NasmInstructionFlag : byte
 	{
 		SM = 0, // Size match
 		SM2 = 1, // Size match first two operands
@@ -25,6 +25,7 @@ namespace Asmuth.X86.Raw.Nasm
 		AR3 = 14, // SB, SW, SD applies to argument 3
 		AR4 = 15, // SB, SW, SD applies to argument 4
 		OPT = 16, // Optimizing assembly only
+
 		PRIV = 32, // Privileged instruction
 		SMM = 33, // Only valid in SMM
 		PROT = 34, // Protected mode only

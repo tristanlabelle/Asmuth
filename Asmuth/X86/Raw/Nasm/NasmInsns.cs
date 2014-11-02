@@ -32,7 +32,7 @@ namespace Asmuth.X86.Raw.Nasm
 			\s* \Z
 			", RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
-		public static IEnumerable<NasmInstructionTemplate> Read(TextReader textReader)
+		public static IEnumerable<NasmInsnsEntry> Read(TextReader textReader)
 		{
 			Contract.Requires(textReader != null);
 
@@ -42,10 +42,7 @@ namespace Asmuth.X86.Raw.Nasm
 				if (line == null) break;
 
 				if (IsIgnoredLine(line)) continue;
-
-				NasmInstructionTemplate instruction;
-				ParseLine(line, out instruction);
-				yield return instruction;
+				yield return ParseLine(line);
 			}
 		}
 
@@ -54,13 +51,13 @@ namespace Asmuth.X86.Raw.Nasm
 			switch (c)
 			{
 				case '-': return OperandFields.None;
-				case 'r': return OperandFields.ModReg;
-				case 'm': return OperandFields.ModRM;
-				case 'x': return OperandFields.SibIndex;
+				case 'r': return OperandFields.ModRM_Reg;
+				case 'm': return OperandFields.ModRM_RM;
+				case 'x': return OperandFields.Sib_Index;
 				case 'i': return OperandFields.Immediate;
-				case 'j': return OperandFields.SecondaryImmediate;
-				case 'v': return OperandFields.VexNds;
-				case 's': return OperandFields.VexIS4;
+				case 'j': return OperandFields.SecondImmediate;
+				case 'v': return OperandFields.Vex_V;
+				case 's': return OperandFields.EVex_IS4;
 				default: return null;
 			}
 		}
@@ -72,252 +69,74 @@ namespace Asmuth.X86.Raw.Nasm
 			return ignoredLineRegex.IsMatch(line);
 		}
 
-		public static void ParseLine(string line, out NasmInstructionTemplate instruction)
+		public static NasmInsnsEntry ParseLine(string line)
 		{
 			Contract.Requires(line != null);
 
 			var match = instructionTemplateLineRegex.Match(line);
 			if (!match.Success) throw new FormatException();
 
-			instruction = default(NasmInstructionTemplate);
-			instruction.Mnemonic = match.Groups["mnemonic"].Value;
+			var entryBuilder = new NasmInsnsEntry.Builder();
+			entryBuilder.Mnemonic = match.Groups["mnemonic"].Value;
 
-			ParseEncoding(ref instruction, match.Groups["encoding"].Value);
-			ParseOperands(ref instruction, match.Groups["operand_fields"].Value, match.Groups["operand_values"].Value);
-			ParseFlags(ref instruction, match.Groups["flags"].Value);
+			ParseEncoding(entryBuilder, match.Groups["encoding"].Value);
+			ParseOperands(entryBuilder, match.Groups["operand_fields"].Value, match.Groups["operand_values"].Value);
+			ParseFlags(entryBuilder, match.Groups["flags"].Value);
 
 			var evexTupleTypeGroup = match.Groups["evex_tuple_type"];
 			if (evexTupleTypeGroup.Success)
-				instruction.EVexTupleType = (NasmEVexTupleType)Enum.Parse(typeof(NasmEVexTupleType), evexTupleTypeGroup.Value, ignoreCase: true);
+				entryBuilder.EVexTupleType = (NasmEVexTupleType)Enum.Parse(typeof(NasmEVexTupleType), evexTupleTypeGroup.Value, ignoreCase: true);
+
+			return entryBuilder.Build(reuse: false);
 		}
 
-		private static void ParseEncoding(ref NasmInstructionTemplate instruction, string str)
+		private static void ParseEncoding(NasmInsnsEntry.Builder entryBuilder, string str)
 		{
 			var tokens = str.Split(' ');
 			int tokenIndex = 0;
 
 			if (Regex.IsMatch(tokens[0], @"\A(vex|xop|evex)\."))
 			{
-				ParseVex(ref instruction, tokens[0]);
+				ParseVex(entryBuilder, tokens[0]);
 				++tokenIndex;
 			}
-			else
-			{
-				ParseEncoding_SimdPrefixAndAttributes(ref instruction, tokens, ref tokenIndex);
-				ParseEncoding_OpcodeMap(ref instruction, tokens, ref tokenIndex);
-			}
-
-			ParseEncoding_MainByte(instruction, tokens, ref tokenIndex);
-			ParseEncoding_ModRM(instruction, tokens, ref tokenIndex);
-			ParseEncoding_Immediates(instruction, tokens, ref tokenIndex);
-			if (instruction.OpcodeValue.GetMap() == OpcodeMap._3DNow)
-				ParseEncoding_MainByte(instruction, tokens, ref tokenIndex);
 
 			Contract.Assert(tokenIndex == tokens.Length);
 		}
 
-		private static void ParseEncoding_SimdPrefixAndAttributes(InstructionDefinition instruction, IReadOnlyList<string> tokens, ref int tokenIndex)
-		{
-			while (true)
-			{
-				switch (tokens[tokenIndex])
-				{
-					case "adf":
-					case "a16":
-					case "a32":
-					case "a64":
-					case "hle":
-					case "hlenl":
-					case "hlexr":
-					case "jmp8":
-					case "mustrep":
-					case "nohi":
-					case "nof3":
-					case "norep":
-					case "norexb":
-					case "np":
-					case "odf":
-					case "o16":
-					case "o32":
-					case "o64":
-					case "o64nw":
-					case "rex.l":
-					case "vm32x":
-					case "vm64x":
-					case "wait":
-					case "repe":
-						++tokenIndex; // Ignore for now
-						break;
-
-					case "66":
-						Contract.Assert((instruction.OpcodeValue & Opcode.SimdPrefix_Mask) == Opcode.SimdPrefix_None);
-						instruction.OpcodeValue = instruction.OpcodeValue.WithSimdPrefix(SimdPrefix._66);
-						++tokenIndex;
-						break;
-
-					case "f2i":
-						Contract.Assert((instruction.OpcodeValue & Opcode.SimdPrefix_Mask) == Opcode.SimdPrefix_None);
-						instruction.OpcodeValue = instruction.OpcodeValue.WithSimdPrefix(SimdPrefix._F2);
-						++tokenIndex;
-						break;
-
-					case "f3i":
-						Contract.Assert((instruction.OpcodeValue & Opcode.SimdPrefix_Mask) == Opcode.SimdPrefix_None);
-						instruction.OpcodeValue = instruction.OpcodeValue.WithSimdPrefix(SimdPrefix._F3);
-						++tokenIndex;
-						break;
-
-					case "norexw":
-						Contract.Assert(!instruction.OpcodeMask.HasFlag(Opcode.RexW));
-						instruction.OpcodeMask |= Opcode.RexW;
-						++tokenIndex;
-						break;
-
-					default:
-						instruction.OpcodeMask |= Opcode.SimdPrefix_Mask;
-						return;
-				}
-			}
-		}
-
-		private static void ParseEncoding_OpcodeMap(InstructionDefinition instruction, IReadOnlyList<string> tokens, ref int tokenIndex)
-		{
-			if (tokens[tokenIndex] == "0f")
-			{
-				instruction.OpcodeValue = instruction.OpcodeValue.WithMap(OpcodeMap._0F);
-				++tokenIndex;
-				
-				switch (tokens[tokenIndex])
-				{
-					case "0f":
-						// 0f 0f is not actually a prefix (the second 0f is the opcode byte), but we treat it as such
-						instruction.OpcodeValue = instruction.OpcodeValue.WithMap(OpcodeMap._3DNow);
-						++tokenIndex;
-						break;
-
-					case "38":
-						instruction.OpcodeValue = instruction.OpcodeValue.WithMap(OpcodeMap._0F38);
-						++tokenIndex;
-						break;
-
-					case "3A":
-						instruction.OpcodeValue = instruction.OpcodeValue.WithMap(OpcodeMap._0F3A);
-						++tokenIndex;
-						break;
-				}
-			}
-
-			instruction.OpcodeMask |= Opcode.Map_Mask;
-		}
-
-		private static void ParseEncoding_MainByte(InstructionDefinition instruction, IReadOnlyList<string> tokens, ref int tokenIndex)
-		{
-			Contract.Assert((instruction.OpcodeMask & Opcode.MainByte_Mask) == 0);
-
-			var token = tokens[tokenIndex];
-			
-			bool isLow3BitRegister = false;
-			if (token.Length == 4 && token.EndsWith("+r"))
-			{
-				isLow3BitRegister = true;
-				token = token.Substring(0, 2);
-			}
-
-			byte mainByte = byte.Parse(token, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-			Contract.Assert(!isLow3BitRegister || (mainByte & 7) == 0);
-
-			instruction.OpcodeValue = instruction.OpcodeValue.WithMainByte(mainByte);
-			instruction.OpcodeMask |= isLow3BitRegister ? Opcode.MainByte_High5Mask : Opcode.MainByte_Mask;
-			++tokenIndex;
-		}
-
-		private static void ParseEncoding_ModRM(InstructionDefinition instruction, IReadOnlyList<string> tokens, ref int tokenIndex)
-		{
-			if (tokenIndex >= tokens.Count) return;
-
-			var token = tokens[tokenIndex];
-			if (token.Length == 2)
-			{
-				if (token[0] == '/')
-				{
-					if (token[1] == 'r')
-					{
-						// We allow ModRM without mandating a specific value
-						instruction.OpcodeValue |= Opcode.ModRM_Mask;
-						++tokenIndex;
-					}
-					else if (token[1] >= '0' && token[1] <= '7')
-					{
-						// We only mandate a specific value for the reg field
-						byte reg = (byte)(token[1] - '0');
-						instruction.OpcodeValue |= (Opcode)((uint)reg << (int)Opcode.ModRM_RegShift);
-						instruction.OpcodeMask |= Opcode.ModRM_RegMask;
-						++tokenIndex;
-					}
-				}
-				else
-				{
-					byte @byte;
-					if (byte.TryParse(token, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out @byte))
-					{
-						// We mandate a specific value for the entire ModRM field
-						instruction.OpcodeValue |= (Opcode)((uint)@byte << (int)Opcode.ModRM_Mask);
-						instruction.OpcodeMask |= Opcode.ModRM_Mask;
-					}
-				}
-			}
-		}
-
-		private static void ParseEncoding_Immediates(InstructionDefinition instruction, IReadOnlyList<string> tokens, ref int tokenIndex)
+		private static void ParseEncodingTokens(NasmInsnsEntry.Builder entryBuilder, IReadOnlyList<string> tokens, ref int tokenIndex)
 		{
 			while (tokenIndex < tokens.Count)
 			{
-				var token = tokens[tokenIndex];
-				switch (token)
+				var token = tokens[tokenIndex++];
+
+				var encodingFlag = NasmEncodingFlagsEnum.TryFromNasmName(token);
+				if (encodingFlag != NasmEncodingFlag.None)
 				{
-					case "iwd":	// "iwd seg", meaning ptr16:32, word + dword
-					{
-						Contract.Assert(tokenIndex + 1 < tokens.Count && tokens[tokenIndex + 1] == "seg");
-						instruction.ImmediateSize += 6;	// 
-						tokenIndex += 2;
-						continue; 
-					}
-
-					case "rel": instruction.ImmediateSize += 4; break;
-					case "rel8": instruction.ImmediateSize += 1; break;
-
-					default:
-					{
-						if (Regex.IsMatch(token, @"\Aib(,[su])?\Z"))
-						{
-							instruction.ImmediateSize += 1; break;
-						}
-						else if (Regex.IsMatch(token, @"\Aiw?d?q?(?<!i)\Z"))
-						{
-
-						}
-
-						var match = Regex.Match(tokens[tokenIndex], @"\Ai(b(,[su])(,[su])?\Z");
-						if (!match.Success) return;
-						
-						switch (token[1])
-						{
-							case 'b': instruction.ImmediateSize += 1; break;
-							case 'w': instruction.ImmediateSize += 2; break;
-							case 'd': instruction.ImmediateSize += 4; break;
-							case 'q': instruction.ImmediateSize += 8; break;
-							default: throw new UnreachableException("Unexpected insns immediate type char.");
-						}
-						break;
-					}
+					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(encodingFlag));
+					continue;
 				}
 
-				++tokenIndex;
+				if (token == "/r")
+				{
+					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(NasmEncodingTokenType.ModRM, 0xFF));
+					continue;
+				}
+
+				byte @byte;
+				if ((token.Length == 2 || (token.Length == 4 && token.EndsWith("+r")))
+					&& byte.TryParse(token.Substring(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out @byte))
+				{
+					var type = token.Length == 2 ? NasmEncodingTokenType.Byte : NasmEncodingTokenType.BytePlusRegister;
+					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(type, @byte));
+				}
+
+				throw new FormatException("Unexpected NASM encoding token '{0}'".FormatInvariant(token));
 			}
 		}
 
 		#region ParseVex
-		private static void ParseVex(ref NasmInstructionTemplate instruction, string str)
+		private static void ParseVex(NasmInsnsEntry.Builder entryBuilder, string str)
 		{
 			var tokens = str.ToLowerInvariant().Split('.');
 			int tokenIndex = 0;
@@ -354,7 +173,8 @@ namespace Asmuth.X86.Raw.Nasm
 				ParseVex_RexW(ref encoding, tokens, ref tokenIndex);
 			}
 
-			instruction.vexOpcodeEncoding = encoding;
+			entryBuilder.EncodingTokens.Add(new NasmEncodingToken(NasmEncodingTokenType.Vex));
+			entryBuilder.VexEncoding = encoding;
 		}
 
 		private static void ParseVex_Vvvv(ref VexOpcodeEncoding encoding, string[] tokens, ref int tokenIndex)
@@ -463,7 +283,7 @@ namespace Asmuth.X86.Raw.Nasm
 		}
 		#endregion
 
-		private static void ParseOperands(ref NasmInstructionTemplate instruction, string fieldsString, string valuesString)
+		private static void ParseOperands(NasmInsnsEntry.Builder entryBuilder, string fieldsString, string valuesString)
 		{
 			if (fieldsString == null)
 			{
@@ -474,25 +294,25 @@ namespace Asmuth.X86.Raw.Nasm
 			var values = valuesString.Split(',');
 			Contract.Assert(values.Length == fieldsString.Length);
 
-			instruction.Operands = new NasmOperand[values.Length];
-
 			for (int i = 0; i < values.Length; ++i)
 			{
-				instruction.Operands[i].Field = TryParseOperandField(fieldsString[i]).Value;
+				var field = TryParseOperandField(fieldsString[i]).Value;
+
 				var valueComponents = values[i].Split('|');
-				// TODO: Parse NASM operand value components
+				var typeString = valueComponents[0];
+				var type = (NasmOperandType)Enum.Parse(typeof(NasmOperandType), valueComponents[0]);
+				entryBuilder.Operands.Add(new NasmOperand(field, type));
+				// TODO: Parse NASM operand flags (after the '|')
 			}
 		}
 
-		private static void ParseFlags(ref NasmInstructionTemplate instruction, string str)
+		private static void ParseFlags(NasmInsnsEntry.Builder entryBuilder, string str)
 		{
-			foreach (var flag in str.Split(','))
+			foreach (var flagStr in str.Split(','))
 			{
-				var enumerantName = char.IsDigit(flag[0]) ? '_' + flag : flag;
-				var enumerant = Enum.Parse(typeof(NasmInstructionFlag), flag, ignoreCase: true);
-
-				if ((byte)enumerant < 64) instruction.LowFlags |= 1UL << (int)enumerant;
-				else instruction.HighFlags |= 1UL << ((int)enumerant - 64);
+				var enumerantName = char.IsDigit(flagStr[0]) ? '_' + flagStr : flagStr;
+				var flag = (NasmInstructionFlag)Enum.Parse(typeof(NasmInstructionFlag), flagStr, ignoreCase: true);
+				entryBuilder.Flags.Add(flag);
 			}
 		}
     }

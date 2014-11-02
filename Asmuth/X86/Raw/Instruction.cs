@@ -26,9 +26,9 @@ namespace Asmuth.X86.Raw
 		private readonly int displacement;
 		private readonly Xex xex;
 		private readonly byte mainByte;
-		private readonly Flags flags;
 		private readonly byte modRM;
 		private readonly byte sib;
+		private readonly Flags flags;
 		#endregion
 	}
 }
