@@ -17,7 +17,7 @@ namespace Asmuth.X86.Raw.Nasm
 	public static class NasmInsns
 	{
 		private static readonly Regex ignoredLineRegex = new Regex(@"
-			\A \s*
+			\A [ \t]*
 			(
 				;.* # comments
 				| ( # NASM pseudo-instructions
@@ -25,16 +25,17 @@ namespace Asmuth.X86.Raw.Nasm
 					| INCBIN
 					| EQU
 					| TIMES
-				) \t .*
+					| HINT_NOP\d+
+				) [ \t] .*
 			)?
 			\Z", RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace);
 		private static readonly Regex instructionTemplateLineRegex = new Regex(@"
-			\A \s*
-			(?<mnemonic>[^\t]+) \t+
-			(?<operand_values>\S+) \t+
-			\[ ((?<operand_fields>[a-z-+]+):((?<evex_tuple_type>[a-z0-9]+):)?)? \s+ (?<encoding>[^\]\r\n\t]+?) \s* \] \t+
+			\A [ \t]*
+			(?<mnemonic>[^\t]+) [ \t]+
+			(?<operand_values>\S+) [ \t]+
+			\[ ((?<operand_fields>[a-z-+]+):((?<evex_tuple_type>[a-z0-9]+):)?)? [ \t]+ (?<encoding>[^\]\r\n\t]+?) \s* \] [ \t]+
 			(?<flags>\S+)
-			\s* \Z
+			[ \t]* \Z
 			", RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
 		public static IEnumerable<NasmInsnsEntry> Read(TextReader textReader)
@@ -100,45 +101,15 @@ namespace Asmuth.X86.Raw.Nasm
 			var tokens = str.Split(' ');
 			int tokenIndex = 0;
 
-			if (Regex.IsMatch(tokens[0], @"\A(vex|xop|evex)\."))
-			{
-				ParseVex(entryBuilder, tokens[0]);
-				++tokenIndex;
-			}
-
-			ParseEncodingTokens(entryBuilder, tokens, ref tokenIndex);
-
-			Contract.Assert(tokenIndex == tokens.Length);
-		}
-
-		private static void ParseEncodingTokens(NasmInsnsEntry.Builder entryBuilder, IReadOnlyList<string> tokens, ref int tokenIndex)
-		{
-			while (tokenIndex < tokens.Count)
+			bool hasVex = false;
+			while (tokenIndex < tokens.Length)
 			{
 				var token = tokens[tokenIndex++];
 
-				var encodingFlag = NasmEncodingFlagsEnum.TryFromNasmName(token);
-				if (encodingFlag != NasmEncodingFlags.None)
+				var tokenType = NasmEncodingToken.TryParseType(token);
+				if (tokenType != NasmEncodingTokenType.None)
 				{
-					// Make sure we're not redefining an existing flag
-					if ((encodingFlag & NasmEncodingFlags.AddressSize_Mask) == encodingFlag)
-					{
-						Contract.Assert((entryBuilder.EncodingFlags & NasmEncodingFlags.AddressSize_Mask) == NasmEncodingFlags.AddressSize_Unspecified);
-					}
-					else if ((encodingFlag & NasmEncodingFlags.OperandSize_Mask) == encodingFlag)
-					{
-						Contract.Assert((entryBuilder.EncodingFlags & NasmEncodingFlags.OperandSize_Mask) == NasmEncodingFlags.OperandSize_Unspecified);
-					}
-					else if ((encodingFlag & NasmEncodingFlags.LegacyPrefix_Mask) == encodingFlag)
-					{
-						Contract.Assert((entryBuilder.EncodingFlags & NasmEncodingFlags.LegacyPrefix_Mask) == NasmEncodingFlags.LegacyPrefix_Unspecified);
-					}
-					else
-					{
-						Contract.Assert((entryBuilder.EncodingFlags & encodingFlag) == 0);
-					}
-
-					entryBuilder.EncodingFlags |= encodingFlag;
+					entryBuilder.EncodingTokens.Add(tokenType);
 					continue;
 				}
 
@@ -147,28 +118,17 @@ namespace Asmuth.X86.Raw.Nasm
 					&& byte.TryParse(token.Substring(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out @byte))
 				{
 					var type = NasmEncodingTokenType.Byte;
-					if (token[token.Length - 1] == 'r') type = NasmEncodingTokenType.BytePlusRegister;
-					else if (token[token.Length - 1] == 'c') type = NasmEncodingTokenType.BytePlusCondition;
+					if (token[token.Length - 1] == 'r') type = NasmEncodingTokenType.Byte_PlusRegister;
+					else if (token[token.Length - 1] == 'c') type = NasmEncodingTokenType.Byte_PlusCondition;
 					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(type, @byte));
 					continue;
 				}
 
-				if (token == "/r")
+				if (Regex.IsMatch(token, @"\A(vex|xop|evex)\."))
 				{
-					entryBuilder.EncodingTokens.Add(NasmEncodingToken.ModRM);
-					continue;
-				}
-
-				if (token.Length == 2 && token[0] == '/' && token[1] >= '0' && token[1] <= '7')
-				{
-					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(NasmEncodingTokenType.ModRM, (byte)(token[1] - '0')));
-					continue;
-				}
-
-				var immediateType = NasmImmediateTypeEnum.TryFromNasmName(token);
-				if (immediateType.HasValue)
-				{
-					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(immediateType.Value));
+					Contract.Assert(!hasVex);
+					ParseVex(entryBuilder, token);
+					hasVex = true;
 					continue;
 				}
 
@@ -185,18 +145,9 @@ namespace Asmuth.X86.Raw.Nasm
 			VexOpcodeEncoding encoding = 0;
 			switch (tokens[tokenIndex++])
 			{
-				case "vex":
-					encoding |= VexOpcodeEncoding.Type_Vex;
-					entryBuilder.EncodingFlags |= NasmEncodingFlags.XexForm_Vex;
-					break;
-				case "xop":
-					encoding |= VexOpcodeEncoding.Type_Xop;
-					entryBuilder.EncodingFlags |= NasmEncodingFlags.XexForm_Xop;
-					break;
-				case "evex":
-					encoding |= VexOpcodeEncoding.Type_EVex;
-					entryBuilder.EncodingFlags |= NasmEncodingFlags.XexForm_EVex;
-					break;
+				case "vex": encoding |= VexOpcodeEncoding.Type_Vex; break;
+				case "xop": encoding |= VexOpcodeEncoding.Type_Xop; break;
+				case "evex": encoding |= VexOpcodeEncoding.Type_EVex; break;
 				default: throw new FormatException();
 			}
 
@@ -205,7 +156,7 @@ namespace Asmuth.X86.Raw.Nasm
 				// AMD-Style
 				// xop.m8.w0.nds.l0.p0
 				// vex.m3.w0.nds.l0.p1
-				ParseVex_Map_AmdStyle(ref encoding, tokens, ref tokenIndex);
+				ParseVex_Map(ref encoding, tokens, ref tokenIndex);
 				ParseVex_RexW(ref encoding, tokens, ref tokenIndex);
 				ParseVex_Vvvv(ref encoding, tokens, ref tokenIndex);
 				ParseVex_VectorLength(ref encoding, tokens, ref tokenIndex);
@@ -219,10 +170,11 @@ namespace Asmuth.X86.Raw.Nasm
 				ParseVex_Vvvv(ref encoding, tokens, ref tokenIndex);
 				ParseVex_VectorLength(ref encoding, tokens, ref tokenIndex);
 				ParseVex_SimdPrefix_IntelStyle(ref encoding, tokens, ref tokenIndex);
-				ParseVex_Map_IntelStyle(ref encoding, tokens, ref tokenIndex);
+				ParseVex_Map(ref encoding, tokens, ref tokenIndex);
 				ParseVex_RexW(ref encoding, tokens, ref tokenIndex);
 			}
 
+			entryBuilder.EncodingTokens.Add(NasmEncodingTokenType.Vex);
 			entryBuilder.VexEncoding = encoding;
 		}
 
@@ -243,7 +195,7 @@ namespace Asmuth.X86.Raw.Nasm
 		{
 			switch (tokens[tokenIndex])
 			{
-				case "l0": case "128": encoding |= VexOpcodeEncoding.VectorLength_0; break;
+				case "lz": case "l0": case "128": encoding |= VexOpcodeEncoding.VectorLength_0; break;
 				case "l1": case "256": encoding |= VexOpcodeEncoding.VectorLength_1; break;
 				case "512": encoding |= VexOpcodeEncoding.VectorLength_2; break;
 				case "lig": encoding |= VexOpcodeEncoding.VectorLength_Ignored; break;
@@ -278,43 +230,17 @@ namespace Asmuth.X86.Raw.Nasm
 			++tokenIndex;
 		}
 
-		private static void ParseVex_Map_IntelStyle(ref VexOpcodeEncoding encoding, string[] tokens, ref int tokenIndex)
+		private static void ParseVex_Map(ref VexOpcodeEncoding encoding, string[] tokens, ref int tokenIndex)
 		{
 			switch (tokens[tokenIndex++]) // Mandatory
 			{
 				case "0f": encoding |= VexOpcodeEncoding.Map_0F; break;
 				case "0f38": encoding |= VexOpcodeEncoding.Map_0F38; break;
-				case "0f3a": encoding |= VexOpcodeEncoding.Map_0F3A; break;
+				case "m3": case "0f3a": encoding |= VexOpcodeEncoding.Map_0F3A; break;
+				case "m8": encoding |= VexOpcodeEncoding.Map_Xop8; break;
+				case "m9": encoding |= VexOpcodeEncoding.Map_Xop9; break;
+				case "m10": encoding |= VexOpcodeEncoding.Map_Xop10; break;
 				default: throw new FormatException();
-			}
-		}
-
-		private static void ParseVex_Map_AmdStyle(ref VexOpcodeEncoding encoding, string[] tokens, ref int tokenIndex)
-		{
-			var token = tokens[tokenIndex++];  // Mandatory
-
-			switch (encoding & VexOpcodeEncoding.Type_Mask)
-			{
-				case VexOpcodeEncoding.Type_Xop:
-					switch (token)
-					{
-						case "m8": encoding |= VexOpcodeEncoding.Map_Xop8; break;
-						case "m9": encoding |= VexOpcodeEncoding.Map_Xop9; break;
-						case "m10": encoding |= VexOpcodeEncoding.Map_Xop10; break;
-						default: throw new FormatException();
-					}
-					break;
-
-				case VexOpcodeEncoding.Type_Vex:
-					switch (token)
-					{
-						case "m3": encoding |= VexOpcodeEncoding.Map_0F3A; break;
-						default: throw new FormatException();
-					}
-					break;
-
-				default:
-					throw new UnreachableException();
 			}
 		}
 
@@ -340,6 +266,7 @@ namespace Asmuth.X86.Raw.Nasm
 				return;
 			}
 
+			valuesString = valuesString.Replace("*", string.Empty); // '*' is for "relaxed", but it's not clear what this encodes
 			var values = Regex.Split(valuesString, "[,:]");
 			
 			if (fieldsString == "r+mi")
@@ -360,6 +287,7 @@ namespace Asmuth.X86.Raw.Nasm
 				var type = (NasmOperandType)Enum.Parse(typeof(NasmOperandType), valueComponents[0], ignoreCase: true);
 				entryBuilder.Operands.Add(new NasmOperand(field, type));
 				// TODO: Parse NASM operand flags (after the '|')
+				// TODO: Support star'ed types like "xmmreg*"
 			}
 		}
 

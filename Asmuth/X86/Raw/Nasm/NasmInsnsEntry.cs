@@ -20,7 +20,6 @@ namespace Asmuth.X86.Raw.Nasm
 		private IList<NasmOperand> operands;
 		private IList<NasmEncodingToken> encodingTokens;
 		private ICollection<NasmInstructionFlag> flags;
-		private NasmEncodingFlags encodingFlags;
 		private VexOpcodeEncoding vexEncoding;
 		private NasmOperandFlags operandFlags;
 		private NasmEVexTupleType evexTupleType; 
@@ -33,7 +32,6 @@ namespace Asmuth.X86.Raw.Nasm
 		public string Mnemonic => mnemonic;
 		public IReadOnlyList<NasmOperand> Operands => (IReadOnlyList<NasmOperand>)operands;
 		public IReadOnlyList<NasmEncodingToken> EncodingTokens => (IReadOnlyList<NasmEncodingToken>)encodingTokens;
-		public NasmEncodingFlags EncodingFlags => encodingFlags;
 		public VexOpcodeEncoding VexEncoding => vexEncoding;
 		public NasmOperandFlags OperandFlags => operandFlags;
 		public NasmEVexTupleType EVexTupleType => evexTupleType;
@@ -59,12 +57,6 @@ namespace Asmuth.X86.Raw.Nasm
 			public IList<NasmOperand> Operands => entry.operands;
 			public IList<NasmEncodingToken> EncodingTokens => entry.encodingTokens;
 			public ICollection<NasmInstructionFlag> Flags => entry.flags;
-
-			public NasmEncodingFlags EncodingFlags
-			{
-				get { return entry.encodingFlags; }
-				set { entry.encodingFlags = value; }
-			}
 
 			public VexOpcodeEncoding VexEncoding
 			{

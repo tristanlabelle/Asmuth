@@ -89,13 +89,15 @@ namespace Asmuth.X86.Raw.Nasm
 		Mem_Offs,
 
 		Xmm0,
-		XmmReg, // There's also xmmreg*...?
+		XmmReg,
 		XmmRM,
+		XmmRM16,
 		XmmRM32,
 		XmmRM64,
 		XmmRM128,
 
-		YmmReg,	// There's also ymmreg*...?
+		YmmReg,
+		YmmRM,
 		YmmRM256,
 
 		ZmmReg,
@@ -108,6 +110,11 @@ namespace Asmuth.X86.Raw.Nasm
 		KReg,
 		KRM16,
 
-		BndReg
+		BndReg,
+
+		// ???
+		XMem32,
+		XMem64,
+		YMem32 
 	}
 }

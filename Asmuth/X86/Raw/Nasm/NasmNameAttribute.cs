@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86.Raw.Nasm
 {
-	[AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
+	[AttributeUsage(AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
 	internal sealed class NasmNameAttribute : Attribute
 	{
 		private readonly string name;

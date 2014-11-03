@@ -14,7 +14,6 @@
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <TargetFrameworkProfile>Profile111</TargetFrameworkProfile>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    
     <!-- Workaround for VS14ProCTP4 failing to build -->
     <_WindowsKitBinPath>C:\Program Files (x86)\Windows Kits\8.1\bin\x86</_WindowsKitBinPath>
     <_WindowsPhoneKitBinPath>C:\Program Files (x86)\Windows Phone Kits\8.1\bin</_WindowsPhoneKitBinPath>
@@ -73,7 +72,6 @@
     <Compile Include="X86\Raw\InstructionFields.cs" />
     <Compile Include="X86\Raw\IInstructionDecoderLookup.cs" />
     <Compile Include="X86\Raw\Nasm\NasmEncodingToken.cs" />
-    <Compile Include="X86\Raw\Nasm\NasmImmediateType.cs" />
     <Compile Include="X86\Raw\Nasm\NasmNameAttribute.cs" />
     <Compile Include="X86\Raw\Nasm\NasmOperandFlags.cs" />
     <Compile Include="X86\Raw\OperandEncoding.cs" />
@@ -87,7 +85,6 @@
     <Compile Include="X86\Raw\Nasm\NasmInsns.cs" />
     <Compile Include="X86\Raw\Nasm\NasmInsnsEntry.cs" />
     <Compile Include="X86\Raw\Nasm\NasmOperand.cs" />
-    <Compile Include="X86\Raw\Nasm\NasmEncodingFlags.cs" />
     <Compile Include="X86\Raw\Opcode.cs" />
     <Compile Include="X86\Raw\InstructionEncoding.cs" />
     <Compile Include="X86\Raw\OpcodeMap.cs" />
