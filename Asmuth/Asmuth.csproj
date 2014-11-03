@@ -14,6 +14,15 @@
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <TargetFrameworkProfile>Profile111</TargetFrameworkProfile>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    
+    <!-- Workaround for VS14ProCTP4 failing to build -->
+    <_WindowsKitBinPath>C:\Program Files (x86)\Windows Kits\8.1\bin\x86</_WindowsKitBinPath>
+    <_WindowsPhoneKitBinPath>C:\Program Files (x86)\Windows Phone Kits\8.1\bin</_WindowsPhoneKitBinPath>
+    <MakePriExeFullPath>$(_WindowsKitBinPath)\makepri.exe</MakePriExeFullPath>
+    <MakeAppxExeFullPath>$(_WindowsKitBinPath)\makeappx.exe</MakeAppxExeFullPath>
+    <SignAppxPackageExeFullPath>$(_WindowsKitBinPath)\signtool.exe</SignAppxPackageExeFullPath>
+    <MakePriExtensionPath>$(_WindowsPhoneKitBinPath)\x86\MrmEnvironmentExtDl.dll</MakePriExtensionPath>
+    <MakePriExtensionPath_x64>$(_WindowsPhoneKitBinPath)\x64\MrmEnvironmentExtDl.dll</MakePriExtensionPath_x64>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -78,7 +87,7 @@
     <Compile Include="X86\Raw\Nasm\NasmInsns.cs" />
     <Compile Include="X86\Raw\Nasm\NasmInsnsEntry.cs" />
     <Compile Include="X86\Raw\Nasm\NasmOperand.cs" />
-    <Compile Include="X86\Raw\Nasm\NasmEncodingFlag.cs" />
+    <Compile Include="X86\Raw\Nasm\NasmEncodingFlags.cs" />
     <Compile Include="X86\Raw\Opcode.cs" />
     <Compile Include="X86\Raw\InstructionEncoding.cs" />
     <Compile Include="X86\Raw\OpcodeMap.cs" />

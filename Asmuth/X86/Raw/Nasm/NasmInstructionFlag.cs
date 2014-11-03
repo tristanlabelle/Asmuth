@@ -24,8 +24,8 @@ namespace Asmuth.X86.Raw.Nasm
 		AR2 = 13, // SB, SW, SD applies to argument 2
 		AR3 = 14, // SB, SW, SD applies to argument 3
 		AR4 = 15, // SB, SW, SD applies to argument 4
-		OPT = 16, // Optimizing assembly only
 
+		OPT = 16, // Optimizing assembly only
 		PRIV = 32, // Privileged instruction
 		SMM = 33, // Only valid in SMM
 		PROT = 34, // Protected mode only
@@ -37,6 +37,7 @@ namespace Asmuth.X86.Raw.Nasm
 		BND = 40, // BND (0xF2) prefix available
 		UNDOC = 41, // Undocumented
 		HLE = 42, // HLE prefixed
+
 		FPU = 43, // FPU
 		MMX = 44, // MMX
 		_3DNOW = 45, // 3DNow!
@@ -64,8 +65,10 @@ namespace Asmuth.X86.Raw.Nasm
 		MPX = 68, // MPX
 		SHA = 69, // SHA
 		PREFETCHWT1 = 70, // PREFETCHWT1
+
 		VEX = 94, // VEX or XOP encoded instruction
 		EVEX = 95, // EVEX encoded instruction
+
 		_8086 = 96, // 8086
 		_186 = 97, // 186+
 		_286 = 98, // 286+
@@ -77,6 +80,7 @@ namespace Asmuth.X86.Raw.Nasm
 		WILLAMETTE = 104, // Willamette
 		PRESCOTT = 105, // Prescott
 		X86_64 = 106, // x86-64 (long or legacy mode)
+		X64 = X86_64,
 		NEHALEM = 107, // Nehalem
 		WESTMERE = 108, // Westmere
 		SANDYBRIDGE = 109, // Sandy Bridge

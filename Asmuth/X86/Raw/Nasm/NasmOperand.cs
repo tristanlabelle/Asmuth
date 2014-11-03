@@ -34,6 +34,7 @@ namespace Asmuth.X86.Raw.Nasm
 		SByteDword,
 		SByteWord16,
 		SByteDword32,
+		SByteDword64,
 		UDword,
 		SDword,
 
@@ -87,6 +88,7 @@ namespace Asmuth.X86.Raw.Nasm
 		Mem512,
 		Mem_Offs,
 
+		Xmm0,
 		XmmReg, // There's also xmmreg*...?
 		XmmRM,
 		XmmRM32,

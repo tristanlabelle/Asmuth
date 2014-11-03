@@ -19,15 +19,20 @@ namespace Asmuth.X86.Raw.Nasm
 		private static readonly Regex ignoredLineRegex = new Regex(@"
 			\A \s*
 			(
-				;.*
-				| [A-Z]+ (\t+ ignore){3}
+				;.* # comments
+				| ( # NASM pseudo-instructions
+					(D|RES)[BWDQTOYZ]
+					| INCBIN
+					| EQU
+					| TIMES
+				) \t .*
 			)?
 			\Z", RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace);
 		private static readonly Regex instructionTemplateLineRegex = new Regex(@"
 			\A \s*
 			(?<mnemonic>[^\t]+) \t+
 			(?<operand_values>\S+) \t+
-			\[ (?<operand_fields>[-a-z]+:(?<evex_tuple_type>:)?)? \s+ (?<encoding>[^\]\r\n\t]+?) \s* \] \t+
+			\[ ((?<operand_fields>[a-z-+]+):((?<evex_tuple_type>[a-z0-9]+):)?)? \s+ (?<encoding>[^\]\r\n\t]+?) \s* \] \t+
 			(?<flags>\S+)
 			\s* \Z
 			", RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -101,6 +106,8 @@ namespace Asmuth.X86.Raw.Nasm
 				++tokenIndex;
 			}
 
+			ParseEncodingTokens(entryBuilder, tokens, ref tokenIndex);
+
 			Contract.Assert(tokenIndex == tokens.Length);
 		}
 
@@ -111,24 +118,58 @@ namespace Asmuth.X86.Raw.Nasm
 				var token = tokens[tokenIndex++];
 
 				var encodingFlag = NasmEncodingFlagsEnum.TryFromNasmName(token);
-				if (encodingFlag != NasmEncodingFlag.None)
+				if (encodingFlag != NasmEncodingFlags.None)
 				{
-					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(encodingFlag));
+					// Make sure we're not redefining an existing flag
+					if ((encodingFlag & NasmEncodingFlags.AddressSize_Mask) == encodingFlag)
+					{
+						Contract.Assert((entryBuilder.EncodingFlags & NasmEncodingFlags.AddressSize_Mask) == NasmEncodingFlags.AddressSize_Unspecified);
+					}
+					else if ((encodingFlag & NasmEncodingFlags.OperandSize_Mask) == encodingFlag)
+					{
+						Contract.Assert((entryBuilder.EncodingFlags & NasmEncodingFlags.OperandSize_Mask) == NasmEncodingFlags.OperandSize_Unspecified);
+					}
+					else if ((encodingFlag & NasmEncodingFlags.LegacyPrefix_Mask) == encodingFlag)
+					{
+						Contract.Assert((entryBuilder.EncodingFlags & NasmEncodingFlags.LegacyPrefix_Mask) == NasmEncodingFlags.LegacyPrefix_Unspecified);
+					}
+					else
+					{
+						Contract.Assert((entryBuilder.EncodingFlags & encodingFlag) == 0);
+					}
+
+					entryBuilder.EncodingFlags |= encodingFlag;
+					continue;
+				}
+
+				byte @byte;
+				if (Regex.IsMatch(token, @"[0-9a-f]{2}(\+[rc])?")
+					&& byte.TryParse(token.Substring(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out @byte))
+				{
+					var type = NasmEncodingTokenType.Byte;
+					if (token[token.Length - 1] == 'r') type = NasmEncodingTokenType.BytePlusRegister;
+					else if (token[token.Length - 1] == 'c') type = NasmEncodingTokenType.BytePlusCondition;
+					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(type, @byte));
 					continue;
 				}
 
 				if (token == "/r")
 				{
-					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(NasmEncodingTokenType.ModRM, 0xFF));
+					entryBuilder.EncodingTokens.Add(NasmEncodingToken.ModRM);
 					continue;
 				}
 
-				byte @byte;
-				if ((token.Length == 2 || (token.Length == 4 && token.EndsWith("+r")))
-					&& byte.TryParse(token.Substring(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out @byte))
+				if (token.Length == 2 && token[0] == '/' && token[1] >= '0' && token[1] <= '7')
 				{
-					var type = token.Length == 2 ? NasmEncodingTokenType.Byte : NasmEncodingTokenType.BytePlusRegister;
-					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(type, @byte));
+					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(NasmEncodingTokenType.ModRM, (byte)(token[1] - '0')));
+					continue;
+				}
+
+				var immediateType = NasmImmediateTypeEnum.TryFromNasmName(token);
+				if (immediateType.HasValue)
+				{
+					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(immediateType.Value));
+					continue;
 				}
 
 				throw new FormatException("Unexpected NASM encoding token '{0}'".FormatInvariant(token));
@@ -144,9 +185,18 @@ namespace Asmuth.X86.Raw.Nasm
 			VexOpcodeEncoding encoding = 0;
 			switch (tokens[tokenIndex++])
 			{
-				case "vex": encoding |= VexOpcodeEncoding.Type_Vex; break;
-				case "xop": encoding |= VexOpcodeEncoding.Type_Xop; break;
-				case "evex": encoding |= VexOpcodeEncoding.Type_EVex; break;
+				case "vex":
+					encoding |= VexOpcodeEncoding.Type_Vex;
+					entryBuilder.EncodingFlags |= NasmEncodingFlags.XexForm_Vex;
+					break;
+				case "xop":
+					encoding |= VexOpcodeEncoding.Type_Xop;
+					entryBuilder.EncodingFlags |= NasmEncodingFlags.XexForm_Xop;
+					break;
+				case "evex":
+					encoding |= VexOpcodeEncoding.Type_EVex;
+					entryBuilder.EncodingFlags |= NasmEncodingFlags.XexForm_EVex;
+					break;
 				default: throw new FormatException();
 			}
 
@@ -173,7 +223,6 @@ namespace Asmuth.X86.Raw.Nasm
 				ParseVex_RexW(ref encoding, tokens, ref tokenIndex);
 			}
 
-			entryBuilder.EncodingTokens.Add(new NasmEncodingToken(NasmEncodingTokenType.Vex));
 			entryBuilder.VexEncoding = encoding;
 		}
 
@@ -285,13 +334,21 @@ namespace Asmuth.X86.Raw.Nasm
 
 		private static void ParseOperands(NasmInsnsEntry.Builder entryBuilder, string fieldsString, string valuesString)
 		{
-			if (fieldsString == null)
+			if (fieldsString.Length == 0)
 			{
 				Contract.Assert(valuesString == "void");
 				return;
 			}
 
-			var values = valuesString.Split(',');
+			var values = Regex.Split(valuesString, "[,:]");
+			
+			if (fieldsString == "r+mi")
+			{
+				// Hack around the IMUL special case
+				fieldsString = "rmi";
+				values = new[] { values[0], values[0].Replace("reg", "rm"), values[1] };
+			}
+
 			Contract.Assert(values.Length == fieldsString.Length);
 
 			for (int i = 0; i < values.Length; ++i)
@@ -300,7 +357,7 @@ namespace Asmuth.X86.Raw.Nasm
 
 				var valueComponents = values[i].Split('|');
 				var typeString = valueComponents[0];
-				var type = (NasmOperandType)Enum.Parse(typeof(NasmOperandType), valueComponents[0]);
+				var type = (NasmOperandType)Enum.Parse(typeof(NasmOperandType), valueComponents[0], ignoreCase: true);
 				entryBuilder.Operands.Add(new NasmOperand(field, type));
 				// TODO: Parse NASM operand flags (after the '|')
 			}
@@ -310,8 +367,9 @@ namespace Asmuth.X86.Raw.Nasm
 		{
 			foreach (var flagStr in str.Split(','))
 			{
+				if (flagStr == "ND") continue; // 'ND' seems to control code generation of instruction files
 				var enumerantName = char.IsDigit(flagStr[0]) ? '_' + flagStr : flagStr;
-				var flag = (NasmInstructionFlag)Enum.Parse(typeof(NasmInstructionFlag), flagStr, ignoreCase: true);
+				var flag = (NasmInstructionFlag)Enum.Parse(typeof(NasmInstructionFlag), enumerantName, ignoreCase: true);
 				entryBuilder.Flags.Add(flag);
 			}
 		}
