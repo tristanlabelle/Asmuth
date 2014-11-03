@@ -20,6 +20,11 @@ namespace Asmuth.X86.Raw.Nasm
 
 	public enum NasmOperandType : byte
 	{
+		// Value:3 (undef, 0, 1, 2, 3, 4, 5, 6)
+		// Size:4 (undef, 8, 16, 24, 32, 48, 64, 80, 128, 256, 512)
+		// Mem:1
+		// Type:4 (imm, gpr, creg, dreg, treg, fpureg = mmxreg, xmm, k, bnd, vm32x)
+
 		Void,
 
 		Unity,

@@ -72,6 +72,7 @@
     <Compile Include="X86\Raw\InstructionFields.cs" />
     <Compile Include="X86\Raw\IInstructionDecoderLookup.cs" />
     <Compile Include="X86\Raw\Nasm\NasmEncodingToken.cs" />
+    <Compile Include="X86\Raw\Nasm\NasmInsnsEntry.ToInstructionDefinition.cs" />
     <Compile Include="X86\Raw\Nasm\NasmNameAttribute.cs" />
     <Compile Include="X86\Raw\Nasm\NasmOperandFlags.cs" />
     <Compile Include="X86\Raw\OperandEncoding.cs" />

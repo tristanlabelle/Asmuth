@@ -114,13 +114,19 @@ namespace Asmuth.X86.Raw.Nasm
 				}
 
 				byte @byte;
-				if (Regex.IsMatch(token, @"[0-9a-f]{2}(\+[rc])?")
+				if (Regex.IsMatch(token, @"\A[0-9a-f]{2}(\+[rc])?\Z")
 					&& byte.TryParse(token.Substring(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out @byte))
 				{
 					var type = NasmEncodingTokenType.Byte;
 					if (token[token.Length - 1] == 'r') type = NasmEncodingTokenType.Byte_PlusRegister;
 					else if (token[token.Length - 1] == 'c') type = NasmEncodingTokenType.Byte_PlusCondition;
 					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(type, @byte));
+					continue;
+				}
+
+				if (Regex.IsMatch(token, @"\A/[0-7]\Z"))
+				{
+					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(NasmEncodingTokenType.ModRM_FixedReg, (byte)(token[1] - '0')));
 					continue;
 				}
 

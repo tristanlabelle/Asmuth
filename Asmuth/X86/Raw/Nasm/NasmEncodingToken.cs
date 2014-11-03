@@ -11,8 +11,6 @@ namespace Asmuth.X86.Raw.Nasm
 	[StructLayout(LayoutKind.Sequential, Size = 2)]
 	public struct NasmEncodingToken
 	{
-		public static readonly NasmEncodingToken ModRM = new NasmEncodingToken(NasmEncodingTokenType.ModRM, 0xFF);
-
 		public readonly NasmEncodingTokenType Type;
 		public readonly byte Byte;
 
@@ -56,25 +54,6 @@ namespace Asmuth.X86.Raw.Nasm
 		Category_Mask = 0xF0,
 
 		Vex = Category_Vex, // value unused, vex data stored as a VexOpcodeEncoding value
-
-		[NasmName("/r")]
-		ModRM = Category_ModRM,
-		[NasmName("/0")]
-		ModRM_R0 = Category_ModRM,
-		[NasmName("/1")]
-		ModRM_R1,
-		[NasmName("/2")]
-		ModRM_R2,
-		[NasmName("/3")]
-		ModRM_R3,
-		[NasmName("/4")]
-		ModRM_R4,
-		[NasmName("/5")]
-		ModRM_R5,
-		[NasmName("/6")]
-		ModRM_R6,
-		[NasmName("/7")]
-		ModRM_R7,
 
 		[NasmName("a16")]
 		AddressSize_Fixed16 = Category_AddressSize,
@@ -124,9 +103,13 @@ namespace Asmuth.X86.Raw.Nasm
 		[NasmName("rex.l")]
 		Rex_LockAsRexR,
 
-		Byte = Category_Byte,  // "42", value is the byte itself
-		Byte_PlusRegister,	// "40+r", value is the base byte (0b11111000)
-		Byte_PlusCondition,	  // "40+c", value is the base byte (0b11110000)
+		Byte = Category_Byte, // "42", value is the byte itself
+		Byte_PlusRegister, // "40+r", value is the base byte (0b11111000)
+		Byte_PlusCondition, // "40+c", value is the base byte (0b11110000)
+
+		[NasmName("/r")]
+		ModRM = Category_ModRM,
+		ModRM_FixedReg,	// "/4", value is the digit that follows the slash (value of the reg field)
 
 		[NasmName("jmp8")]
 		Jump_8 = Category_Jump,
@@ -136,7 +119,7 @@ namespace Asmuth.X86.Raw.Nasm
 		Jump_Length,
 
 		[NasmName("ib")]
-		Immediate_Byte = Category_Byte,
+		Immediate_Byte = Category_Immediate,
 		[NasmName("ib,s")]
 		Immediate_Byte_Signed,
 		[NasmName("ib,u")]

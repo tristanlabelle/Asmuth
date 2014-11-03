@@ -107,6 +107,7 @@ namespace Asmuth.X86.Raw
 
 	public static class InstructionEncodingEnum
 	{
+		#region Field Queries
 		[Pure]
 		public static byte GetOpcodeByte(this InstructionEncoding encoding)
 			=> (byte)Bits.MaskAndShiftRight((ulong)encoding, (ulong)InstructionEncoding.OpcodeByte_Mask, (int)InstructionEncoding.OpcodeByte_Shift);
@@ -128,6 +129,29 @@ namespace Asmuth.X86.Raw
 				default:
 					return false;
 			}
+		}  
+		#endregion
+
+		[Pure]
+		public static InstructionEncoding WithOpcodeForm(this InstructionEncoding encoding, InstructionEncoding opcodeForm)
+		{
+			Contract.Requires((opcodeForm & ~InstructionEncoding.OpcodeForm_Mask) == 0);
+			return (encoding & ~InstructionEncoding.OpcodeForm_Mask) | opcodeForm;
+		}
+
+		[Pure]
+		public static InstructionEncoding WithOpcodeByte(this InstructionEncoding encoding, byte @byte)
+			=> (encoding & ~InstructionEncoding.OpcodeByte_Mask) | (InstructionEncoding)((ulong)@byte << (int)InstructionEncoding.OpcodeByte_Shift);
+
+		[Pure]
+		public static InstructionEncoding WithOpcodeExtraByte(this InstructionEncoding encoding, byte @byte)
+			=> (encoding & ~InstructionEncoding.OpcodeExtraByte_Mask) | (InstructionEncoding)((ulong)@byte << (int)InstructionEncoding.OpcodeExtraByte_Shift);
+
+		[Pure]
+		public static InstructionEncoding WithImmediateSize(this InstructionEncoding encoding, InstructionEncoding size)
+		{
+			Contract.Requires((size & ~InstructionEncoding.ImmediateSize_Mask) == 0);
+			return (encoding & ~InstructionEncoding.ImmediateSize_Mask) | size;
 		}
 
 		[Pure]

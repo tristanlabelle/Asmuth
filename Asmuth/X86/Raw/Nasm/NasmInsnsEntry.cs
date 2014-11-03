@@ -13,7 +13,7 @@ namespace Asmuth.X86.Raw.Nasm
 	/// An entry in NASM's insns.dat file.
 	/// </summary>
 	[StructLayout(LayoutKind.Auto)]
-	public sealed class NasmInsnsEntry
+	public sealed partial class NasmInsnsEntry
 	{
 		#region Fields
 		private string mnemonic;
