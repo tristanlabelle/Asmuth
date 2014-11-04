@@ -36,6 +36,7 @@ namespace Asmuth.X86.Raw.Nasm
 		public NasmOperandFlags OperandFlags => operandFlags;
 		public NasmEVexTupleType EVexTupleType => evexTupleType;
 		public IReadOnlyCollection<NasmInstructionFlag> Flags => (IReadOnlyCollection<NasmInstructionFlag>)flags;
+		public bool IsAssembleOnly => flags.Contains(NasmInstructionFlag.ND);
 		#endregion
 
 		#region Methods

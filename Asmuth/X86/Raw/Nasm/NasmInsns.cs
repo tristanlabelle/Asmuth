@@ -118,8 +118,12 @@ namespace Asmuth.X86.Raw.Nasm
 					&& byte.TryParse(token.Substring(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out @byte))
 				{
 					var type = NasmEncodingTokenType.Byte;
-					if (token[token.Length - 1] == 'r') type = NasmEncodingTokenType.Byte_PlusRegister;
-					else if (token[token.Length - 1] == 'c') type = NasmEncodingTokenType.Byte_PlusCondition;
+					if (token.Length == 4)
+					{
+						type = token[token.Length - 1] == 'r'
+							? NasmEncodingTokenType.Byte_PlusRegister
+							: NasmEncodingTokenType.Byte_PlusCondition;
+					}
 					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(type, @byte));
 					continue;
 				}
@@ -301,7 +305,6 @@ namespace Asmuth.X86.Raw.Nasm
 		{
 			foreach (var flagStr in str.Split(','))
 			{
-				if (flagStr == "ND") continue; // 'ND' seems to control code generation of instruction files
 				var enumerantName = char.IsDigit(flagStr[0]) ? '_' + flagStr : flagStr;
 				var flag = (NasmInstructionFlag)Enum.Parse(typeof(NasmInstructionFlag), enumerantName, ignoreCase: true);
 				entryBuilder.Flags.Add(flag);

@@ -20,6 +20,8 @@ namespace Asmuth.X86.Raw.Nasm
 			this.Byte = @byte;
 		}
 
+		public override string ToString() => Type.ToString();
+
 		public static NasmEncodingTokenType TryParseType(string name)
 		{
 			Contract.Requires(name != null);
@@ -32,7 +34,6 @@ namespace Asmuth.X86.Raw.Nasm
 		}
 	}
 
-	[Flags]
 	public enum NasmEncodingTokenType : byte
 	{
 		None = 0,

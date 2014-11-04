@@ -24,8 +24,8 @@ namespace Asmuth.X86.Raw.Nasm
 		AR2 = 13, // SB, SW, SD applies to argument 2
 		AR3 = 14, // SB, SW, SD applies to argument 3
 		AR4 = 15, // SB, SW, SD applies to argument 4
-
 		OPT = 16, // Optimizing assembly only
+
 		PRIV = 32, // Privileged instruction
 		SMM = 33, // Only valid in SMM
 		PROT = 34, // Protected mode only
@@ -88,5 +88,7 @@ namespace Asmuth.X86.Raw.Nasm
 		IA64 = 111, // IA64 (in x86 mode)
 		CYRIX = 126, // Cyrix-specific
 		AMD = 127, // AMD-specific
+
+		ND = 128, // No disassembly, ignored by ndisasm
 	}
 }

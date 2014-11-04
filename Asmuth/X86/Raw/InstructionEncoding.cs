@@ -76,7 +76,7 @@ namespace Asmuth.X86.Raw
 		OpcodeForm_EmbeddedRegister = 1 << (int)OpcodeForm_Shift, // Low three bits of main byte specify a register
 		OpcodeForm_EmbeddedCondition = 2 << (int)OpcodeForm_Shift, // Low four bits of main byte specify a condition code
 		OpcodeForm_OneByte_WithModRM = 3 << (int)OpcodeForm_Shift,
-        OpcodeForm_ExtendedByModReg = 4 << (int)OpcodeForm_Shift,
+		OpcodeForm_ExtendedByModReg = 4 << (int)OpcodeForm_Shift,
 		OpcodeForm_ExtendedByModRM = 5 << (int)OpcodeForm_Shift,
 		OpcodeForm_ExtendedBy3DNowImm8 = 6 << (int)OpcodeForm_Shift,
 		OpcodeForm_Mask = 7 << (int)OpcodeForm_Shift,
@@ -95,10 +95,10 @@ namespace Asmuth.X86.Raw
 		ImmediateSize_Mask = 0xF << (int)ImmediateSize_Shift,
 
 		// The opcode main byte value
-		OpcodeByte_Shift = ImmediateSize_Shift + 3,
-		OpcodeByte_NoEmbeddedRegisterMask = 0xF8 << (int)OpcodeByte_Shift,
-		OpcodeByte_NoEmbeddedConditionCodeMask = 0xF0 << (int)OpcodeByte_Shift,
-		OpcodeByte_Mask = 0xFF << (int)OpcodeByte_Shift,
+		OpcodeByte_Shift = ImmediateSize_Shift + 4,
+		OpcodeByte_NoEmbeddedRegisterMask = 0xF8UL << (int)OpcodeByte_Shift,
+		OpcodeByte_NoEmbeddedConditionCodeMask = 0xF0UL << (int)OpcodeByte_Shift,
+		OpcodeByte_Mask = 0xFFUL << (int)OpcodeByte_Shift,
 
 		// The opcode extra byte value (ModRM or 3DNow! imm8, not always used)
 		OpcodeExtraByte_Shift = OpcodeByte_Shift + 8,
@@ -129,8 +129,15 @@ namespace Asmuth.X86.Raw
 				default:
 					return false;
 			}
-		}  
+		}
 		#endregion
+
+		[Pure]
+		public static InstructionEncoding WithOpcodeMap(this InstructionEncoding encoding, InstructionEncoding opcodeMap)
+		{
+			Contract.Requires((opcodeMap & ~InstructionEncoding.OpcodeMap_Mask) == 0);
+			return (encoding & ~InstructionEncoding.OpcodeMap_Mask) | opcodeMap;
+		}
 
 		[Pure]
 		public static InstructionEncoding WithOpcodeForm(this InstructionEncoding encoding, InstructionEncoding opcodeForm)
