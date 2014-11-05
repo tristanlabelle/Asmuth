@@ -178,7 +178,30 @@ namespace Asmuth.X86.Raw.Nasm
 			private void SetImmediateSize(InstructionEncoding size)
 			{
 				Contract.Assert(state >= State.PostOpcode);
-				Contract.Assert((builder.Encoding & InstructionEncoding.ImmediateSize_Mask) == InstructionEncoding.ImmediateSize_0);
+
+				var currentSize = builder.Encoding & InstructionEncoding.ImmediateSize_Mask;
+				if (currentSize == InstructionEncoding.ImmediateSize_16 && size == InstructionEncoding.ImmediateSize_16)
+				{
+					// iw iw
+					size = InstructionEncoding.ImmediateSize_32;
+				}
+				else if ((currentSize == InstructionEncoding.ImmediateSize_16Or32 && size == InstructionEncoding.ImmediateSize_16)
+					|| (currentSize == InstructionEncoding.ImmediateSize_16 && size == InstructionEncoding.ImmediateSize_16Or32))
+				{
+					// iwd iw, iw iwd
+					size = InstructionEncoding.ImmediateSize_32Or48;
+				}
+				else if ((currentSize == InstructionEncoding.ImmediateSize_32 && size == InstructionEncoding.ImmediateSize_16)
+					|| (currentSize == InstructionEncoding.ImmediateSize_16 && size == InstructionEncoding.ImmediateSize_32))
+				{
+					// id iw, iw id
+					size = InstructionEncoding.ImmediateSize_48;
+				}
+				else
+				{
+					Contract.Assert(currentSize == InstructionEncoding.ImmediateSize_0);
+				}
+
 				builder.Encoding = builder.Encoding.WithImmediateSize(size);
 				AdvanceTo(State.Immediates);
 			}
