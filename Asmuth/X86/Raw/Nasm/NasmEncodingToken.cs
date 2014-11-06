@@ -93,7 +93,7 @@ namespace Asmuth.X86.Raw.Nasm
 		[NasmName("mustrep")]
 		LegacyPrefix_MustRep,
 		[NasmName("repe")]
-		LegacyPrefix_RepE,
+		LegacyPrefix_DisassembleRepAsRepE,
 		[NasmName("norep")]
 		LegacyPrefix_NoRep,
 

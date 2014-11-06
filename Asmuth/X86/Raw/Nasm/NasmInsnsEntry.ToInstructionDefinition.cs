@@ -67,6 +67,7 @@ namespace Asmuth.X86.Raw.Nasm
 						case NasmEncodingTokenType.LegacyPrefix_NoF3:
 						case NasmEncodingTokenType.LegacyPrefix_HleAlways:
 						case NasmEncodingTokenType.LegacyPrefix_HleWithLock:
+						case NasmEncodingTokenType.LegacyPrefix_DisassembleRepAsRepE:
 							break;
 
 						case NasmEncodingTokenType.Byte:
