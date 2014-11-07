@@ -156,7 +156,7 @@ namespace Asmuth.X86.Raw.Nasm
 		Misc_VM64y,
 
 		[NasmName("wait")]
-		Misc_Wait,
+		Misc_AssembleWaitPrefix,
 		[NasmName("nohi")]
 		Misc_NoHi,
 		[NasmName("vsiby")]

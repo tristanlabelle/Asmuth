@@ -64,10 +64,15 @@ namespace Asmuth.X86.Raw.Nasm
 							SetSimdPrefix(InstructionEncoding.SimdPrefix_F3);
 							continue;
 
+						case NasmEncodingTokenType.LegacyPrefix_None:
 						case NasmEncodingTokenType.LegacyPrefix_NoF3:
 						case NasmEncodingTokenType.LegacyPrefix_HleAlways:
 						case NasmEncodingTokenType.LegacyPrefix_HleWithLock:
 						case NasmEncodingTokenType.LegacyPrefix_DisassembleRepAsRepE:
+							break;
+
+						// Rex
+						case NasmEncodingTokenType.Rex_NoW: // TODO: handle this?
 							break;
 
 						case NasmEncodingTokenType.Byte:
@@ -99,7 +104,7 @@ namespace Asmuth.X86.Raw.Nasm
 								}
 
 								builder.Encoding = builder.Encoding
-									.WithOpcodeForm(InstructionEncoding.OpcodeForm_OneByte)
+									.WithOpcodeFormat(InstructionEncoding.OpcodeFormat_FixedByte)
 									.WithOpcodeByte(token.Byte);
 								AdvanceTo(State.PostOpcode);
 								continue;
@@ -107,27 +112,40 @@ namespace Asmuth.X86.Raw.Nasm
 							
 							if (state == State.PostOpcode)
 							{
-								SetModRM(InstructionEncoding.OpcodeForm_ExtendedByModRM, token.Byte);
+								SetModRM(InstructionEncoding.ModRM_Fixed, token.Byte);
 								continue;
 							}
 							break;
 
 						case NasmEncodingTokenType.Byte_PlusRegister:
-							Contract.Assert(state < State.PostOpcode);
 							Contract.Assert((token.Byte & 7) == 0);
-							builder.Encoding = builder.Encoding
-								.WithOpcodeForm(InstructionEncoding.OpcodeForm_EmbeddedRegister)
-								.WithOpcodeByte(token.Byte);
-							AdvanceTo(State.PostOpcode);
-							break;
+							if (state < State.PostOpcode)
+							{
+								builder.Encoding = builder.Encoding.WithOpcode(InstructionEncoding.OpcodeFormat_EmbeddedRegister, token.Byte);
+								AdvanceTo(State.PostOpcode);
+								continue;
+							}
 
-						case NasmEncodingTokenType.ModRM: SetModRM(InstructionEncoding.OpcodeForm_OneByte_WithModRM); break;
-						case NasmEncodingTokenType.ModRM_FixedReg: SetModRM(InstructionEncoding.OpcodeForm_ExtendedByModReg); break;
+							if (state < State.PostModRM)
+							{
+								builder.Encoding = builder.Encoding.WithModRM(InstructionEncoding.ModRM_FixedModReg, token.Byte);
+								AdvanceTo(State.PostModRM);
+								continue;
+							}
+
+							throw new FormatException();
+
+						case NasmEncodingTokenType.ModRM: SetModRM(InstructionEncoding.ModRM_Any); break;
+						case NasmEncodingTokenType.ModRM_FixedReg: SetModRM(InstructionEncoding.ModRM_FixedReg, token.Byte); break;
 
 						// Immediates
-						case NasmEncodingTokenType.Immediate_Byte: SetImmediateSize(InstructionEncoding.ImmediateSize_8); break;
-						case NasmEncodingTokenType.Immediate_Byte_Signed: SetImmediateSize(InstructionEncoding.ImmediateSize_8); break;
-						case NasmEncodingTokenType.Immediate_Byte_Unsigned: SetImmediateSize(InstructionEncoding.ImmediateSize_8); break;
+						case NasmEncodingTokenType.Immediate_Byte:
+						case NasmEncodingTokenType.Immediate_Byte_Signed:
+						case NasmEncodingTokenType.Immediate_Byte_Unsigned:
+						case NasmEncodingTokenType.Immediate_RelativeOffset8:
+							SetImmediateSize(InstructionEncoding.ImmediateSize_8);
+							break;
+
 						case NasmEncodingTokenType.Immediate_Word: SetImmediateSize(InstructionEncoding.ImmediateSize_16); break;
 						case NasmEncodingTokenType.Immediate_Dword: SetImmediateSize(InstructionEncoding.ImmediateSize_32); break;
 						case NasmEncodingTokenType.Immediate_Dword_Signed: SetImmediateSize(InstructionEncoding.ImmediateSize_32); break;
@@ -151,6 +169,10 @@ namespace Asmuth.X86.Raw.Nasm
 							}
 							break;
 
+						// Misc
+						case NasmEncodingTokenType.Misc_AssembleWaitPrefix: // Implicit WAIT prefix when assembling instruction
+							break;
+
 						default:
 							throw new NotImplementedException("Handling NASM encoding tokens of type '{0}'".FormatInvariant(token.Type));
 					}
@@ -166,12 +188,12 @@ namespace Asmuth.X86.Raw.Nasm
 				AdvanceTo(State.PostSimdPrefix);
 			}
 
-			private void SetModRM(InstructionEncoding opcodeForm, byte value = 0)
+			private void SetModRM(InstructionEncoding format, byte value = 0)
 			{
 				Contract.Assert(state == State.PostOpcode);
-				Contract.Assert((builder.Encoding & InstructionEncoding.OpcodeForm_Mask) == InstructionEncoding.OpcodeForm_OneByte);
+				Contract.Assert((builder.Encoding & InstructionEncoding.ModRM_Mask) == InstructionEncoding.ModRM_None);
 				builder.Encoding = builder.Encoding
-					.WithOpcodeForm(InstructionEncoding.OpcodeForm_ExtendedByModRM)
+					.WithModRM(format)
 					.WithOpcodeExtraByte(value);
 				AdvanceTo(State.PostModRM);
 			}
@@ -197,6 +219,12 @@ namespace Asmuth.X86.Raw.Nasm
 				{
 					// id iw, iw id
 					size = InstructionEncoding.ImmediateSize_48;
+				}
+				else if ((currentSize == InstructionEncoding.ImmediateSize_16 && size == InstructionEncoding.ImmediateSize_8)
+					|| (currentSize == InstructionEncoding.ImmediateSize_8 && size == InstructionEncoding.ImmediateSize_16))
+				{
+					// iw ib, ib iw
+					size = InstructionEncoding.ImmediateSize_24;
 				}
 				else
 				{
