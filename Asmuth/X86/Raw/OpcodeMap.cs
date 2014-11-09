@@ -14,24 +14,24 @@ namespace Asmuth.X86.Raw
 		Value_Mask = 0x1F,
 
 		Type_Shift = 5,
-		Type_Escaped = 1 << Type_Shift,
+		Type_Legacy = 1 << Type_Shift,
 		Type_Vex = 1 << Type_Shift,
 		Type_Xop = 2 << Type_Shift,
 		Type_Mask = 3 << Type_Shift,
 
 		// Enumerants
-		OneByte = Type_Escaped | (0 << Value_Shift),
-		Escaped_0F = Type_Escaped | (1 << Value_Shift),
-		Escaped_0F38 = Type_Escaped | (2 << Value_Shift),
-		Escaped_0F3A = Type_Escaped | (3 << Value_Shift),
+		Default = Type_Legacy | 0, // AKA one-byte
+		Legacy_0F = Type_Legacy | 1,
+		Legacy_0F38 = Type_Legacy | 2,
+		Legacy_0F3A = Type_Legacy | 3,
 
-		Vex_0F = Type_Vex | (1 << Value_Shift),
-		Vex_0F38 = Type_Vex | (2 << Value_Shift),
-		Vex_0F3A = Type_Vex | (3 << Value_Shift),
+		Vex_0F = Type_Vex | 1,
+		Vex_0F38 = Type_Vex | 2,
+		Vex_0F3A = Type_Vex | 3,
 
-		Xop_8 = Type_Xop | (8 << Value_Shift),
-		Xop_9 = Type_Xop | (9 << Value_Shift),
-		Xop_10 = Type_Xop | (10 << Value_Shift),
+		Xop_8 = Type_Xop | 8,
+		Xop_9 = Type_Xop | 9,
+		Xop_10 = Type_Xop | 10,
 	}
 
 	public static class OpcodeMapEnum
@@ -56,9 +56,8 @@ namespace Asmuth.X86.Raw
 		{
 			// 0F, 0F38, 0F3A can be expressed both as VEX and with escape bytes
 			var value = map.GetValue();
-			return ((map & OpcodeMap.Type_Mask) == OpcodeMap.Type_Escaped && value >= 1 && value <= 3)
+			return ((map & OpcodeMap.Type_Mask) == OpcodeMap.Type_Legacy && value >= 1 && value <= 3)
 				? OpcodeMap.Type_Vex.WithValue(value) : map;
-
 		}
 
 		[Pure]
@@ -67,7 +66,7 @@ namespace Asmuth.X86.Raw
 			// 0F, 0F38, 0F3A can be expressed both as VEX and with escape bytes
 			var value = map.GetValue();
 			return ((map & OpcodeMap.Type_Mask) == OpcodeMap.Type_Vex && value >= 1 && value <= 3)
-				? OpcodeMap.Type_Escaped.WithValue(value) : map;
+				? OpcodeMap.Type_Legacy.WithValue(value) : map;
 
 		}
 	}

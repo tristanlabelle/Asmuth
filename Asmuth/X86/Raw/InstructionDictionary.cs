@@ -26,7 +26,7 @@ namespace Asmuth.X86.Raw
 
 		private static Opcode GetOpcodeLookupKey(Opcode opcode)
 		{
-			return opcode & (Opcode.SimdPrefix_Mask | Opcode.Map_Mask | Opcode.MainByte_High5Mask);
+			return opcode & (Opcode.XexType_Mask | Opcode.SimdPrefix_Mask | Opcode.Map_Mask | Opcode.MainByte_High5Mask);
 		}
 	}
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ namespace Asmuth.X86.Raw
 	{
 		#region Fields
 		private string mnemonic;
+		private Opcode opcode;
 		private InstructionEncoding encoding;
 		private CpuidFeatureFlags requiredFeatureFlags;
 		private EFlags? affectedFlags;
@@ -23,6 +25,7 @@ namespace Asmuth.X86.Raw
 
 		#region Properties
 		public string Mnemonic => mnemonic;
+		public Opcode Opcode => opcode;
 		public InstructionEncoding Encoding => encoding;
 		public CpuidFeatureFlags RequiredFeatureFlags => requiredFeatureFlags;
 		public EFlags? AffectedFlags => affectedFlags;
@@ -31,6 +34,81 @@ namespace Asmuth.X86.Raw
 
 		#region Methods
 		public override string ToString() => Mnemonic;
+
+		public static string GetIntelStyleString(Opcode opcode, InstructionEncoding encoding)
+		{
+			var str = new StringBuilder(30);
+
+			var xexType = opcode & Opcode.XexType_Mask;
+			if (xexType == Opcode.XexType_Legacy)
+			{
+				// Prefixes
+				switch (opcode & Opcode.SimdPrefix_Mask)
+				{
+					case Opcode.SimdPrefix_None: break;
+					case Opcode.SimdPrefix_66: str.Append("66 "); break;
+					case Opcode.SimdPrefix_F2: str.Append("F2 "); break;
+					case Opcode.SimdPrefix_F3: str.Append("F3 "); break;
+					default: throw new UnreachableException();
+				}
+
+				if ((encoding & InstructionEncoding.RexW_Mask) != InstructionEncoding.RexW_Ignored
+					&& (opcode & Opcode.RexW) == Opcode.RexW)
+				{
+					str.Append("REX.W ");
+				}
+
+				switch (opcode & Opcode.Map_Mask)
+				{
+					case Opcode.Map_Default: break;
+					case Opcode.Map_0F: str.Append("0F "); break;
+					case Opcode.Map_0F38: str.Append("0F38 "); break;
+					case Opcode.Map_0F3A: str.Append("0F3A "); break;
+					default: throw new UnreachableException();
+				}
+
+				// The opcode itself
+				str.AppendFormat(CultureInfo.InvariantCulture, "X2", opcode.GetMainByte());
+
+				// Suffixes
+				switch (encoding & InstructionEncoding.OpcodeFormat_Mask)
+				{
+					case InstructionEncoding.OpcodeFormat_FixedByte: break;
+					case InstructionEncoding.OpcodeFormat_EmbeddedRegister: str.Append("+r"); break;
+					case InstructionEncoding.OpcodeFormat_EmbeddedConditionCode: str.Append("+cc"); break;
+					default: throw new UnreachableException();
+				}
+
+				switch (encoding & InstructionEncoding.ModRM_Mask)
+				{
+					case InstructionEncoding.ModRM_Fixed:
+						str.AppendFormat(CultureInfo.InvariantCulture, "X2", opcode.GetExtraByte());
+						break;
+
+					case InstructionEncoding.ModRM_FixedModReg:
+						str.AppendFormat(CultureInfo.InvariantCulture, "X2", opcode.GetExtraByte());
+						str.Append("+r");
+						break;
+
+					case InstructionEncoding.ModRM_FixedReg:
+						str.Append('/');
+						str.AppendFormat(CultureInfo.InvariantCulture, "D", opcode.GetExtraByte() >> 3);
+						break;
+
+					case InstructionEncoding.ModRM_Any: str.Append(" /r"); break;
+					case InstructionEncoding.ModRM_None: break;
+					default: throw new UnreachableException();
+				}
+
+				throw new NotImplementedException();
+			}
+			else
+			{
+				throw new NotImplementedException();
+			}
+
+			return str.ToString();
+		}
 		#endregion
 
 		#region Builder class
@@ -43,6 +121,12 @@ namespace Asmuth.X86.Raw
 			{
 				get { return instruction.mnemonic; }
 				set { instruction.mnemonic = value; }
+			}
+
+			public Opcode Opcode
+			{
+				get { return instruction.opcode; }
+				set { instruction.opcode = value; }
 			}
 
 			public InstructionEncoding Encoding

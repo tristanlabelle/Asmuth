@@ -119,7 +119,7 @@ namespace Asmuth.X86.Raw
 						|| @byte == (byte)Xop.FirstByte || @byte == (byte)EVex.FirstByte)
 					{
 						xex = new Xex(XexEnums.GetTypeFromByte(@byte));
-						int remainingBytes = ((XexType)@byte).GetByteCount().Value - 1;
+						int remainingBytes = ((XexForm)@byte).GetByteCount().Value - 1;
 						return AdvanceTo(InstructionDecodingState.ExpectXexByte, substate: (byte)remainingBytes);
 					}
 
@@ -128,7 +128,7 @@ namespace Asmuth.X86.Raw
 
 				case InstructionDecodingState.ExpectXexByte:
 				{
-					if (xex.Type == XexType.Xop && (@byte & 0x04) == 0)
+					if (xex.Type == XexForm.Xop && (@byte & 0x04) == 0)
 					{
 						// What we just read was not a XOP, but a POP reg/mem
 						xex = default(Xex);
@@ -145,10 +145,10 @@ namespace Asmuth.X86.Raw
 
 					switch (xex.Type)
 					{
-						case XexType.Vex2: xex = new Xex((Vex2)immediate | Vex2.Reserved_Value); break;
-						case XexType.Vex3: xex = new Xex((Vex3)immediate | Vex3.Reserved_Value); break;
-						case XexType.Xop: xex = new Xex((Xop)immediate | Xop.Reserved_Value); break;
-						case XexType.EVex: xex = new Xex((EVex)immediate | EVex.Reserved_Value); break;
+						case XexForm.Vex2: xex = new Xex((Vex2)immediate | Vex2.Reserved_Value); break;
+						case XexForm.Vex3: xex = new Xex((Vex3)immediate | Vex3.Reserved_Value); break;
+						case XexForm.Xop: xex = new Xex((Xop)immediate | Xop.Reserved_Value); break;
+						case XexForm.EVex: xex = new Xex((EVex)immediate | EVex.Reserved_Value); break;
 						default: throw new UnreachableException();
 					}
 
@@ -160,18 +160,18 @@ namespace Asmuth.X86.Raw
 				{
 					if (xex.Type.AllowsEscapes())
 					{
-						if (xex.OpcodeMap == OpcodeMap.OneByte && @byte == 0x0F)
+						if (xex.OpcodeMap == OpcodeMap.Default && @byte == 0x0F)
 						{
-							xex = xex.WithOpcodeMap(OpcodeMap.Escaped_0F);
+							xex = xex.WithOpcodeMap(OpcodeMap.Legacy_0F);
 							return true;
 						}
 
-						if (xex.OpcodeMap == OpcodeMap.Escaped_0F)
+						if (xex.OpcodeMap == OpcodeMap.Legacy_0F)
 						{
 							switch (@byte)
 							{
-								case 0x38: xex = xex.WithOpcodeMap(OpcodeMap.Escaped_0F38); return true;
-								case 0x3A: xex = xex.WithOpcodeMap(OpcodeMap.Escaped_0F3A); return true;
+								case 0x38: xex = xex.WithOpcodeMap(OpcodeMap.Legacy_0F38); return true;
+								case 0x3A: xex = xex.WithOpcodeMap(OpcodeMap.Legacy_0F3A); return true;
 								default: break;
 							}
 						}

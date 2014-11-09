@@ -14,24 +14,33 @@ namespace Asmuth.X86.Raw
 	[Flags]
 	public enum Opcode : uint
 	{
+		// The xex type of the opcode
+		XexType_Shift = 0,
+		XexType_Legacy = 0 << (int)XexType_Shift,
+		XexType_Vex = 1 << (int)XexType_Shift,
+		XexType_Xop = 2 << (int)XexType_Shift,
+		XexType_EVex = 3 << (int)XexType_Shift,
+		XexType_Mask = 3 << (int)XexType_Shift,
+
 		// SIMD Prefix
-		SimdPrefix_Shift = 0,
-		SimdPrefix_None = (uint)SimdPrefix.None << (int)SimdPrefix_Shift,
-		SimdPrefix_66 = (uint)SimdPrefix._66 << (int)SimdPrefix_Shift,
-		SimdPrefix_F2 = (uint)SimdPrefix._F2 << (int)SimdPrefix_Shift,
-		SimdPrefix_F3 = (uint)SimdPrefix._F3 << (int)SimdPrefix_Shift,
+		SimdPrefix_Shift = 2,
+		SimdPrefix_None = 0 << (int)SimdPrefix_Shift,
+		SimdPrefix_66 = 1 << (int)SimdPrefix_Shift,
+		SimdPrefix_F2 = 2 << (int)SimdPrefix_Shift,
+		SimdPrefix_F3 = 3 << (int)SimdPrefix_Shift,
 		SimdPrefix_Mask = 3 << (int)SimdPrefix_Shift,
 
-		// Xex flags, specified in VEX, XOP or EVEX
-		RexW = 1 << 2,
-		Vex = 1 << 3, // VEX will change some instructions to use 3 operands
-		VexL = 1 << 4,
-		EVex = 1 << 5, // TODO: Check if EVEX ever disambiguates instructions
-		EVexL2 = 1 << 6,
+		// Xex flags
+		RexW = 1 << 4,
+		VexL_Shift = 5,
+		VexL_0 = 0 << (int)VexL_Shift,
+		VexL_1 = 1 << (int)VexL_Shift,
+		VexL_2 = 2 << (int)VexL_Shift,
+		VexL_Mask = 3 << (int)VexL_Shift,
 
 		// Opcode map, specified by escape bytes, in VEX, XOP or EVEX
 		Map_Shift = 7,
-		Map_OneByte = 0 << (int)Map_Shift,
+		Map_Default = 0 << (int)Map_Shift,
 		Map_0F = 1 << (int)Map_Shift,
 		Map_0F38 = 2 << (int)Map_Shift,
 		Map_0F3A = 3 << (int)Map_Shift,
@@ -42,8 +51,10 @@ namespace Asmuth.X86.Raw
 
 		// 0xFF0000: Main opcode byte, always present
 		MainByte_Shift = 16,
-		MainByte_Low3Mask = 0x07 << (int)MainByte_Shift,
+		MainByte_High4Mask = 0xF0 << (int)MainByte_Shift,
 		MainByte_High5Mask = 0xF8 << (int)MainByte_Shift,
+		MainByte_RegisterMask = 0x07 << (int)MainByte_Shift,
+		MainByte_ConditionCodeMask = 0x0F << (int)MainByte_Shift,
 		MainByte_Mask = 0xFF << (int)MainByte_Shift,
 
 		// 0xFF000000: Extra byte (ModReg, ModRM, EVEX.IS4 or 3DNow! Imm8)
@@ -64,14 +75,15 @@ namespace Asmuth.X86.Raw
 
 	public enum SimdPrefix : byte
 	{
-		None,
-		_66,
-		_F2,
-		_F3,
+		None = 0,
+		_66 = 1,
+		_F2 = 2,
+		_F3 = 3,
 	}
 
 	public static class OpcodeEnum
 	{
+		#region Getters
 		[Pure]
 		public static SimdPrefix GetSimdPrefix(this Opcode opcode)
 			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)opcode, (uint)Opcode.SimdPrefix_Mask, (int)Opcode.SimdPrefix_Shift);
@@ -79,7 +91,17 @@ namespace Asmuth.X86.Raw
 		[Pure]
 		public static OpcodeMap GetMap(this Opcode opcode)
 		{
-			throw new NotImplementedException();
+			OpcodeMap map = 0;
+			switch (opcode & Opcode.XexType_Mask)
+			{
+				case Opcode.XexType_Legacy: map = OpcodeMap.Type_Legacy; break;
+				case Opcode.XexType_Xop: map = OpcodeMap.Type_Xop; break;
+				case Opcode.XexType_Vex: map = OpcodeMap.Type_Vex; break;
+				case Opcode.XexType_EVex: map = OpcodeMap.Type_Vex; break;
+				default: throw new UnreachableException();
+			}
+
+			return (OpcodeMap)((int)map | ((int)(opcode & Opcode.Map_Mask) >> (int)Opcode.Map_Shift));
 		}
 
 		[Pure]
@@ -87,12 +109,21 @@ namespace Asmuth.X86.Raw
 			=> (byte)Bits.MaskAndShiftRight((uint)opcode, (uint)Opcode.MainByte_Mask, (int)Opcode.MainByte_Shift);
 
 		[Pure]
-		public static ModRM GetModRM(this Opcode opcode)
-			=> (ModRM)Bits.MaskAndShiftRight((uint)opcode, (uint)Opcode.ModRM_Mask, (int)Opcode.ModRM_Shift);
+		public static byte GetExtraByte(this Opcode opcode)
+			=> (byte)Bits.MaskAndShiftRight((uint)opcode, (uint)Opcode.ExtraByte_Mask, (int)Opcode.ExtraByte_Shift);
+		#endregion
 
+		#region With***
 		[Pure]
 		public static Opcode WithSimdPrefix(this Opcode opcode, SimdPrefix simdPrefix)
 			=> (opcode & ~Opcode.SimdPrefix_Mask) | (Opcode)((uint)simdPrefix << (int)Opcode.SimdPrefix_Shift);
+
+		[Pure]
+		public static Opcode WithMap(this Opcode opcode, Opcode map)
+		{
+			Contract.Requires((map & ~Opcode.Map_Mask) == 0);
+			return (opcode & ~Opcode.Map_Mask) | map;
+		}
 
 		[Pure]
 		public static Opcode WithMap(this Opcode opcode, OpcodeMap map)
@@ -105,7 +136,8 @@ namespace Asmuth.X86.Raw
 			=> (opcode & ~Opcode.MainByte_Mask) | (Opcode)((uint)mainByte << (int)Opcode.MainByte_Shift);
 
 		[Pure]
-		public static Opcode WithModRM(this Opcode opcode, ModRM modRM)
-			=> (opcode & ~Opcode.ModRM_Mask) | (Opcode)((uint)modRM << (int)Opcode.ModRM_Shift);
+		public static Opcode WithExtraByte(this Opcode opcode, byte extraByte)
+			=> (opcode & ~Opcode.ExtraByte_Shift) | (Opcode)((uint)extraByte << (int)Opcode.ExtraByte_Shift);  
+		#endregion
 	}
 }
