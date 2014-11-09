@@ -97,7 +97,7 @@ namespace Asmuth.X86.Raw
 		OpcodeExtraByte_Mask = 0xFFUL << (int)OpcodeExtraByte_Shift,
 
 		// The number of bytes of immediate value
-		ImmediateSize_Shift = OpcodeExtraByte_Shift + 3,
+		ImmediateSize_Shift = OpcodeExtraByte_Shift + 8,
 		ImmediateSize_0 = 0UL << (int)ImmediateSize_Shift,
 		ImmediateSize_8 = 1UL << (int)ImmediateSize_Shift,
 		ImmediateSize_16 = 2UL << (int)ImmediateSize_Shift, // RET

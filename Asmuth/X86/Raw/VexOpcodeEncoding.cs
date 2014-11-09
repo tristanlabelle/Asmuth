@@ -46,7 +46,7 @@ namespace Asmuth.X86.Raw
 		SimdPrefix_66 = 1 << (int)SimdPrefix_Shift,
 		SimdPrefix_F2 = 2 << (int)SimdPrefix_Shift,
 		SimdPrefix_F3 = 3 << (int)SimdPrefix_Shift,
-		SimdPrefix_Mask = 4 << (int)SimdPrefix_Shift,
+		SimdPrefix_Mask = 3 << (int)SimdPrefix_Shift,
 
 		// 2 bits
 		Map_Shift = 8,

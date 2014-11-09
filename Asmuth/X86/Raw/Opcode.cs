@@ -14,7 +14,7 @@ namespace Asmuth.X86.Raw
 	[Flags]
 	public enum Opcode : uint
 	{
-		// 0b0000 0011: SIMD prefix, matches the SimdPrefix enum
+		// SIMD Prefix
 		SimdPrefix_Shift = 0,
 		SimdPrefix_None = (uint)SimdPrefix.None << (int)SimdPrefix_Shift,
 		SimdPrefix_66 = (uint)SimdPrefix._66 << (int)SimdPrefix_Shift,

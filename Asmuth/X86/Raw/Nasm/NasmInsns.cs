@@ -122,7 +122,7 @@ namespace Asmuth.X86.Raw.Nasm
 					{
 						type = token[token.Length - 1] == 'r'
 							? NasmEncodingTokenType.Byte_PlusRegister
-							: NasmEncodingTokenType.Byte_PlusCondition;
+							: NasmEncodingTokenType.Byte_PlusConditionCode;
 					}
 					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(type, @byte));
 					continue;

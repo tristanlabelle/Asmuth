@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -20,7 +21,16 @@ namespace Asmuth.X86.Raw.Nasm
 			this.Byte = @byte;
 		}
 
-		public override string ToString() => Type.ToString();
+		public override string ToString()
+		{
+			switch (Type)
+			{
+				case NasmEncodingTokenType.Byte: return Byte.ToString("X2", CultureInfo.InvariantCulture);
+				case NasmEncodingTokenType.Byte_PlusRegister: return Byte.ToString("X2", CultureInfo.InvariantCulture) + "+r";
+				case NasmEncodingTokenType.Byte_PlusConditionCode: return Byte.ToString("X2", CultureInfo.InvariantCulture) + "+cc";
+				default: return Type.ToString();
+			}
+		}
 
 		public static NasmEncodingTokenType TryParseType(string name)
 		{
@@ -102,11 +112,11 @@ namespace Asmuth.X86.Raw.Nasm
 		[NasmName("norexw")]
 		Rex_NoW,
 		[NasmName("rex.l")]
-		Rex_LockAsRexR,
+		Rex_LockAsRexR,	// See AMD APM, MOV CRn
 
 		Byte = Category_Byte, // "42", value is the byte itself
 		Byte_PlusRegister, // "40+r", value is the base byte (0b11111000)
-		Byte_PlusCondition, // "40+c", value is the base byte (0b11110000)
+		Byte_PlusConditionCode, // "40+c", value is the base byte (0b11110000)
 
 		[NasmName("/r")]
 		ModRM = Category_ModRM,
@@ -158,7 +168,7 @@ namespace Asmuth.X86.Raw.Nasm
 		[NasmName("wait")]
 		Misc_AssembleWaitPrefix,
 		[NasmName("nohi")]
-		Misc_NoHi,
+		Misc_NoHigh8Register,
 		[NasmName("vsiby")]
 		Misc_Vsiby,
 		[NasmName("vsibz")]
