@@ -21,7 +21,7 @@ namespace Asmuth.X86.Raw
     public enum Gpr64
 	{
 		Rax,
-		Rbx,
+		Rbx, // TODO: Fix order
 		Rcx,
 		Rdx,
 		Rbp,

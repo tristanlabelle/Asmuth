@@ -63,6 +63,7 @@
     <Compile Include="Bits.cs" />
     <Compile Include="X86\Raw\ConditionCode.cs" />
     <Compile Include="X86\Raw\CpuidFeatureFlags.cs" />
+    <Compile Include="X86\Raw\CpuidQuery.cs" />
     <Compile Include="X86\Raw\EFlags.cs" />
     <Compile Include="X86\Raw\Gpr.cs" />
     <Compile Include="X86\Raw\ImmediateType.cs" />

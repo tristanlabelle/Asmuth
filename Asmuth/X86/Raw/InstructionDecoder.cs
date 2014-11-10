@@ -181,12 +181,12 @@ namespace Asmuth.X86.Raw
 					fields |= InstructionFields.Opcode;
 
 					bool hasModRM;
-					if (!lookup.TryHasModRM(mode, GetOpcode(), out hasModRM))
+					int immediateSize;
+					if (!lookup.TryLookup(mode, GetOpcode(), out hasModRM, out immediateSize))
 						AdvanceToError(InstructionEncodingError.UnknownOpcode);
 
-					if (hasModRM) return AdvanceTo(InstructionDecodingState.ExpectModRM);
-
-					return TryReadSuffixInfo(hasModRM: false) ? AdvanceToImmediateOrEnd() : AdvanceToError(InstructionEncodingError.UnknownOpcode);
+					immediate = checked((uint)immediateSize);
+					return hasModRM ? AdvanceTo(InstructionDecodingState.ExpectModRM) : AdvanceToImmediateOrEnd();
 				}
 
 				case InstructionDecodingState.ExpectModRM:
@@ -263,30 +263,9 @@ namespace Asmuth.X86.Raw
 			Contract.Requires(State == InstructionDecodingState.ExpectModRM);
 			Contract.Requires(Fields.Has(InstructionFields.ModRM));
 
-			if (!TryReadSuffixInfo(hasModRM: true))
-				return AdvanceToError(InstructionEncodingError.UnknownOpcode);
-			if (modRM.ImpliesSib() && sib == (Sib)0xFF)
+			if (modRM.ImpliesSib() && sib == (Sib)0xFF) // TODO: Check that processor mode allows SIB
 				return AdvanceTo(InstructionDecodingState.ExpectSib);
 			return AdvanceToDisplacementOrFurther();
-		}
-
-		private bool TryReadSuffixInfo(bool hasModRM)
-		{
-			InstructionSuffixFlags suffixFlags;
-			int immediateSize;
-			if (!lookup.TryGetInstructionSuffixInfo(mode, GetOpcode(), out suffixFlags, out immediateSize))
-				return false;
-
-			// Store state in fields we have yet to read.
-			if ((suffixFlags & InstructionSuffixFlags.AllowSib) != 0) sib = (Sib)0xFF;
-			if ((suffixFlags & InstructionSuffixFlags.AllowDisplacement) != 0)
-			{
-				displacement = 1;
-				if ((suffixFlags & InstructionSuffixFlags.DefaultsTo16BitsAddressing) != 0)
-					displacement = 3;
-			}
-			immediate = (byte)immediateSize;
-			return true;
 		}
 
 		private bool AdvanceToDisplacementOrFurther()

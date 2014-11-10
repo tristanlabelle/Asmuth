@@ -26,6 +26,7 @@ namespace Asmuth.X86.Raw
 		#region Properties
 		public string Mnemonic => mnemonic;
 		public Opcode Opcode => opcode;
+		public Opcode OpcodeFixedMask => encoding.GetOpcodeFixedMask();
 		public InstructionEncoding Encoding => encoding;
 		public CpuidFeatureFlags RequiredFeatureFlags => requiredFeatureFlags;
 		public EFlags? AffectedFlags => affectedFlags;
@@ -33,7 +34,46 @@ namespace Asmuth.X86.Raw
 		#endregion
 
 		#region Methods
+		public bool IsMatch(Opcode opcode)
+		{
+			// The caller cannot distinguish between legacy and SIMD prefixes
+			Opcode fixedMask = encoding.GetOpcodeFixedMask();
+			return (opcode & fixedMask) == (this.opcode & fixedMask)
+				|| (opcode.WithSimdPrefix(SimdPrefix.None) & fixedMask) == (this.opcode & fixedMask);
+		}
+
 		public override string ToString() => Mnemonic;
+
+		public static IEnumerable<InstructionDefinition> MergeHeterogeneous(IEnumerable<InstructionDefinition> instructions)
+		{
+			Contract.Requires(instructions != null);
+
+			// Group by masked opcode
+			var groups = MultiValueDictionary<ulong, InstructionDefinition>.Create<List<InstructionDefinition>>();
+			foreach (var instruction in instructions)
+			{
+				var opcodeFixedMask = instruction.Encoding.GetOpcodeFixedMask();
+				ulong key = ((ulong)opcodeFixedMask << 32) | (ulong)(instruction.Opcode & opcodeFixedMask);
+				groups.Add(key, instruction);
+			}
+			
+			// Merge every group
+			foreach (List<InstructionDefinition> group in groups.Values)
+			{
+				MergeHomogeneous(group);
+				foreach (var instruction in group)
+					yield return instruction;
+			}
+		}
+
+		private static void MergeHomogeneous(IList<InstructionDefinition> group)
+		{
+			Contract.Requires(group != null);
+
+			if (group.Count <= 1) return;
+
+			throw new NotImplementedException();
+		}
 
 		public static string GetIntelStyleString(Opcode opcode, InstructionEncoding encoding)
 		{
@@ -153,6 +193,7 @@ namespace Asmuth.X86.Raw
 			#region Methods
 			public InstructionDefinition Build(bool reuse = true)
 			{
+				instruction.opcode &= instruction.Encoding.GetOpcodeFixedMask();
 				var result = instruction;
 				instruction = reuse ? CreateEmpty() : null;
 				return result;

@@ -75,10 +75,42 @@ namespace Asmuth.X86.Raw
 
 	public static class InstructionEncodingEnum
 	{
-		#region Field Queries
+		#region Getters
 		[Pure]
 		public static bool HasModRM(this InstructionEncoding encoding)
 			=> (encoding & InstructionEncoding.ModRM_Mask) != InstructionEncoding.ModRM_None;
+
+		[Pure]
+		public static Opcode GetOpcodeFixedMask(this InstructionEncoding encoding)
+		{
+			var mask = Opcode.SimdPrefix_Mask | Opcode.XexType_Mask | Opcode.Map_Mask;
+
+			if ((encoding & InstructionEncoding.RexW_Mask) == InstructionEncoding.RexW_Fixed)
+				mask |= Opcode.RexW;
+
+			if ((encoding & InstructionEncoding.VexL_Mask) == InstructionEncoding.VexL_Fixed)
+				mask |= Opcode.VexL_Mask;
+
+			switch (encoding & InstructionEncoding.OpcodeFormat_Mask)
+			{
+				case InstructionEncoding.OpcodeFormat_FixedByte: mask |= Opcode.MainByte_Mask; break;
+				case InstructionEncoding.OpcodeFormat_EmbeddedRegister: mask |= Opcode.MainByte_High5Mask; break;
+				case InstructionEncoding.OpcodeFormat_EmbeddedConditionCode: mask |= Opcode.MainByte_High4Mask; break;
+				default: throw new UnreachableException();
+			}
+
+			switch (encoding & InstructionEncoding.ModRM_Mask)
+			{
+				case InstructionEncoding.ModRM_None: break;
+				case InstructionEncoding.ModRM_Any: break;
+				case InstructionEncoding.ModRM_Fixed: mask |= Opcode.ModRM_Mask; break;
+				case InstructionEncoding.ModRM_FixedReg: mask |= Opcode.ModRM_RegMask; break;
+				case InstructionEncoding.ModRM_FixedModReg: throw new NotImplementedException();
+				default: throw new UnreachableException();
+			}
+
+			return mask;
+		}
 		#endregion
 
 		#region With***
