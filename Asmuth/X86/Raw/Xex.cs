@@ -318,13 +318,13 @@ namespace Asmuth.X86.Raw
 		#region Constructors
 		public Xex(OpcodeMap map) : this(XexForm.Legacy)
 		{
-			Contract.Requires((map.TryAsEscaped() & OpcodeMap.Type_Mask) == OpcodeMap.Type_Legacy);
+			Contract.Requires((map.TryAsLegacy() & OpcodeMap.Type_Mask) == OpcodeMap.Type_Legacy);
 			data |= (uint)map.GetValue() << (int)EVex.mm_Shift;
 		}
 
 		public Xex(Rex rex, OpcodeMap map = OpcodeMap.Default) : this(XexForm.LegacyWithRex)
 		{
-			Contract.Requires((map.TryAsEscaped() & OpcodeMap.Type_Mask) == OpcodeMap.Type_Legacy);
+			Contract.Requires((map.TryAsLegacy() & OpcodeMap.Type_Mask) == OpcodeMap.Type_Legacy);
 			data |= (uint)map.GetValue() << (int)EVex.mm_Shift;
 			// Could be optimized to bitwise operations
 			if ((rex & Rex.B) != 0) data |= (uint)EVex.B;

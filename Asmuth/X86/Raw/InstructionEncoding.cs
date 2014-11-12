@@ -105,7 +105,7 @@ namespace Asmuth.X86.Raw
 				case InstructionEncoding.ModRM_Any: break;
 				case InstructionEncoding.ModRM_Fixed: mask |= Opcode.ModRM_Mask; break;
 				case InstructionEncoding.ModRM_FixedReg: mask |= Opcode.ModRM_RegMask; break;
-				case InstructionEncoding.ModRM_FixedModReg: throw new NotImplementedException();
+				case InstructionEncoding.ModRM_FixedModReg: mask |= Opcode.ModRM_ModRegMask; break;
 				default: throw new UnreachableException();
 			}
 

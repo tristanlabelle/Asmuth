@@ -50,22 +50,9 @@ namespace Asmuth.X86.Raw
 		#endregion
 
 		#region Builder nested class
-		public enum BuildingState
-		{
-			Initial,
-			Prefixes,
-			PostXex,
-			PostMainByte,
-			PostModRM,
-			PostSib,
-			PostDisplacement,
-			End
-		}
-
 		public sealed class Builder
 		{
 			private Instruction instruction = CreateEmptyInstruction();
-			private BuildingState state;
 
 			#region Properties
 			public IList<LegacyPrefix> LegacyPrefixes => instruction.legacyPrefixes;
@@ -80,6 +67,22 @@ namespace Asmuth.X86.Raw
 			{
 				get { return instruction.mainByte; }
 				set { instruction.mainByte = value; }
+			}
+			#endregion
+
+			#region Methods
+			public void SetModRM(ModRM modRM, Sib sib = default(Sib), int displacement = 0)
+			{
+				instruction.flags |= Flags.HasModRM;
+				instruction.modRM = modRM;
+				instruction.sib = sib;
+				instruction.displacement = displacement;
+				throw new NotImplementedException();
+			}
+
+			public void ClearModRM()
+			{
+				instruction.flags &= ~Flags.HasModRM;
 			}
 			#endregion
 

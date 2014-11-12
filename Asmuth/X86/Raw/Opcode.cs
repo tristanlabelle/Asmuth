@@ -63,7 +63,8 @@ namespace Asmuth.X86.Raw
 
 		ModRM_Shift = ExtraByte_Shift,
 		ModRM_RegShift = ModRM_Shift + 3,
-		ModRM_RegMask = 7 << (int)ModRM_RegShift,
+		ModRM_RegMask = 0x38U << (int)ModRM_Shift,
+		ModRM_ModRegMask = 0xF8U << (int)ModRM_Shift,
 		ModRM_Mask = ExtraByte_Mask,
 
 		EVexIs4_Shift = ExtraByte_Shift,

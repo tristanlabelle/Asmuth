@@ -25,14 +25,21 @@ namespace Asmuth.X86.Raw.Nasm
 	internal sealed class NasmEnum<TEnum> where TEnum : struct
 	{
 		private static readonly Dictionary<string, TEnum> namesToEnumerants;
+		private static readonly Dictionary<TEnum, string> enumerantToNames;
 
 		static NasmEnum()
 		{
 			namesToEnumerants = new Dictionary<string, TEnum>();
+			enumerantToNames = new Dictionary<TEnum, string>();
 			foreach (var field in typeof(TEnum).GetTypeInfo().DeclaredFields)
 			{
 				var nasmNameAttribute = field.GetCustomAttribute<NasmNameAttribute>();
-				if (nasmNameAttribute != null) namesToEnumerants.Add(nasmNameAttribute.Name, (TEnum)field.GetValue(null));
+				if (nasmNameAttribute != null)
+				{
+					var enumerant = (TEnum)field.GetValue(null);
+					namesToEnumerants.Add(nasmNameAttribute.Name, enumerant);
+					enumerantToNames.Add(enumerant, nasmNameAttribute.Name);
+				}
 			}
 		}
 
@@ -51,6 +58,13 @@ namespace Asmuth.X86.Raw.Nasm
 
 			TEnum enumerant;
 			return namesToEnumerants.TryGetValue(name, out enumerant) ? enumerant : (TEnum?)null;
+		}
+
+		public static string GetNameOrNull(TEnum enumerant)
+		{
+			string name;
+			enumerantToNames.TryGetValue(enumerant, out name);
+			return name;
 		}
 	}
 }

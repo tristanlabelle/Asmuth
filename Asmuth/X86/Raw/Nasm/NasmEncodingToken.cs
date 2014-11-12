@@ -28,7 +28,7 @@ namespace Asmuth.X86.Raw.Nasm
 				case NasmEncodingTokenType.Byte: return Byte.ToString("X2", CultureInfo.InvariantCulture);
 				case NasmEncodingTokenType.Byte_PlusRegister: return Byte.ToString("X2", CultureInfo.InvariantCulture) + "+r";
 				case NasmEncodingTokenType.Byte_PlusConditionCode: return Byte.ToString("X2", CultureInfo.InvariantCulture) + "+cc";
-				default: return Type.ToString();
+				default: return NasmEnum<NasmEncodingTokenType>.GetNameOrNull(Type) ?? Type.ToString();
 			}
 		}
 

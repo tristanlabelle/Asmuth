@@ -61,7 +61,7 @@ namespace Asmuth.X86.Raw
 		}
 
 		[Pure]
-		public static OpcodeMap TryAsEscaped(this OpcodeMap map)
+		public static OpcodeMap TryAsLegacy(this OpcodeMap map)
 		{
 			// 0F, 0F38, 0F3A can be expressed both as VEX and with escape bytes
 			var value = map.GetValue();
