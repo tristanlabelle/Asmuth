@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -97,11 +98,77 @@ namespace Asmuth.X86.Raw
 			}
 		}
 
-		public static byte GetOpcodeByte(this VexOpcodeEncoding encoding)
+		public static byte GetMainByte(this VexOpcodeEncoding encoding)
 			=> (byte)((uint)(encoding & VexOpcodeEncoding.MainByte_Mask) >> (int)VexOpcodeEncoding.MainByte_Shift);
 
 		public static byte GetImmediateByte(this VexOpcodeEncoding encoding)
 			=> (byte)((uint)(encoding & VexOpcodeEncoding.ImmediateByte_Value) >> (int)VexOpcodeEncoding.ImmediateByte_Shift);
+
+		public static void ToOpcodeEncoding(this VexOpcodeEncoding vexEncoding, out Opcode opcode, out InstructionEncoding encoding)
+		{
+			opcode = default(Opcode);
+			encoding = default(InstructionEncoding);
+
+			switch (vexEncoding & VexOpcodeEncoding.Type_Mask)
+			{
+				case VexOpcodeEncoding.Type_Vex: opcode |= Opcode.XexType_Vex; break;
+				case VexOpcodeEncoding.Type_Xop: opcode |= Opcode.XexType_Xop; break;
+				case VexOpcodeEncoding.Type_EVex: opcode |= Opcode.XexType_EVex; break;
+				default: throw new ArgumentException();
+			}
+
+			switch (vexEncoding & VexOpcodeEncoding.SimdPrefix_Mask)
+			{
+				case VexOpcodeEncoding.SimdPrefix_None: opcode |= Opcode.SimdPrefix_None; break;
+				case VexOpcodeEncoding.SimdPrefix_66: opcode |= Opcode.SimdPrefix_66; break;
+				case VexOpcodeEncoding.SimdPrefix_F2: opcode |= Opcode.SimdPrefix_F2; break;
+				case VexOpcodeEncoding.SimdPrefix_F3: opcode |= Opcode.SimdPrefix_F3; break;
+				default: throw new UnreachableException();
+			}
+
+			switch (vexEncoding & VexOpcodeEncoding.VectorLength_Mask)
+			{
+				case VexOpcodeEncoding.VectorLength_0:
+					encoding |= InstructionEncoding.VexL_Fixed;
+					opcode |= Opcode.VexL_0;
+					break;
+
+				case VexOpcodeEncoding.VectorLength_1:
+					encoding |= InstructionEncoding.VexL_Fixed;
+					opcode |= Opcode.VexL_1;
+					break;
+
+				case VexOpcodeEncoding.VectorLength_2:
+					encoding |= InstructionEncoding.VexL_Fixed;
+					opcode |= Opcode.VexL_1;
+					break;
+
+				case VexOpcodeEncoding.VectorLength_Ignored:
+					encoding |= InstructionEncoding.VexL_Ignored;
+					break;
+			}
+
+			switch (vexEncoding & VexOpcodeEncoding.RexW_Mask)
+			{
+				case VexOpcodeEncoding.RexW_0:
+					encoding |= InstructionEncoding.RexW_Fixed;
+					break;
+
+				case VexOpcodeEncoding.RexW_1:
+					encoding |= InstructionEncoding.RexW_Fixed;
+					opcode |= Opcode.RexW;
+					break;
+
+				case VexOpcodeEncoding.RexW_Ignored:
+					encoding |= InstructionEncoding.RexW_Ignored;
+					break;
+			}
+
+			opcode = opcode.WithMainByte(vexEncoding.GetMainByte());
+			encoding |= InstructionEncoding.OpcodeFormat_FixedByte;
+
+			throw new NotImplementedException();
+		}
 
 		public static string ToIntelStyleString(this VexOpcodeEncoding encoding)
 		{
@@ -179,7 +246,7 @@ namespace Asmuth.X86.Raw
 			}
 
 			str.Append(' ');
-			str.Append(GetOpcodeByte(encoding).ToString("X2", CultureInfo.InvariantCulture));
+			str.Append(GetMainByte(encoding).ToString("X2", CultureInfo.InvariantCulture));
 
 			if ((encoding & VexOpcodeEncoding.HasModRM) == VexOpcodeEncoding.HasModRM)
 				str.Append(" /r");

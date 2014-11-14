@@ -140,7 +140,7 @@ namespace Asmuth.X86.Raw
 		{
 			Contract.Requires((size & ~InstructionEncoding.ImmediateSize_Mask) == 0);
 			return (encoding & ~InstructionEncoding.ImmediateSize_Mask) | size;
-		}  
+		}
 		#endregion
 	}
 }

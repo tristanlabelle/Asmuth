@@ -31,6 +31,7 @@ namespace Asmuth.X86.Raw
 		public CpuidFeatureFlags RequiredFeatureFlags => requiredFeatureFlags;
 		public EFlags? AffectedFlags => affectedFlags;
 		public IReadOnlyList<OperandDefinition> Operands => (IReadOnlyList<OperandDefinition>)operands;
+		public string IntelStyleEncodingString => GetIntelStyleEncodingString(opcode, encoding);
 		#endregion
 
 		#region Methods
@@ -75,14 +76,14 @@ namespace Asmuth.X86.Raw
 			throw new NotImplementedException();
 		}
 
-		public static string GetIntelStyleString(Opcode opcode, InstructionEncoding encoding)
+		public static string GetIntelStyleEncodingString(Opcode opcode, InstructionEncoding encoding)
 		{
 			var str = new StringBuilder(30);
 
 			var xexType = opcode & Opcode.XexType_Mask;
 			if (xexType == Opcode.XexType_Legacy)
 			{
-				// Prefixes
+				// Legacy Xex: 66 REX.W 0F 38
 				switch (opcode & Opcode.SimdPrefix_Mask)
 				{
 					case Opcode.SimdPrefix_None: break;
@@ -102,50 +103,124 @@ namespace Asmuth.X86.Raw
 				{
 					case Opcode.Map_Default: break;
 					case Opcode.Map_0F: str.Append("0F "); break;
-					case Opcode.Map_0F38: str.Append("0F38 "); break;
-					case Opcode.Map_0F3A: str.Append("0F3A "); break;
+					case Opcode.Map_0F38: str.Append("0F 38 "); break;
+					case Opcode.Map_0F3A: str.Append("0F 3A "); break;
 					default: throw new UnreachableException();
 				}
-
-				// The opcode itself
-				str.AppendFormat(CultureInfo.InvariantCulture, "X2", opcode.GetMainByte());
-
-				// Suffixes
-				switch (encoding & InstructionEncoding.OpcodeFormat_Mask)
-				{
-					case InstructionEncoding.OpcodeFormat_FixedByte: break;
-					case InstructionEncoding.OpcodeFormat_EmbeddedRegister: str.Append("+r"); break;
-					case InstructionEncoding.OpcodeFormat_EmbeddedConditionCode: str.Append("+cc"); break;
-					default: throw new UnreachableException();
-				}
-
-				switch (encoding & InstructionEncoding.ModRM_Mask)
-				{
-					case InstructionEncoding.ModRM_Fixed:
-						str.AppendFormat(CultureInfo.InvariantCulture, "X2", opcode.GetExtraByte());
-						break;
-
-					case InstructionEncoding.ModRM_FixedModReg:
-						str.AppendFormat(CultureInfo.InvariantCulture, "X2", opcode.GetExtraByte());
-						str.Append("+r");
-						break;
-
-					case InstructionEncoding.ModRM_FixedReg:
-						str.Append('/');
-						str.AppendFormat(CultureInfo.InvariantCulture, "D", opcode.GetExtraByte() >> 3);
-						break;
-
-					case InstructionEncoding.ModRM_Any: str.Append(" /r"); break;
-					case InstructionEncoding.ModRM_None: break;
-					default: throw new UnreachableException();
-				}
-
-				throw new NotImplementedException();
 			}
 			else
 			{
-				throw new NotImplementedException();
+				// Vex/Xop/EVex: VEX.NDS.LIG.66.0F3A.WIG
+				switch (xexType)
+				{
+					case Opcode.XexType_Vex: str.Append("VEX"); break;
+					case Opcode.XexType_Xop: str.Append("XOP"); break;
+					case Opcode.XexType_EVex: str.Append("EVEX"); break;
+					default: throw new UnreachableException();
+				}
+
+				// TODO: Pretty print .NDS or similar
+
+				switch (encoding & InstructionEncoding.VexL_Mask)
+				{
+					case InstructionEncoding.VexL_Fixed:
+						switch (opcode & Opcode.VexL_Mask)
+						{
+							case Opcode.VexL_0: str.Append(".L0"); break;
+							case Opcode.VexL_1: str.Append(".L1"); break;
+							case Opcode.VexL_2: str.Append(".L2"); break;
+							default: throw new UnreachableException();
+						}
+						break;
+
+					case InstructionEncoding.VexL_Ignored:
+						str.Append(".LIG");
+						break;
+
+					default: throw new NotImplementedException();
+				}
+
+				switch (opcode & Opcode.SimdPrefix_Mask)
+				{
+					case Opcode.SimdPrefix_None: break;
+					case Opcode.SimdPrefix_66: str.Append(".66"); break;
+					case Opcode.SimdPrefix_F2: str.Append(".F2"); break;
+					case Opcode.SimdPrefix_F3: str.Append(".F3"); break;
+					default: throw new UnreachableException();
+				}
+
+				if (xexType == Opcode.XexType_Xop)
+				{
+					switch (opcode & Opcode.Map_Mask)
+					{
+						case Opcode.Map_Xop8: str.Append(".M8"); break;
+						case Opcode.Map_Xop9: str.Append(".M9"); break;
+						case Opcode.Map_Xop10: str.Append(".M10"); break;
+						default: throw new UnreachableException();
+					}
+				}
+				else
+				{
+					switch (opcode & Opcode.Map_Mask)
+					{
+						case Opcode.Map_0F: str.Append(".0F"); break;
+						case Opcode.Map_0F38: str.Append(".0F38"); break;
+						case Opcode.Map_0F3A: str.Append(".0F3A"); break;
+						default: throw new UnreachableException();
+					}
+				}
+
+				switch (encoding & InstructionEncoding.RexW_Mask)
+				{
+					case InstructionEncoding.RexW_Fixed:
+						str.Append((opcode & Opcode.RexW) == Opcode.RexW ? ".W1" : ".W0");
+						break;
+
+					case InstructionEncoding.RexW_Ignored:
+						str.Append(".WIG");
+						break;
+
+					default: throw new NotImplementedException();
+				}
+
+				str.Append(' ');
 			}
+
+			// String tail: opcode byte and what follows  0B /r ib
+
+			// The opcode itself
+			str.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", opcode.GetMainByte());
+
+			// Suffixes
+			switch (encoding & InstructionEncoding.OpcodeFormat_Mask)
+			{
+				case InstructionEncoding.OpcodeFormat_FixedByte: break;
+				case InstructionEncoding.OpcodeFormat_EmbeddedRegister: str.Append("+r"); break;
+				case InstructionEncoding.OpcodeFormat_EmbeddedConditionCode: str.Append("+cc"); break;
+				default: throw new UnreachableException();
+			}
+
+			switch (encoding & InstructionEncoding.ModRM_Mask)
+			{
+				case InstructionEncoding.ModRM_Fixed:
+					str.AppendFormat(CultureInfo.InvariantCulture, " {0:X2}", opcode.GetExtraByte());
+					break;
+
+				case InstructionEncoding.ModRM_FixedModReg:
+					str.AppendFormat(CultureInfo.InvariantCulture, " {0:X2}+r", opcode.GetExtraByte());
+					break;
+
+				case InstructionEncoding.ModRM_FixedReg:
+					str.Append(" /");
+					str.Append((char)('0' + (opcode.GetExtraByte() >> 3)));
+					break;
+
+				case InstructionEncoding.ModRM_Any: str.Append(" /r"); break;
+				case InstructionEncoding.ModRM_None: break;
+				default: throw new UnreachableException();
+			}
+
+			// TODO: Append immediates
 
 			return str.ToString();
 		}

@@ -31,7 +31,7 @@ namespace Asmuth.X86.Raw.Nasm
 			\Z", RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace);
 		private static readonly Regex instructionTemplateLineRegex = new Regex(@"
 			\A [ \t]*
-			(?<mnemonic>[^\t]+) [ \t]+
+			(?<mnemonic>\S+) [ \t]+
 			(?<operand_values>\S+) [ \t]+
 			\[ ((?<operand_fields>[a-z-+]+):((?<evex_tuple_type>[a-z0-9]+):)?)? [ \t]+ (?<encoding>[^\]\r\n\t]+?) \s* \] [ \t]+
 			(?<flags>\S+)

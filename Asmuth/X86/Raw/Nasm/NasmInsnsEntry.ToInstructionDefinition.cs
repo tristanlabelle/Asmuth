@@ -152,7 +152,7 @@ namespace Asmuth.X86.Raw.Nasm
 							continue;
 
 						case NasmEncodingTokenType.ModRM: SetModRM(InstructionEncoding.ModRM_Any); break;
-						case NasmEncodingTokenType.ModRM_FixedReg: SetModRM(InstructionEncoding.ModRM_FixedReg, token.Byte); break;
+						case NasmEncodingTokenType.ModRM_FixedReg: SetModRM(InstructionEncoding.ModRM_FixedReg, (byte)(token.Byte << 3)); break;
 
 						// Immediates
 						case NasmEncodingTokenType.Immediate_Byte:
