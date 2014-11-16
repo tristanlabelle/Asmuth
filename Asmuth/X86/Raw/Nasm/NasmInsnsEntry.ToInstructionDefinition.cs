@@ -213,46 +213,13 @@ namespace Asmuth.X86.Raw.Nasm
 				Contract.Assert((builder.Opcode & Opcode.XexType_Mask) == Opcode.XexType_Legacy);
 				Contract.Assert((builder.Opcode & Opcode.SimdPrefix_Mask) == Opcode.SimdPrefix_None);
 
-				var vexType = vexEncoding & VexOpcodeEncoding.Type_Mask;
-				switch (vexType)
-				{
-					case VexOpcodeEncoding.Type_Vex: builder.Opcode |= Opcode.XexType_Vex; break;
-					case VexOpcodeEncoding.Type_Xop: builder.Opcode |= Opcode.XexType_Xop; break;
-					case VexOpcodeEncoding.Type_EVex: builder.Opcode |= Opcode.XexType_EVex; break;
-					default: throw new UnreachableException();
-				}
+				Opcode opcode;
+				InstructionEncoding encoding;
+				vexEncoding.ToOpcodeEncoding(out opcode, out encoding);
 
-				switch (vexEncoding & VexOpcodeEncoding.SimdPrefix_Mask)
-				{
-					case VexOpcodeEncoding.SimdPrefix_None: builder.Opcode |= Opcode.SimdPrefix_None; break;
-					case VexOpcodeEncoding.SimdPrefix_66: builder.Opcode |= Opcode.SimdPrefix_66; break;
-					case VexOpcodeEncoding.SimdPrefix_F2: builder.Opcode |= Opcode.SimdPrefix_F2; break;
-					case VexOpcodeEncoding.SimdPrefix_F3: builder.Opcode |= Opcode.SimdPrefix_F3; break;
-					default: throw new UnreachableException();
-				}
-
-				if (vexType == VexOpcodeEncoding.Type_Xop)
-				{
-					switch (vexEncoding & VexOpcodeEncoding.Map_Mask)
-					{
-						case VexOpcodeEncoding.Map_Xop8: builder.Opcode |= Opcode.Map_Xop8; break;
-						case VexOpcodeEncoding.Map_Xop9: builder.Opcode |= Opcode.Map_Xop9; break;
-						case VexOpcodeEncoding.Map_Xop10: builder.Opcode |= Opcode.Map_Xop10; break;
-						default: throw new FormatException();
-					}
-				}
-				else
-				{
-					switch (vexEncoding & VexOpcodeEncoding.Map_Mask)
-					{
-						case VexOpcodeEncoding.Map_0F: builder.Opcode |= Opcode.Map_0F; break;
-						case VexOpcodeEncoding.Map_0F38: builder.Opcode |= Opcode.Map_0F38; break;
-						case VexOpcodeEncoding.Map_0F3A: builder.Opcode |= Opcode.Map_0F3A; break;
-						default: throw new FormatException();
-					}
-				}
-
-				// TODO: Rex.W and VectorLength
+				// TODO: Make sure these or's are safe
+				builder.Opcode |= opcode;
+				builder.Encoding |= encoding;
 
 				AdvanceTo(State.PostMap);
 			}

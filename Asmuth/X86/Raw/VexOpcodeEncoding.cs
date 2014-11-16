@@ -80,6 +80,7 @@ namespace Asmuth.X86.Raw
 		ImmediateType_Is4 = 2 << (int)ImmediateType_Shift,
 		ImmediateType_Mask = 3 << (int)ImmediateType_Shift,
 
+		// TODO: Figure out if VexOpcodeEncoding really needs an imm8 value
 		// 8 bits
 		ImmediateByte_Shift = 23,
 		ImmediateByte_Value = 0xFF << (int)ImmediateByte_Shift,
@@ -109,7 +110,8 @@ namespace Asmuth.X86.Raw
 			opcode = default(Opcode);
 			encoding = default(InstructionEncoding);
 
-			switch (vexEncoding & VexOpcodeEncoding.Type_Mask)
+			var vexType = vexEncoding & VexOpcodeEncoding.Type_Mask;
+			switch (vexType)
 			{
 				case VexOpcodeEncoding.Type_Vex: opcode |= Opcode.XexType_Vex; break;
 				case VexOpcodeEncoding.Type_Xop: opcode |= Opcode.XexType_Xop; break;
@@ -164,10 +166,48 @@ namespace Asmuth.X86.Raw
 					break;
 			}
 
+			if (vexType == VexOpcodeEncoding.Type_Xop)
+			{
+				switch (vexEncoding & VexOpcodeEncoding.Map_Mask)
+				{
+					case VexOpcodeEncoding.Map_Xop8: opcode |= Opcode.Map_Xop8; break;
+					case VexOpcodeEncoding.Map_Xop9: opcode |= Opcode.Map_Xop9; break;
+					case VexOpcodeEncoding.Map_Xop10: opcode |= Opcode.Map_Xop10; break;
+					default: throw new ArgumentException();
+				}
+			}
+			else
+			{
+				switch (vexEncoding & VexOpcodeEncoding.Map_Mask)
+				{
+					case VexOpcodeEncoding.Map_0F: opcode |= Opcode.Map_0F; break;
+					case VexOpcodeEncoding.Map_0F38: opcode |= Opcode.Map_0F38; break;
+					case VexOpcodeEncoding.Map_0F3A: opcode |= Opcode.Map_0F3A; break;
+					default: throw new ArgumentException();
+				}
+			}
+
 			opcode = opcode.WithMainByte(vexEncoding.GetMainByte());
 			encoding |= InstructionEncoding.OpcodeFormat_FixedByte;
 
-			throw new NotImplementedException();
+			if ((vexEncoding & VexOpcodeEncoding.HasModRM) != 0)
+				encoding |= InstructionEncoding.ModRM_Any;
+
+			switch (vexEncoding & VexOpcodeEncoding.ImmediateType_Mask)
+			{
+				case VexOpcodeEncoding.ImmediateType_None:
+					encoding |= InstructionEncoding.ImmediateSize_0;
+					break;
+
+				case VexOpcodeEncoding.ImmediateType_Byte:
+				case VexOpcodeEncoding.ImmediateType_Is4:
+					encoding |= InstructionEncoding.ImmediateSize_8;
+					break;
+
+				default: throw new ArgumentException();
+			}
+
+			// TODO: Vvvv
 		}
 
 		public static string ToIntelStyleString(this VexOpcodeEncoding encoding)

@@ -47,7 +47,7 @@ namespace Asmuth.X86.Raw
 		Map_Xop8 = 8 << (int)Map_Shift, // AMD XOP opcode map 8
 		Map_Xop9 = 9 << (int)Map_Shift, // AMD XOP opcode map 9
 		Map_Xop10 = 10 << (int)Map_Shift, // AMD XOP opcode map 10
-		Map_Mask = 0xF << (int)Map_Shift,
+		Map_Mask = 0x1F << (int)Map_Shift,
 
 		// 0xFF0000: Main opcode byte, always present
 		MainByte_Shift = 16,

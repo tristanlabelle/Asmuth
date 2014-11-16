@@ -31,7 +31,6 @@ namespace Asmuth.X86.Raw
 		public CpuidFeatureFlags RequiredFeatureFlags => requiredFeatureFlags;
 		public EFlags? AffectedFlags => affectedFlags;
 		public IReadOnlyList<OperandDefinition> Operands => (IReadOnlyList<OperandDefinition>)operands;
-		public string IntelStyleEncodingString => GetIntelStyleEncodingString(opcode, encoding);
 		#endregion
 
 		#region Methods
@@ -42,6 +41,8 @@ namespace Asmuth.X86.Raw
 			return (opcode & fixedMask) == (this.opcode & fixedMask)
 				|| (opcode.WithSimdPrefix(SimdPrefix.None) & fixedMask) == (this.opcode & fixedMask);
 		}
+
+		public string GetEncodingString() => GetEncodingString(opcode, encoding);
 
 		public override string ToString() => Mnemonic;
 
@@ -76,7 +77,7 @@ namespace Asmuth.X86.Raw
 			throw new NotImplementedException();
 		}
 
-		public static string GetIntelStyleEncodingString(Opcode opcode, InstructionEncoding encoding)
+		public static string GetEncodingString(Opcode opcode, InstructionEncoding encoding)
 		{
 			var str = new StringBuilder(30);
 

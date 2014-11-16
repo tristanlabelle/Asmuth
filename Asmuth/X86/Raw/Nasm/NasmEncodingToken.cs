@@ -25,9 +25,11 @@ namespace Asmuth.X86.Raw.Nasm
 		{
 			switch (Type)
 			{
+				case NasmEncodingTokenType.Vex: return "vex";
 				case NasmEncodingTokenType.Byte: return Byte.ToString("X2", CultureInfo.InvariantCulture);
 				case NasmEncodingTokenType.Byte_PlusRegister: return Byte.ToString("X2", CultureInfo.InvariantCulture) + "+r";
 				case NasmEncodingTokenType.Byte_PlusConditionCode: return Byte.ToString("X2", CultureInfo.InvariantCulture) + "+cc";
+				case NasmEncodingTokenType.ModRM_FixedReg: return "/" + (char)('0' + Byte);
 				default: return NasmEnum<NasmEncodingTokenType>.GetNameOrNull(Type) ?? Type.ToString();
 			}
 		}

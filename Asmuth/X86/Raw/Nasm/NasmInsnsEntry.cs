@@ -40,6 +40,20 @@ namespace Asmuth.X86.Raw.Nasm
 		#endregion
 
 		#region Methods
+		public string GetEncodingString()
+		{
+			var str = new StringBuilder();
+			foreach (var token in encodingTokens)
+			{
+				if (str.Length > 0) str.Append(' ');
+				if (token.Type == NasmEncodingTokenType.Vex)
+					str.Append(vexEncoding.ToIntelStyleString());
+				else
+					str.Append(token.ToString());
+			}
+			return str.ToString();
+		}
+
 		public override string ToString() => Mnemonic;
 		#endregion
 
