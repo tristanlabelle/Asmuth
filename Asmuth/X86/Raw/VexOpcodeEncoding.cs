@@ -196,12 +196,15 @@ namespace Asmuth.X86.Raw
 			switch (vexEncoding & VexOpcodeEncoding.ImmediateType_Mask)
 			{
 				case VexOpcodeEncoding.ImmediateType_None:
-					encoding |= InstructionEncoding.ImmediateSize_0;
+					encoding |= InstructionEncoding.FirstImmediateType_None;
 					break;
 
 				case VexOpcodeEncoding.ImmediateType_Byte:
+					encoding = encoding.WithFirstImmediateType(ImmediateType.Imm8);
+					break;
+
 				case VexOpcodeEncoding.ImmediateType_Is4:
-					encoding |= InstructionEncoding.ImmediateSize_8;
+					encoding = encoding.WithFirstImmediateType(ImmediateType.OpcodeExtension);
 					break;
 
 				default: throw new ArgumentException();

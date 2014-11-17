@@ -58,19 +58,15 @@ namespace Asmuth.X86.Raw
 		ModRM_Fixed = 4 << (int)ModRM_Shift,
 		ModRM_Mask = 7 << (int)ModRM_Shift,
 
-		// The number of bytes of immediate value
-		ImmediateSize_Shift = ModRM_Shift + 3,
-		ImmediateSize_0 = 0 << (int)ImmediateSize_Shift,
-		ImmediateSize_8 = 1 << (int)ImmediateSize_Shift,
-		ImmediateSize_16 = 2 << (int)ImmediateSize_Shift, // RET
-		ImmediateSize_24 = 3 << (int)ImmediateSize_Shift, // ENTER iw, ib
-		ImmediateSize_32 = 4 << (int)ImmediateSize_Shift,
-		ImmediateSize_48 = 5 << (int)ImmediateSize_Shift,
-		ImmediateSize_64 = 6 << (int)ImmediateSize_Shift,
-		ImmediateSize_16Or32 = 7 << (int)ImmediateSize_Shift,
-		ImmediateSize_16Or32Or64 = 8 << (int)ImmediateSize_Shift,
-		ImmediateSize_32Or48 = 9 << (int)ImmediateSize_Shift, // CALL (9A)
-		ImmediateSize_Mask = 0xF << (int)ImmediateSize_Shift,
+		// Immediate types
+		FirstImmediateType_Shift = ModRM_Shift + 3,
+		FirstImmediateType_None = (uint)ImmediateType.None << (int)FirstImmediateType_Shift,
+		FirstImmediateType_OpcodeExtension = (uint)ImmediateType.OpcodeExtension << (int)FirstImmediateType_Shift,
+		FirstImmediateType_Mask = 0x1F << (int)FirstImmediateType_Shift,
+
+		SecondImmediateType_Shift = FirstImmediateType_Shift + 5,
+		SecondImmediateType_None = (uint)ImmediateType.None << (int)SecondImmediateType_Shift,
+		SecondImmediateType_Mask = 0x1F << (int)SecondImmediateType_Shift,
 	}
 
 	public static class InstructionEncodingEnum
@@ -79,6 +75,27 @@ namespace Asmuth.X86.Raw
 		[Pure]
 		public static bool HasModRM(this InstructionEncoding encoding)
 			=> (encoding & InstructionEncoding.ModRM_Mask) != InstructionEncoding.ModRM_None;
+
+		[Pure]
+		public static ImmediateType GetFirstImmediateType(this InstructionEncoding encoding)
+			=> (ImmediateType)Bits.MaskAndShiftRight((uint)encoding,
+				(uint)InstructionEncoding.FirstImmediateType_Mask, (int)InstructionEncoding.FirstImmediateType_Shift);
+
+		[Pure]
+		public static ImmediateType GetSecondImmediateType(this InstructionEncoding encoding)
+			=> (ImmediateType)Bits.MaskAndShiftRight((uint)encoding,
+				(uint)InstructionEncoding.SecondImmediateType_Mask, (int)InstructionEncoding.SecondImmediateType_Shift);
+
+		[Pure]
+		public static int GetImmediateCount(this InstructionEncoding encoding)
+		{
+			bool hasFirstImmediate = (encoding & InstructionEncoding.FirstImmediateType_Mask)
+				!= InstructionEncoding.FirstImmediateType_None;
+			if (!hasFirstImmediate) return 0;
+			bool hasSecondImmediate = (encoding & InstructionEncoding.SecondImmediateType_Mask)
+				!= InstructionEncoding.SecondImmediateType_None;
+			return hasSecondImmediate ? 2 : 1;
+		}
 
 		[Pure]
 		public static Opcode GetOpcodeFixedMask(this InstructionEncoding encoding)
@@ -136,10 +153,19 @@ namespace Asmuth.X86.Raw
 		}
 
 		[Pure]
-		public static InstructionEncoding WithImmediateSize(this InstructionEncoding encoding, InstructionEncoding size)
+		public static InstructionEncoding WithFirstImmediateType(this InstructionEncoding encoding, ImmediateType type)
 		{
-			Contract.Requires((size & ~InstructionEncoding.ImmediateSize_Mask) == 0);
-			return (encoding & ~InstructionEncoding.ImmediateSize_Mask) | size;
+			Contract.Requires(type == (type & (ImmediateType)0x1F));
+			return (encoding & ~InstructionEncoding.FirstImmediateType_Mask)
+				| (InstructionEncoding)((uint)type << (int)InstructionEncoding.FirstImmediateType_Shift);
+		}
+
+		[Pure]
+		public static InstructionEncoding WithSecondImmediateType(this InstructionEncoding encoding, ImmediateType type)
+		{
+			Contract.Requires(type == (type & (ImmediateType)0x1F));
+			return (encoding & ~InstructionEncoding.SecondImmediateType_Mask)
+				| (InstructionEncoding)((uint)type << (int)InstructionEncoding.SecondImmediateType_Shift);
 		}
 		#endregion
 	}

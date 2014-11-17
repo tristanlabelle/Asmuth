@@ -127,6 +127,10 @@ namespace Asmuth.X86.Raw.Nasm
 								SetModRM(InstructionEncoding.ModRM_Fixed, token.Byte);
 								continue;
 							}
+
+							Contract.Assert(state == State.PostModRM);
+							builder.Opcode = builder.Opcode.WithExtraByte(token.Byte);
+							AddImmediate(ImmediateType.OpcodeExtension);
 							break;
 
 						case NasmEncodingTokenType.Byte_PlusRegister:
@@ -158,31 +162,27 @@ namespace Asmuth.X86.Raw.Nasm
 						case NasmEncodingTokenType.Immediate_Byte:
 						case NasmEncodingTokenType.Immediate_Byte_Signed:
 						case NasmEncodingTokenType.Immediate_Byte_Unsigned:
-						case NasmEncodingTokenType.Immediate_RelativeOffset8:
-						case NasmEncodingTokenType.Immediate_Is4:
-							SetImmediateSize(InstructionEncoding.ImmediateSize_8);
+							AddImmediate(ImmediateType.Imm8);
 							break;
 
-						case NasmEncodingTokenType.Immediate_Word: SetImmediateSize(InstructionEncoding.ImmediateSize_16); break;
-						case NasmEncodingTokenType.Immediate_Dword: SetImmediateSize(InstructionEncoding.ImmediateSize_32); break;
-						case NasmEncodingTokenType.Immediate_Dword_Signed: SetImmediateSize(InstructionEncoding.ImmediateSize_32); break;
-						case NasmEncodingTokenType.Immediate_WordOrDword: SetImmediateSize(InstructionEncoding.ImmediateSize_16Or32); break;
-						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword: SetImmediateSize(InstructionEncoding.ImmediateSize_16Or32Or64); break;
-						case NasmEncodingTokenType.Immediate_Qword: SetImmediateSize(InstructionEncoding.ImmediateSize_64); break;
+						case NasmEncodingTokenType.Immediate_RelativeOffset8: AddImmediate(ImmediateType.RelativeCodeOffset8); break;
+						case NasmEncodingTokenType.Immediate_Is4: AddImmediate(ImmediateType.OpcodeExtension); break;
+						case NasmEncodingTokenType.Immediate_Word: AddImmediate(ImmediateType.Imm16); break;
+						case NasmEncodingTokenType.Immediate_Dword: AddImmediate(ImmediateType.Imm32); break;
+						case NasmEncodingTokenType.Immediate_Dword_Signed: AddImmediate(ImmediateType.Imm32); break;
+						case NasmEncodingTokenType.Immediate_WordOrDword: AddImmediate(ImmediateType.Imm16Or32); break;
+						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword: AddImmediate(ImmediateType.Imm16Or32Or64); break;
+						case NasmEncodingTokenType.Immediate_Qword: AddImmediate(ImmediateType.Imm64); break;
 
 						case NasmEncodingTokenType.Immediate_RelativeOffset:
 							Contract.Assert(operandSize != 0);
 							switch (operandSize)
 							{
-								case NasmEncodingTokenType.OperandSize_Fixed16: SetImmediateSize(InstructionEncoding.ImmediateSize_16); break;
-								case NasmEncodingTokenType.OperandSize_Fixed32: SetImmediateSize(InstructionEncoding.ImmediateSize_32); break;
-								case NasmEncodingTokenType.OperandSize_NoOverride: SetImmediateSize(InstructionEncoding.ImmediateSize_16Or32); break;
-
-								case NasmEncodingTokenType.OperandSize_Fixed64:
-								case NasmEncodingTokenType.OperandSize_Fixed64_RexExtensionsOnly:
-									SetImmediateSize(InstructionEncoding.ImmediateSize_64);
-									break;
-
+								case NasmEncodingTokenType.OperandSize_NoOverride: AddImmediate(ImmediateType.RelativeCodeOffset16Or32); break;
+								case NasmEncodingTokenType.OperandSize_Fixed16: AddImmediate(ImmediateType.RelativeCodeOffset16); break;
+								case NasmEncodingTokenType.OperandSize_Fixed32: AddImmediate(ImmediateType.RelativeCodeOffset32); break;
+								case NasmEncodingTokenType.AddressSize_Fixed64: throw new NotImplementedException();
+								case NasmEncodingTokenType.OperandSize_Fixed64_RexExtensionsOnly: AddImmediate(ImmediateType.RelativeCodeOffset64); break;
 								default: throw new UnreachableException();
 							}
 							break;
@@ -210,8 +210,8 @@ namespace Asmuth.X86.Raw.Nasm
 
 			private void SetVex(InstructionDefinition.Builder builder, VexOpcodeEncoding vexEncoding)
 			{
-				Contract.Assert((builder.Opcode & Opcode.XexType_Mask) == Opcode.XexType_Legacy);
-				Contract.Assert((builder.Opcode & Opcode.SimdPrefix_Mask) == Opcode.SimdPrefix_None);
+				Contract.Requires((builder.Opcode & Opcode.XexType_Mask) == Opcode.XexType_Legacy);
+				Contract.Requires((builder.Opcode & Opcode.SimdPrefix_Mask) == Opcode.SimdPrefix_None);
 
 				Opcode opcode;
 				InstructionEncoding encoding;
@@ -226,7 +226,7 @@ namespace Asmuth.X86.Raw.Nasm
 
 			private void SetSimdPrefix(SimdPrefix prefix)
 			{
-				Contract.Assert(builder.Opcode.GetSimdPrefix() == SimdPrefix.None);
+				Contract.Requires(builder.Opcode.GetSimdPrefix() == SimdPrefix.None);
 				builder.Opcode = builder.Opcode.WithSimdPrefix(prefix);
 				AdvanceTo(State.PostSimdPrefix);
 			}
@@ -240,53 +240,26 @@ namespace Asmuth.X86.Raw.Nasm
 
 			private void SetModRM(InstructionEncoding format, byte @byte = 0)
 			{
-				Contract.Assert(state == State.PostOpcode);
-				Contract.Assert((builder.Encoding & InstructionEncoding.ModRM_Mask) == InstructionEncoding.ModRM_None);
+				Contract.Requires(state == State.PostOpcode);
+				Contract.Requires((builder.Encoding & InstructionEncoding.ModRM_Mask) == InstructionEncoding.ModRM_None);
 				builder.Encoding = builder.Encoding.WithModRM(format);
 				if (format != InstructionEncoding.ModRM_None && format != InstructionEncoding.ModRM_Any)
 					builder.Opcode = builder.Opcode.WithExtraByte(@byte);
 				AdvanceTo(State.PostModRM);
 			}
 
-			private void SetImmediateSize(InstructionEncoding size)
+			private void AddImmediate(ImmediateType type)
 			{
-				Contract.Assert(state >= State.PostOpcode);
+				Contract.Requires(state >= State.PostOpcode);
+				Contract.Requires((type & ImmediateType.Type_Mask) != ImmediateType.Type_None);
 
-				var currentSize = builder.Encoding & InstructionEncoding.ImmediateSize_Mask;
-				if (currentSize == InstructionEncoding.ImmediateSize_8 && size == InstructionEncoding.ImmediateSize_8)
-				{
-					// ib ib
-					size = InstructionEncoding.ImmediateSize_16;
-				}
-				else if ((currentSize == InstructionEncoding.ImmediateSize_16 && size == InstructionEncoding.ImmediateSize_8)
-					|| (currentSize == InstructionEncoding.ImmediateSize_8 && size == InstructionEncoding.ImmediateSize_16))
-				{
-					// iw ib, ib iw
-					size = InstructionEncoding.ImmediateSize_24;
-				}
-				else if (currentSize == InstructionEncoding.ImmediateSize_16 && size == InstructionEncoding.ImmediateSize_16)
-				{
-					// iw iw
-					size = InstructionEncoding.ImmediateSize_32;
-				}
-				else if ((currentSize == InstructionEncoding.ImmediateSize_16Or32 && size == InstructionEncoding.ImmediateSize_16)
-					|| (currentSize == InstructionEncoding.ImmediateSize_16 && size == InstructionEncoding.ImmediateSize_16Or32))
-				{
-					// iwd iw, iw iwd
-					size = InstructionEncoding.ImmediateSize_32Or48;
-				}
-				else if ((currentSize == InstructionEncoding.ImmediateSize_32 && size == InstructionEncoding.ImmediateSize_16)
-					|| (currentSize == InstructionEncoding.ImmediateSize_16 && size == InstructionEncoding.ImmediateSize_32))
-				{
-					// id iw, iw id
-					size = InstructionEncoding.ImmediateSize_48;
-				}
+				int immediateCount = builder.Encoding.GetImmediateCount();
+				Contract.Requires(immediateCount < 2);
+				if (immediateCount == 0)
+					builder.Encoding |= builder.Encoding.WithFirstImmediateType(type);
 				else
-				{
-					Contract.Assert(currentSize == InstructionEncoding.ImmediateSize_0);
-				}
+					builder.Encoding |= builder.Encoding.WithSecondImmediateType(type);
 
-				builder.Encoding = builder.Encoding.WithImmediateSize(size);
 				AdvanceTo(State.Immediates);
 			}
 
