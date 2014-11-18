@@ -47,7 +47,7 @@ namespace Asmuth.X86.Raw.Nasm
 			{
 				if (str.Length > 0) str.Append(' ');
 				if (token.Type == NasmEncodingTokenType.Vex)
-					str.Append(vexEncoding.ToIntelStyleString());
+					str.Append(vexEncoding.ToIntelStyleString(vexOnly: true));
 				else
 					str.Append(token.ToString());
 			}

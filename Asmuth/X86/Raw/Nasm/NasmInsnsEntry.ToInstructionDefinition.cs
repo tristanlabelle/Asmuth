@@ -35,13 +35,16 @@ namespace Asmuth.X86.Raw.Nasm
 
 				builder.Mnemonic = entry.Mnemonic;
 
+				bool hasVex = false;
 				NasmEncodingTokenType addressSize = 0, operandSize = 0;
 				foreach (var token in entry.EncodingTokens)
 				{
 					switch (token.Type)
 					{
 						case NasmEncodingTokenType.Vex:
+							Contract.Assert(!hasVex);
 							SetVex(builder, entry.VexEncoding);
+							hasVex = true;
 							break;
 
 						case NasmEncodingTokenType.AddressSize_Fixed16:
@@ -101,21 +104,24 @@ namespace Asmuth.X86.Raw.Nasm
 
 							if (state < State.PostOpcode)
 							{
-								if ((builder.Opcode & Opcode.Map_Mask) == Opcode.Map_Default
-									&& token.Byte == 0x0F)
+								if (!hasVex)
 								{
-									builder.Opcode = builder.Opcode.WithMap(Opcode.Map_0F);
-									AdvanceTo(State.Map0F);
-									continue;
-								}
+									if ((builder.Opcode & Opcode.Map_Mask) == Opcode.Map_Default
+										&& token.Byte == 0x0F)
+									{
+										builder.Opcode = builder.Opcode.WithMap(Opcode.Map_0F);
+										AdvanceTo(State.Map0F);
+										continue;
+									}
 
-								if ((builder.Opcode & Opcode.Map_Mask) == Opcode.Map_0F
-									&& (token.Byte == 0x38 || token.Byte == 0x3A))
-								{
-									builder.Opcode = builder.Opcode.WithMap(
-										token.Byte == 0x38 ? Opcode.Map_0F38 : Opcode.Map_0F3A);
-									AdvanceTo(State.PostMap);
-									continue;
+									if ((builder.Opcode & Opcode.Map_Mask) == Opcode.Map_0F
+										&& (token.Byte == 0x38 || token.Byte == 0x3A))
+									{
+										builder.Opcode = builder.Opcode.WithMap(
+											token.Byte == 0x38 ? Opcode.Map_0F38 : Opcode.Map_0F3A);
+										AdvanceTo(State.PostMap);
+										continue;
+									}
 								}
 
 								SetOpcode(InstructionEncoding.OpcodeFormat_FixedByte, token.Byte);

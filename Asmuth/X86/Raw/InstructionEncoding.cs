@@ -126,6 +126,9 @@ namespace Asmuth.X86.Raw
 				default: throw new UnreachableException();
 			}
 
+			if ((encoding & InstructionEncoding.FirstImmediateType_Mask) == InstructionEncoding.FirstImmediateType_OpcodeExtension)
+				mask |= Opcode.EVexIs4_Mask;
+
 			return mask;
 		}
 		#endregion

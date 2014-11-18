@@ -256,15 +256,14 @@ namespace Asmuth.X86.Raw.Nasm
 
 		private static void ParseVex_RexW(ref VexOpcodeEncoding encoding, string[] tokens, ref int tokenIndex)
 		{
-			switch (tokenIndex < tokens.Length ? tokens[tokenIndex] : "")
+			if (tokenIndex == tokens.Length) return;
+			switch (tokens[tokenIndex++])
 			{
 				case "w0": encoding |= VexOpcodeEncoding.RexW_0; break;
 				case "w1": encoding |= VexOpcodeEncoding.RexW_1; break;
 				case "wig": encoding |= VexOpcodeEncoding.RexW_Ignored; break;
 				default: encoding |= VexOpcodeEncoding.RexW_Ignored; return;
 			}
-
-			++tokenIndex;
 		}
 		#endregion
 

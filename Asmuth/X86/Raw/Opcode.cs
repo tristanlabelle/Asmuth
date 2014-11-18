@@ -138,7 +138,7 @@ namespace Asmuth.X86.Raw
 
 		[Pure]
 		public static Opcode WithExtraByte(this Opcode opcode, byte extraByte)
-			=> (opcode & ~Opcode.ExtraByte_Shift) | (Opcode)((uint)extraByte << (int)Opcode.ExtraByte_Shift);  
+			=> (opcode & ~Opcode.ExtraByte_Mask) | (Opcode)((uint)extraByte << (int)Opcode.ExtraByte_Shift);  
 		#endregion
 	}
 }

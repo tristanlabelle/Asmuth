@@ -142,7 +142,7 @@ namespace Asmuth.X86.Raw
 
 				case VexOpcodeEncoding.VectorLength_2:
 					encoding |= InstructionEncoding.VexL_Fixed;
-					opcode |= Opcode.VexL_1;
+					opcode |= Opcode.VexL_2;
 					break;
 
 				case VexOpcodeEncoding.VectorLength_Ignored:
@@ -213,7 +213,7 @@ namespace Asmuth.X86.Raw
 			// TODO: Vvvv
 		}
 
-		public static string ToIntelStyleString(this VexOpcodeEncoding encoding)
+		public static string ToIntelStyleString(this VexOpcodeEncoding encoding, bool vexOnly = false)
 		{
 			// Encoded length = 12-38:
 			// VEX.L0.0F 42
@@ -287,6 +287,8 @@ namespace Asmuth.X86.Raw
 				case VexOpcodeEncoding.RexW_Ignored: str.Append(".WIG"); break;
 				default: throw new ArgumentException();
 			}
+
+			if (vexOnly) return str.ToString();
 
 			str.Append(' ');
 			str.Append(GetMainByte(encoding).ToString("X2", CultureInfo.InvariantCulture));
