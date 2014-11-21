@@ -61,6 +61,7 @@
     <Compile Include="StringExtensions.cs" />
     <Compile Include="UnreachableException.cs" />
     <Compile Include="Bits.cs" />
+    <Compile Include="X86\Raw\InstructionDefinition.Merge.cs" />
     <Compile Include="X86\Raw\ConditionCode.cs" />
     <Compile Include="X86\Raw\CpuidFeatureFlags.cs" />
     <Compile Include="X86\Raw\CpuidQuery.cs" />

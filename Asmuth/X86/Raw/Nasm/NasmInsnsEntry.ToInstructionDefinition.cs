@@ -9,6 +9,11 @@ namespace Asmuth.X86.Raw.Nasm
 {
 	partial class NasmInsnsEntry
 	{
+		public InstructionDefinition ToInstructionDefinition()
+		{
+			return new InstructionDefinitionConverter().Convert(this);
+		}
+
 		private struct InstructionDefinitionConverter
 		{
 			private enum State
@@ -31,9 +36,17 @@ namespace Asmuth.X86.Raw.Nasm
 				Contract.Requires(entry != null);
 
 				builder = new InstructionDefinition.Builder();
-				state = State.Prefixes;
-
 				builder.Mnemonic = entry.Mnemonic;
+				ConvertEncodingTokens(entry);
+				ConvertOperands(entry);
+
+				return builder.Build(reuse: false);
+			}
+
+			#region ConvertEncodingTokens
+			private void ConvertEncodingTokens(NasmInsnsEntry entry)
+			{
+				state = State.Prefixes;
 
 				bool hasVex = false;
 				NasmEncodingTokenType addressSize = 0, operandSize = 0;
@@ -127,7 +140,7 @@ namespace Asmuth.X86.Raw.Nasm
 								SetOpcode(InstructionEncoding.OpcodeFormat_FixedByte, token.Byte);
 								continue;
 							}
-							
+
 							if (state == State.PostOpcode)
 							{
 								SetModRM(InstructionEncoding.ModRM_Fixed, token.Byte);
@@ -203,15 +216,13 @@ namespace Asmuth.X86.Raw.Nasm
 							break; // TODO: do something with those VM(32|64)[xy]?
 
 						case NasmEncodingTokenType.Misc_NoHigh8Register:
-						case NasmEncodingTokenType.Misc_AssembleWaitPrefix: // Implicit WAIT prefix when assembling instruction
+						case NasmEncodingTokenType.Misc_AssembleWaitPrefix:	// Implicit WAIT prefix when assembling instruction
 							break;
 
 						default:
 							throw new NotImplementedException("Handling NASM encoding tokens of type '{0}'".FormatInvariant(token.Type));
 					}
 				}
-
-				return builder.Build(reuse: false);
 			}
 
 			private void SetVex(InstructionDefinition.Builder builder, VexOpcodeEncoding vexEncoding)
@@ -274,11 +285,14 @@ namespace Asmuth.X86.Raw.Nasm
 				Contract.Requires(newState >= state);
 				state = newState;
 			}
-		}
+			#endregion
 
-		public InstructionDefinition ToInstructionDefinition()
-		{
-			return new InstructionDefinitionConverter().Convert(this);
+			#region ConvertOperands
+			private void ConvertOperands(NasmInsnsEntry entry)
+			{
+				// TODO: Convert operands
+			}
+			#endregion
 		}
 	}
 }

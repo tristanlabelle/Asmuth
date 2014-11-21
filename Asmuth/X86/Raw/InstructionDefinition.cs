@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86.Raw
 {
-	public sealed class InstructionDefinition
+	public sealed partial class InstructionDefinition
 	{
 		#region Fields
 		private string mnemonic;
@@ -45,37 +45,6 @@ namespace Asmuth.X86.Raw
 		public string GetEncodingString() => GetEncodingString(opcode, encoding);
 
 		public override string ToString() => Mnemonic;
-
-		public static IEnumerable<InstructionDefinition> MergeHeterogeneous(IEnumerable<InstructionDefinition> instructions)
-		{
-			Contract.Requires(instructions != null);
-
-			// Group by masked opcode
-			var groups = MultiValueDictionary<ulong, InstructionDefinition>.Create<List<InstructionDefinition>>();
-			foreach (var instruction in instructions)
-			{
-				var opcodeFixedMask = instruction.Encoding.GetOpcodeFixedMask();
-				ulong key = ((ulong)opcodeFixedMask << 32) | (ulong)(instruction.Opcode & opcodeFixedMask);
-				groups.Add(key, instruction);
-			}
-			
-			// Merge every group
-			foreach (List<InstructionDefinition> group in groups.Values)
-			{
-				MergeHomogeneous(group);
-				foreach (var instruction in group)
-					yield return instruction;
-			}
-		}
-
-		private static void MergeHomogeneous(IList<InstructionDefinition> group)
-		{
-			Contract.Requires(group != null);
-
-			if (group.Count <= 1) return;
-
-			throw new NotImplementedException();
-		}
 
 		public static string GetEncodingString(Opcode opcode, InstructionEncoding encoding)
 		{

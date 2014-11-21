@@ -72,6 +72,12 @@ namespace Asmuth.X86.Raw
 			| (1 << (int)ConditionCode.GreaterOrEqual)
 			| (1 << (int)ConditionCode.LessOrEqual);
 
+		private static readonly string[] suffixes = new[]
+		{
+			"O", "NO", "B", "AE", "E", "NE", "BE", "A",
+			"S", "NS", "P", "NP", "L", "GE", "LE", "G"
+		};
+
 		[Pure]
 		public static ConditionCode Negate(this ConditionCode code)
 			=> (ConditionCode)((byte)code ^ 1);
@@ -87,5 +93,9 @@ namespace Asmuth.X86.Raw
 		[Pure]
 		public static bool IsSignedComparison(this ConditionCode code)
 			=> (signedComparisonMask & (1 << (int)code)) != 0;
+
+		[Pure]
+		public static string GetMnemonicSuffix(this ConditionCode code)
+			=> suffixes[(int)code];
 	}
 }

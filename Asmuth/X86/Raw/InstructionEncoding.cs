@@ -67,6 +67,8 @@ namespace Asmuth.X86.Raw
 		SecondImmediateType_Shift = FirstImmediateType_Shift + 5,
 		SecondImmediateType_None = (uint)ImmediateType.None << (int)SecondImmediateType_Shift,
 		SecondImmediateType_Mask = 0x1F << (int)SecondImmediateType_Shift,
+
+		ImmediateTypes_Mask = FirstImmediateType_Mask | SecondImmediateType_Mask,
 	}
 
 	public static class InstructionEncodingEnum
