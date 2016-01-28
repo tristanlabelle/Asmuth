@@ -15,7 +15,7 @@ namespace Asmuth.X86.Raw
 		private Opcode opcode;
 		private InstructionEncoding encoding;
 		private CpuidFeatureFlags requiredFeatureFlags;
-		private EFlags? affectedFlags;
+		private Flags? affectedFlags;
 		private IList<OperandDefinition> operands;
 		#endregion
 
@@ -29,7 +29,7 @@ namespace Asmuth.X86.Raw
 		public Opcode OpcodeFixedMask => encoding.GetOpcodeFixedMask();
 		public InstructionEncoding Encoding => encoding;
 		public CpuidFeatureFlags RequiredFeatureFlags => requiredFeatureFlags;
-		public EFlags? AffectedFlags => affectedFlags;
+		public Flags? AffectedFlags => affectedFlags;
 		public IReadOnlyList<OperandDefinition> Operands => (IReadOnlyList<OperandDefinition>)operands;
 		#endregion
 
@@ -250,7 +250,7 @@ namespace Asmuth.X86.Raw
 				set { instruction.requiredFeatureFlags = value; }
 			}
 
-			public EFlags? AffectedFlags
+			public Flags? AffectedFlags
 			{
 				get { return instruction.affectedFlags; }
 				set { instruction.affectedFlags = value; }
