@@ -30,7 +30,10 @@ namespace Asmuth.X86.Raw
 		private ModRM modRM;
 		private Sib sib;
 		private int displacement;
-		private ulong immediate;
+		// Only 3 instructions have imm64/moffset64 operands,
+		// and they do not allow ModRM bytes, so they cannot have displacements.
+		// For those, consider "displacement" as the most significant 4 bytes
+		private uint immediate;
 		private Flags flags;
 		#endregion
 

@@ -265,14 +265,21 @@ namespace Asmuth.X86.Raw
 			return AdvanceTo(InstructionDecodingState.Error);
 		}
 
+		private AddressSize GetEffectiveAddressSize()
+		{
+			Contract.Requires(state > InstructionDecodingState.ExpectPrefixOrOpcode);
+			return AddressSizeEnum.FromDecodingModeAndOverride(
+				mode, legacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride));
+		}
+
 		private bool AdvanceToSibOrFurther()
 		{
 			Contract.Requires(State == InstructionDecodingState.ExpectModRM);
 			Contract.Requires(Fields.Has(InstructionFields.ModRM));
-
-			if (modRM.ImpliesSib() && sib == (Sib)0xFF) // TODO: Check that processor mode allows SIB
-				return AdvanceTo(InstructionDecodingState.ExpectSib);
-			return AdvanceToDisplacementOrFurther();
+			
+			return modRM.ImpliesSib(GetEffectiveAddressSize())
+				? AdvanceTo(InstructionDecodingState.ExpectSib)
+				: AdvanceToDisplacementOrFurther();
 		}
 
 		private bool AdvanceToDisplacementOrFurther()
@@ -282,7 +289,7 @@ namespace Asmuth.X86.Raw
 
 			if (displacement != 0) // Check if the opcode allows displacements
 			{
-				int displacementSize = modRM.GetDisplacementSizeInBytes(sib, addressing32: displacement == 1);
+				int displacementSize = modRM.GetDisplacementSizeInBytes(sib, GetEffectiveAddressSize());
 				displacement = 0;
 				if (displacementSize > 0) return AdvanceTo(InstructionDecodingState.ExpectDisplacement, substate: (byte)displacementSize);
 			}
@@ -301,7 +308,7 @@ namespace Asmuth.X86.Raw
 				byte immediateSize = (byte)immediate;
 				immediate = 0;
 				return AdvanceTo(InstructionDecodingState.ExpectImmediate, substate: immediateSize);
-            }
+			}
 
 			return AdvanceTo(InstructionDecodingState.Completed);
 		}

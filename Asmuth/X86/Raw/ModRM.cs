@@ -11,12 +11,15 @@ namespace Asmuth.X86.Raw
 	public enum ModRM : byte
 	{
 		RM_Shift = 0,
-        RM_Mask = 7 << RM_Shift,
+		RM_Mask = 7 << RM_Shift,
 
 		Reg_Shift = 3,
 		Reg_Mask = 7 << Reg_Shift,
 
 		Mod_Shift = 6,
+		Mod_IndirectByteDisplacement = 1 << Mod_Shift,
+		Mod_IndirectLongDisplacement = 2 << Mod_Shift,
+		Mod_Direct = 3 << Mod_Shift,
 		Mod_Mask = 3 << Mod_Shift,
 	}
 
@@ -44,24 +47,28 @@ namespace Asmuth.X86.Raw
 			=> (byte)((byte)(modRM & ModRM.Mod_Mask) >> (byte)ModRM.Mod_Shift);
 
 		[Pure]
-		public static int GetDisplacementSizeInBytes(this ModRM modRM, bool addressing32)
+		public static int GetDisplacementSizeInBytes(this ModRM modRM, Sib sib, AddressSize addressSize)
 		{
-			switch (GetModField(modRM))
+			switch (modRM & ModRM.Mod_Mask)
 			{
-				case 0:
-				{
-					if (addressing32) return GetRMField(modRM) == 5 ? 4 : 0;
-					else return GetRMField(modRM) == 6 ? 2 : 0;
-				}
-				case 1: return 1;
-				case 2: return addressing32 ? 4 : 2;
-				case 3: return 0;
-				default: throw new UnreachableException("Unexpected ModRM mod field value.");
+				case ModRM.Mod_IndirectByteDisplacement: return 1;
+				case ModRM.Mod_IndirectLongDisplacement: return addressSize >= AddressSize._32 ? 4 : 2;
+				case ModRM.Mod_Direct: return 0;
+			}
+
+			// Mod = 0
+			if (addressSize == AddressSize._16)
+			{
+				return GetRMField(modRM) == 6 ? 2 : 0;
+			}
+			else
+			{
+				return GetRMField(modRM) == 5 ? 4 : 0;
 			}
 		}
 
 		[Pure]
-		public static bool ImpliesSib(this ModRM modRM, bool addressing32 = true)
-			=> addressing32 && GetRMField(modRM) == 4 && GetModField(modRM) != 3;
+		public static bool ImpliesSib(this ModRM modRM, AddressSize addressSize)
+			=> addressSize >= AddressSize._32 && GetRMField(modRM) == 4 && GetModField(modRM) != 3;
 	}
 }
