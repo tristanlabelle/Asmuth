@@ -11,9 +11,25 @@ namespace Asmuth.X86.Raw
 	public enum Sib : byte
 	{
 		Base_Shift = 0,
+		Base_rAX = 0 << Base_Shift,
+		Base_rCX = 1 << Base_Shift,
+		Base_rDX = 2 << Base_Shift,
+		Base_rBX = 3 << Base_Shift,
+		Base_rSP = 4 << Base_Shift,
+		Base_Special = 5 << Base_Shift, // Either rBP or zero
+		Base_rSI = 6 << Base_Shift,
+		Base_rDI = 7 << Base_Shift,
 		Base_Mask = 7 << Base_Shift,
 
 		Index_Shift = 3,
+		Index_rAX = 0 << Index_Shift,
+		Index_rCX = 1 << Index_Shift,
+		Index_rDX = 2 << Index_Shift,
+		Index_rBX = 3 << Index_Shift,
+		Index_rSP = 4 << Index_Shift,
+		Index_Zero = 5 << Index_Shift,
+		Index_rSI = 6 << Index_Shift,
+		Index_rDI = 7 << Index_Shift,
 		Index_Mask = 7 << Index_Shift,
 
 		Scale_Shift = 6,
