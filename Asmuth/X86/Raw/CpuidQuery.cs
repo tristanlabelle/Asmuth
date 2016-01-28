@@ -19,44 +19,44 @@ namespace Asmuth.X86.Raw
 		#endregion
 
 		#region Constructor
-		public CpuidQuery(uint function, byte? inputEcx, Gpr32 outputRegister, uint mask)
+		public CpuidQuery(uint function, byte? inputEcx, int outputGprIndex, uint mask)
 		{
-			Contract.Requires(outputRegister >= (Gpr32)0 && outputRegister <= (Gpr32)3);
+			Contract.Requires(outputGprIndex >= 0 && outputGprIndex < 4);
 			Contract.Requires(Bits.IsContiguous(mask));
 
 			this.function = function;
 			this.inputEcx = inputEcx.GetValueOrDefault();
-			this.outputRegisterAndHasInputEcxFlag = (byte)outputRegister;
+			this.outputRegisterAndHasInputEcxFlag = (byte)outputGprIndex;
 			if (inputEcx.HasValue) this.outputRegisterAndHasInputEcxFlag |= 0x80;
 			throw new NotImplementedException();
 		}
 
-		public CpuidQuery(uint function, Gpr32 outputRegister, uint mask)
+		public CpuidQuery(uint function, int outputGprIndex, uint mask)
 		{
-			Contract.Requires(outputRegister >= (Gpr32)0 && outputRegister <= (Gpr32)3);
+			Contract.Requires(outputGprIndex >= 0 && outputGprIndex < 4);
 			Contract.Requires(Bits.IsContiguous(mask));
 
 			this.function = function;
 			this.inputEcx = 0;
-			this.outputRegisterAndHasInputEcxFlag = (byte)outputRegister;
+			this.outputRegisterAndHasInputEcxFlag = (byte)outputGprIndex;
 			throw new NotImplementedException();
 		}
 
-		public CpuidQuery(uint function, Gpr32 outputRegister)
+		public CpuidQuery(uint function, int outputGprIndex)
 		{
-			Contract.Requires(outputRegister >= (Gpr32)0 && outputRegister <= (Gpr32)3);
+			Contract.Requires(outputGprIndex >= 0 && outputGprIndex < 4);
 
 			this.function = function;
 			this.inputEcx = 0;
-			this.outputRegisterAndHasInputEcxFlag = (byte)outputRegister;
+			this.outputRegisterAndHasInputEcxFlag = (byte)outputGprIndex;
 			this.firstBit = 0;
 			this.bitCount = 32;
 		}
 
-		public static CpuidQuery FromBit(uint function, Gpr32 outputRegister, int bitIndex)
+		public static CpuidQuery FromBit(uint function, int outputGprIndex, int bitIndex)
 		{
 			Contract.Requires(bitIndex >= 0 && bitIndex < 32);
-			return new CpuidQuery(function, outputRegister, 1U << bitIndex);
+			return new CpuidQuery(function, outputGprIndex, 1U << bitIndex);
 		}
 		#endregion
 
@@ -64,7 +64,7 @@ namespace Asmuth.X86.Raw
 		public uint Function => function;
 		public bool IsExtended => (function & 0x80000000) != 0;
 		public byte? InputEcx => HasInputEcx ? inputEcx : (byte?)null;
-		public Gpr32 OutputRegister => (Gpr32)(outputRegisterAndHasInputEcxFlag & 0x7F);
+		public int OutputGprIndex => outputRegisterAndHasInputEcxFlag & 0x7F;
 		public bool IsBit => bitCount == 1;
 		private bool HasInputEcx => (outputRegisterAndHasInputEcxFlag & 0x80) == 0x80;
 		#endregion
@@ -104,14 +104,8 @@ namespace Asmuth.X86.Raw
 			str.AppendFormat(CultureInfo.InvariantCulture, "X4", function & 0xFFFF);
 			str.Append('_');
 
-			switch (OutputRegister)
-			{
-				case Gpr32.Eax: str.Append("EAX"); break;
-				case Gpr32.Ebx: str.Append("EBX"); break;
-				case Gpr32.Ecx: str.Append("ECX"); break;
-				case Gpr32.Edx: str.Append("EDX"); break;
-				default: throw new UnreachableException();
-			}
+			// E[ABCD]X
+			str.Append(Gpr.GetName(OutputGprIndex, GprPart.Dword));
 
 			if (bitCount > 0 && bitCount < 32)
 			{
