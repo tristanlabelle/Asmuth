@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,5 +15,14 @@ namespace Asmuth.X86.Raw
 		DS = 3,
 		FS = 4,
 		GS = 5
+	}
+
+	public static class SegmentRegisterEnum
+	{
+		[Pure]
+		public static char GetLetter(this SegmentRegister reg)
+		{
+			return "ECSDFG"[(int)reg];
+		}
 	}
 }
