@@ -12,7 +12,7 @@ namespace Asmuth.X86.Raw
 	/// </summary>
 	public interface IInstructionDecoderLookup
 	{
-		bool TryLookup(ProcessorMode mode, Opcode opcode, out bool hasModRM, out int immediateSize);
+		bool TryLookup(InstructionDecodingMode mode, Opcode opcode, out bool hasModRM, out int immediateSize);
 	}
 
 	[Flags]

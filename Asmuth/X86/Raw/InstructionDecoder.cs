@@ -35,7 +35,7 @@ namespace Asmuth.X86.Raw
 		private readonly IInstructionDecoderLookup lookup;
 
 		// State data
-		private ProcessorMode mode;
+		private InstructionDecodingMode mode;
 		private InstructionDecodingState state;
 		private byte substate;
 		private InstructionFields fields;
@@ -52,7 +52,7 @@ namespace Asmuth.X86.Raw
 		#endregion
 
 		#region Constructors
-		public InstructionDecoder(IInstructionDecoderLookup lookup, ProcessorMode mode)
+		public InstructionDecoder(IInstructionDecoderLookup lookup, InstructionDecodingMode mode)
 		{
 			Contract.Requires(lookup != null);
 
@@ -62,14 +62,9 @@ namespace Asmuth.X86.Raw
 		#endregion
 
 		#region Properties
-		public ProcessorMode Mode
+		public InstructionDecodingMode Mode
 		{
 			get { return mode; }
-			set
-			{
-				Contract.Requires(State == InstructionDecodingState.Initial);
-				mode = value;
-			}
 		}
 
 		public InstructionDecodingState State => state;
@@ -108,19 +103,23 @@ namespace Asmuth.X86.Raw
 						return true;
 					}
 
-					if (((Rex)@byte & Rex.Reserved_Mask) == Rex.Reserved_Value)
+					if (mode != InstructionDecodingMode._8086)
 					{
-						xex = new Xex((Rex)@byte);
-						fields |= InstructionFields.Xex;
-						return AdvanceTo(InstructionDecodingState.ExpectXexByte);
-					}
+						if (mode == InstructionDecodingMode.SixtyFourBit
+							&& ((Rex)@byte & Rex.Reserved_Mask) == Rex.Reserved_Value)
+						{
+							xex = new Xex((Rex)@byte);
+							fields |= InstructionFields.Xex;
+							return AdvanceTo(InstructionDecodingState.ExpectXexByte);
+						}
 
-					if (@byte == (byte)Vex2.FirstByte || @byte == (byte)Vex3.FirstByte
-						|| @byte == (byte)Xop.FirstByte || @byte == (byte)EVex.FirstByte)
-					{
-						xex = new Xex(XexEnums.GetTypeFromByte(@byte));
-						int remainingBytes = ((XexForm)@byte).GetByteCount().Value - 1;
-						return AdvanceTo(InstructionDecodingState.ExpectXexByte, substate: (byte)remainingBytes);
+						if (@byte == (byte)Vex2.FirstByte || @byte == (byte)Vex3.FirstByte
+							|| @byte == (byte)Xop.FirstByte || @byte == (byte)EVex.FirstByte)
+						{
+							xex = new Xex(XexEnums.GetTypeFromByte(@byte));
+							int remainingBytes = ((XexForm)@byte).GetByteCount().Value - 1;
+							return AdvanceTo(InstructionDecodingState.ExpectXexByte, substate: (byte)remainingBytes);
+						}
 					}
 
 					goto case InstructionDecodingState.ExpectOpcode;
@@ -225,6 +224,8 @@ namespace Asmuth.X86.Raw
 		/// </summary>
 		public void Reset()
 		{
+			if (state == InstructionDecodingState.Initial) return;
+
 			state = InstructionDecodingState.Initial;
 			substate = 0;
 			fields = 0;
@@ -237,6 +238,12 @@ namespace Asmuth.X86.Raw
 			mainOpcode = 0;
 			modRM = 0;
 			sib = 0;
+		}
+
+		public void Reset(InstructionDecodingMode mode)
+		{
+			Reset();
+			this.mode = mode;
 		}
 
 		private Opcode GetOpcode()
@@ -275,7 +282,7 @@ namespace Asmuth.X86.Raw
 
 			if (displacement != 0) // Check if the opcode allows displacements
 			{
-				int displacementSize = modRM.GetDisplacementSizeInBytes(addressing32: displacement == 1);
+				int displacementSize = modRM.GetDisplacementSizeInBytes(sib, addressing32: displacement == 1);
 				displacement = 0;
 				if (displacementSize > 0) return AdvanceTo(InstructionDecodingState.ExpectDisplacement, substate: (byte)displacementSize);
 			}
