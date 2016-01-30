@@ -13,7 +13,7 @@ namespace Asmuth.X86.Raw
 	// which sit between the legacy prefixes and the main opcode byte.
 	// This includes escape bytes, REX + escape bytes, VEX, XOP and EVEX
 
-	public enum XexForm : byte
+	public enum XexType : byte
 	{
 		Legacy = 0,
 		LegacyWithRex = (byte)Raw.Rex.HighNibble,
@@ -214,66 +214,66 @@ namespace Asmuth.X86.Raw
 	public static class XexEnums
 	{
 		[Pure]
-		public static bool AllowsEscapes(this XexForm xexType) => xexType <= XexForm.LegacyWithRex;
+		public static bool AllowsEscapes(this XexType xexType) => xexType <= XexType.LegacyWithRex;
 
 		[Pure]
-		public static XexForm GetTypeFromByte(byte value)
+		public static XexType GetTypeFromByte(byte value)
 		{
 			switch (value)
 			{
-				case (byte)Vex2.FirstByte: return XexForm.Vex2;
-				case (byte)Vex3.FirstByte: return XexForm.Vex3;
-				case (byte)Xop.FirstByte: return XexForm.Xop;
-				case (byte)EVex.FirstByte: return XexForm.EVex;
-				default: return ((value & 0xF0) == (byte)Rex.HighNibble) ? XexForm.LegacyWithRex : XexForm.Legacy;		
+				case (byte)Vex2.FirstByte: return XexType.Vex2;
+				case (byte)Vex3.FirstByte: return XexType.Vex3;
+				case (byte)Xop.FirstByte: return XexType.Xop;
+				case (byte)EVex.FirstByte: return XexType.EVex;
+				default: return ((value & 0xF0) == (byte)Rex.HighNibble) ? XexType.LegacyWithRex : XexType.Legacy;		
 			}
 		}
 
 		[Pure]
-		public static void GetByteCountRange(this XexForm type, out int min, out int max)
+		public static void GetByteCountRange(this XexType type, out int min, out int max)
 		{
 			switch (type)
 			{
-				case XexForm.Legacy: min = 0; max = 2; break;
-				case XexForm.LegacyWithRex: min = 1; max = 3; break;
-				case XexForm.Vex2: min = max = 2; break;
-				case XexForm.Vex3: min = max = 3; break;
-				case XexForm.Xop: min = max = 3; break;
-				case XexForm.EVex: min = max = 4; break;
+				case XexType.Legacy: min = 0; max = 2; break;
+				case XexType.LegacyWithRex: min = 1; max = 3; break;
+				case XexType.Vex2: min = max = 2; break;
+				case XexType.Vex3: min = max = 3; break;
+				case XexType.Xop: min = max = 3; break;
+				case XexType.EVex: min = max = 4; break;
 				default: throw new ArgumentException("Invalid XexType", "type");
 			}
 		}
 
 		[Pure]
-		public static byte? GetByteCount(this XexForm type)
+		public static byte? GetByteCount(this XexType type)
 		{
 			switch (type)
 			{
-				case XexForm.Legacy: case XexForm.LegacyWithRex: return null;
-				case XexForm.Vex2: return 2;
-				case XexForm.Vex3: return 3;
-				case XexForm.EVex: return 4;
+				case XexType.Legacy: case XexType.LegacyWithRex: return null;
+				case XexType.Vex2: return 2;
+				case XexType.Vex3: return 3;
+				case XexType.EVex: return 4;
 				default: throw new ArgumentException("Invalid XexType", "type");
 			}
 		}
 
 		[Pure]
-		public static XexFields GetFields(this XexForm type)
+		public static XexFields GetFields(this XexType type)
 		{
 			switch (type)
 			{
-				case XexForm.Legacy: return XexFields.Mask_Escapes;
-				case XexForm.LegacyWithRex: return XexFields.Mask_RexAndEscapes;
-				case XexForm.Vex2: return XexFields.Mask_Vex2;
-				case XexForm.Vex3: return XexFields.Mask_Vex3;
-				case XexForm.Xop: return XexFields.Mask_Xop;
-				case XexForm.EVex: return XexFields.Mask_EVex;
+				case XexType.Legacy: return XexFields.Mask_Escapes;
+				case XexType.LegacyWithRex: return XexFields.Mask_RexAndEscapes;
+				case XexType.Vex2: return XexFields.Mask_Vex2;
+				case XexType.Vex3: return XexFields.Mask_Vex3;
+				case XexType.Xop: return XexFields.Mask_Xop;
+				case XexType.EVex: return XexFields.Mask_EVex;
 				default: throw new ArgumentException("Invalid XexType.", "type");
 			}
 		}
 
 		[Pure]
-		public static bool HasFields(this XexForm type, XexFields mask)
+		public static bool HasFields(this XexType type, XexFields mask)
 			=> Has(GetFields(type), mask);
 
 		[Pure]
@@ -300,7 +300,7 @@ namespace Asmuth.X86.Raw
 			=> fields == XexFields.mmmmm || Bits.IsSingle((uint)fields);
 
 		[Pure]
-		public static int TryGetFieldOffset(this XexForm type, XexFields field)
+		public static int TryGetFieldOffset(this XexType type, XexFields field)
 		{
 			Contract.Requires(IsSingleField(field));
 			throw new NotImplementedException();
@@ -318,13 +318,13 @@ namespace Asmuth.X86.Raw
 		#endregion
 
 		#region Constructors
-		public Xex(OpcodeMap map) : this(XexForm.Legacy)
+		public Xex(OpcodeMap map) : this(XexType.Legacy)
 		{
 			Contract.Requires((map.TryAsLegacy() & OpcodeMap.Type_Mask) == OpcodeMap.Type_Legacy);
 			data |= (uint)map.GetValue() << (int)EVex.mm_Shift;
 		}
 
-		public Xex(Rex rex, OpcodeMap map = OpcodeMap.Default) : this(XexForm.LegacyWithRex)
+		public Xex(Rex rex, OpcodeMap map = OpcodeMap.Default) : this(XexType.LegacyWithRex)
 		{
 			Contract.Requires((map.TryAsLegacy() & OpcodeMap.Type_Mask) == OpcodeMap.Type_Legacy);
 			data |= (uint)map.GetValue() << (int)EVex.mm_Shift;
@@ -335,7 +335,7 @@ namespace Asmuth.X86.Raw
 			if ((rex & Rex.W) != 0) data |= (uint)EVex.W;
 		}
 
-		public Xex(Vex2 vex2) : this(XexForm.Vex2)
+		public Xex(Vex2 vex2) : this(XexType.Vex2)
 		{
 			data |= ((uint)(vex2 & Vex2.pp_Mask) >> (int)Vex2.pp_Shift) << (int)EVex.pp_Shift;
 			data |= ((uint)(vex2 & Vex2.vvvv_Mask) >> (int)Vex2.vvvv_Shift) << (int)EVex.vvvv_Shift;
@@ -344,7 +344,7 @@ namespace Asmuth.X86.Raw
 			if ((vex2 & Vex2.L) != 0) data |= (uint)EVex.L;
 		}
 
-		public Xex(Vex3 vex3) : this(XexForm.Vex3)
+		public Xex(Vex3 vex3) : this(XexType.Vex3)
 		{
 			// The mmmmm field goes from 5 to 2 bits
 			var map = (byte)((uint)(vex3 & Vex3.mmmmm_Mask) >> (int)Vex3.mmmmm_Shift);
@@ -352,7 +352,7 @@ namespace Asmuth.X86.Raw
 			data |= FromVex3(vex3, map);
 		}
 
-		public Xex(Xop xop) : this(XexForm.Xop)
+		public Xex(Xop xop) : this(XexType.Xop)
 		{
 			// The mmmmm field goes from 5 to 2 bits
 			var map = (byte)((uint)(xop & Xop.mmmmm_Mask) >> (int)Xop.mmmmm_Shift);
@@ -360,12 +360,12 @@ namespace Asmuth.X86.Raw
 			data |= FromVex3((Vex3)(uint)xop, (byte)(map & 4));
 		}
 
-		public Xex(EVex evex) : this(XexForm.EVex)
+		public Xex(EVex evex) : this(XexType.EVex)
 		{
 			data |= (uint)evex & 0xFFFFFF;
 		}
 
-		public Xex(XexForm type) { data = (uint)type << 24; }
+		public Xex(XexType type) { data = (uint)type << 24; }
 
 		private Xex(uint data) { this.data = data; }
 
@@ -386,7 +386,7 @@ namespace Asmuth.X86.Raw
 		#endregion
 
 		#region Properties
-		public XexForm Type => (XexForm)(data >> 24);
+		public XexType Type => (XexType)(data >> 24);
 
 		public int ByteCount
 		{
@@ -400,16 +400,16 @@ namespace Asmuth.X86.Raw
 				byte pp = (byte)Bits.MaskAndShiftRight(data, (uint)EVex.pp_Mask, (int)EVex.pp_Shift);
 				switch (Type)
 				{
-					case XexForm.Legacy:
-					case XexForm.LegacyWithRex:
+					case XexType.Legacy:
+					case XexType.LegacyWithRex:
 						return OpcodeMap.Type_Legacy.WithValue(pp);
 
-					case XexForm.Vex2:
-					case XexForm.Vex3:
-					case XexForm.EVex:
+					case XexType.Vex2:
+					case XexType.Vex3:
+					case XexType.EVex:
 						return OpcodeMap.Type_Vex.WithValue(pp);
 
-					case XexForm.Xop: return OpcodeMap.Type_Xop.WithValue((byte)(7 + pp));
+					case XexType.Xop: return OpcodeMap.Type_Xop.WithValue((byte)(7 + pp));
 					default: throw new UnreachableException();
 				}
 			}
@@ -423,20 +423,20 @@ namespace Asmuth.X86.Raw
 			var mapValue = (byte)((uint)(map & OpcodeMap.Value_Mask) >> (int)OpcodeMap.Value_Shift);
 			switch (Type)
 			{
-				case XexForm.Legacy:
-				case XexForm.LegacyWithRex:
+				case XexType.Legacy:
+				case XexType.LegacyWithRex:
 					Contract.Assert(mapType == OpcodeMap.Type_Legacy);
 					Contract.Assert(mapValue <= 3);
 					break;
 
-				case XexForm.Vex2:
-				case XexForm.Vex3:
-				case XexForm.EVex:
+				case XexType.Vex2:
+				case XexType.Vex3:
+				case XexType.EVex:
 					Contract.Assert(mapType == OpcodeMap.Type_Vex);
 					Contract.Assert(mapValue >= 1 && mapValue <= 3);
 					break;
 
-				case XexForm.Xop:
+				case XexType.Xop:
 					Contract.Assert(mapType == OpcodeMap.Type_Xop);
 					Contract.Assert(mapValue >= 8 && mapValue <= 10);
 					mapValue -= 7;
@@ -453,7 +453,7 @@ namespace Asmuth.X86.Raw
 			Contract.Requires(field.IsSingleField());
 			Contract.Requires(field.GetBitCount() == 1);
 
-			int offset = XexForm.EVex.TryGetFieldOffset(field);
+			int offset = XexType.EVex.TryGetFieldOffset(field);
 			if (offset < 0) return null;
 
 			return ((data >> offset) & 1) == 1;
@@ -464,7 +464,7 @@ namespace Asmuth.X86.Raw
 			Contract.Requires(field.IsSingleField());
 
 			int bitCount = field.GetBitCount();
-			int offset = XexForm.EVex.TryGetFieldOffset(field);
+			int offset = XexType.EVex.TryGetFieldOffset(field);
 			if (offset < 0) return null;
 
 			return (byte)((data >> offset) & ((1 << bitCount) - 1));

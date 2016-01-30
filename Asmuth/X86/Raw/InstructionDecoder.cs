@@ -10,19 +10,19 @@ namespace Asmuth.X86.Raw
 {
 	public enum InstructionDecodingState : byte
 	{
-		Initial, // No substate
-		ExpectPrefixOrOpcode,   // No substate
-		ExpectXexByte,	// Substate: remaining bytes to read
-		ExpectOpcode,   // Substate: 1 if primary opcode was read
-		ExpectModRM, // No substate
-		ExpectSib,	 // No substate
-		ExpectDisplacement,	// Substate: remaining bytes to read
-		ExpectImmediate, // Substate: remaining bytes to read
-		Completed,	 // No substate
-		Error	// No substate
+		Initial,
+		ExpectPrefixOrOpcode,
+		ExpectXexByte, // substate: remaining byte count
+		ExpectOpcode,
+		ExpectModRM,
+		ExpectSib,
+		ExpectDisplacement, // substate: bytes read
+		ExpectImmediate, // substate: bytes read
+		Completed,
+		Error // substate: error enum
 	}
 
-	public enum InstructionEncodingError : byte
+	public enum InstructionDecodingError : byte
 	{
 		VexIn8086Mode,
 		LockAndVex,
@@ -37,13 +37,12 @@ namespace Asmuth.X86.Raw
 	{
 		#region Fields
 		private readonly IInstructionDecoderLookup lookup;
+		private InstructionDecodingMode mode;
 
 		// State data
-		private InstructionDecodingMode mode;
 		private InstructionDecodingState state;
 		private byte substate;
 		private InstructionFields fields;
-		private InstructionEncodingError error;
 
 		// Instruction data
 		private LegacyPrefixList legacyPrefixes;
@@ -53,6 +52,7 @@ namespace Asmuth.X86.Raw
 		private byte mainOpcode;
 		private ModRM modRM;
 		private Sib sib;
+		private byte immediateSize;
 		#endregion
 
 		#region Constructors
@@ -75,12 +75,12 @@ namespace Asmuth.X86.Raw
 		public InstructionFields Fields => fields;
 		public LegacyPrefixList LegacyPrefixes => legacyPrefixes;
 
-		public InstructionEncodingError Error
+		public InstructionDecodingError? Error
 		{
 			get
 			{
-				Contract.Requires(State == InstructionDecodingState.Error);
-				return error;
+				if (state != InstructionDecodingState.Error) return null;
+				return (InstructionDecodingError)state;
 			}
 		}
 		#endregion
@@ -100,7 +100,7 @@ namespace Asmuth.X86.Raw
 					if (legacyPrefixGroupField != InstructionFields.None)
 					{
 						if ((fields & legacyPrefixGroupField) == legacyPrefixGroupField)
-							return AdvanceToError(InstructionEncodingError.DuplicateLegacyPrefixGroup);
+							return AdvanceToError(InstructionDecodingError.DuplicateLegacyPrefixGroup);
 
 						fields |= legacyPrefixGroupField;
 						legacyPrefixes.Add((LegacyPrefix)@byte);
@@ -112,17 +112,17 @@ namespace Asmuth.X86.Raw
 					{
 						xex = new Xex((Rex)@byte);
 						fields |= InstructionFields.Xex;
-						return AdvanceTo(InstructionDecodingState.ExpectXexByte);
+						return AdvanceTo(InstructionDecodingState.ExpectOpcode);
 					}
 
 					if (@byte == (byte)Vex2.FirstByte || @byte == (byte)Vex3.FirstByte
 						|| @byte == (byte)Xop.FirstByte || @byte == (byte)EVex.FirstByte)
 					{
 						if (mode == InstructionDecodingMode._8086)
-							return AdvanceToError(InstructionEncodingError.VexIn8086Mode);
+							return AdvanceToError(InstructionDecodingError.VexIn8086Mode);
 
 						xex = new Xex(XexEnums.GetTypeFromByte(@byte));
-						int remainingBytes = ((XexForm)@byte).GetByteCount().Value - 1;
+						int remainingBytes = xex.Type.GetByteCount().Value - 1;
 						return AdvanceTo(InstructionDecodingState.ExpectXexByte, substate: (byte)remainingBytes);
 					}
 
@@ -131,7 +131,7 @@ namespace Asmuth.X86.Raw
 
 				case InstructionDecodingState.ExpectXexByte:
 				{
-					if (xex.Type == XexForm.Xop && (@byte & 0x04) == 0)
+					if (xex.Type == XexType.Xop && (@byte & 0x04) == 0)
 					{
 						// What we just read was not a XOP, but a POP reg/mem
 						xex = default(Xex);
@@ -142,18 +142,21 @@ namespace Asmuth.X86.Raw
 						return AdvanceToSibOrFurther();
 					}
 
+					// Accumulate bytes in the immediate field
 					immediate = (immediate << 8) | @byte;
 					--substate;
 					if (substate > 0) return true; // One more byte to read
 
 					switch (xex.Type)
 					{
-						case XexForm.Vex2: xex = new Xex((Vex2)immediate | Vex2.Reserved_Value); break;
-						case XexForm.Vex3: xex = new Xex((Vex3)immediate | Vex3.Reserved_Value); break;
-						case XexForm.Xop: xex = new Xex((Xop)immediate | Xop.Reserved_Value); break;
-						case XexForm.EVex: xex = new Xex((EVex)immediate | EVex.Reserved_Value); break;
+						case XexType.Vex2: xex = new Xex((Vex2)immediate | Vex2.Reserved_Value); break;
+						case XexType.Vex3: xex = new Xex((Vex3)immediate | Vex3.Reserved_Value); break;
+						case XexType.Xop: xex = new Xex((Xop)immediate | Xop.Reserved_Value); break;
+						case XexType.EVex: xex = new Xex((EVex)immediate | EVex.Reserved_Value); break;
 						default: throw new UnreachableException();
 					}
+
+					immediate = 0; // Stop using as accumulator
 
 					fields |= InstructionFields.Xex;
 					return AdvanceTo(InstructionDecodingState.ExpectOpcode);
@@ -186,9 +189,9 @@ namespace Asmuth.X86.Raw
 					bool hasModRM;
 					int immediateSize;
 					if (!lookup.TryLookup(mode, GetOpcode(), out hasModRM, out immediateSize))
-						AdvanceToError(InstructionEncodingError.UnknownOpcode);
-
-					immediate = checked((uint)immediateSize);
+						AdvanceToError(InstructionDecodingError.UnknownOpcode);
+					this.immediateSize = (byte)immediateSize;
+						
 					return hasModRM ? AdvanceTo(InstructionDecodingState.ExpectModRM) : AdvanceToImmediateOrEnd();
 				}
 
@@ -208,14 +211,25 @@ namespace Asmuth.X86.Raw
 
 				case InstructionDecodingState.ExpectDisplacement:
 				{
-					throw new NotImplementedException();
-					//return AdvanceToImmediateOrEnd();
+					displacement = (int)@byte << (substate * 8);
+					substate++;
+					var displacementSize = modRM.GetDisplacementSizeInBytes(sib, GetEffectiveAddressSize());
+					if (substate < displacementSize) return true; // More bytes to come
+
+					// Sign-extend
+					if (displacementSize == 1) displacement = unchecked((sbyte)displacement);
+					else if (displacementSize == 2) displacement = unchecked((short)displacement);
+					
+					return AdvanceToImmediateOrEnd();
 				}
 
 				case InstructionDecodingState.ExpectImmediate:
 				{
-					throw new NotImplementedException();
-					//return AdvanceTo(InstructionDecodingState.Completed);
+					immediate |= (ulong)@byte << (substate * 8);
+					substate++;
+					if (substate < immediateSize) return true; // More bytes to come
+
+					return AdvanceTo(InstructionDecodingState.Completed);
 				}
 
 				default:
@@ -233,7 +247,6 @@ namespace Asmuth.X86.Raw
 			state = InstructionDecodingState.Initial;
 			substate = 0;
 			fields = 0;
-			error = 0;
 
 			legacyPrefixes.Clear();
 			immediate = 0;
@@ -242,6 +255,7 @@ namespace Asmuth.X86.Raw
 			mainOpcode = 0;
 			modRM = 0;
 			sib = 0;
+			immediateSize = 0;
 		}
 
 		public void Reset(InstructionDecodingMode mode)
@@ -259,14 +273,13 @@ namespace Asmuth.X86.Raw
 		{
 			Contract.Requires(newState > State);
 			this.state = newState;
-			this.substate = substate;
+			this.substate = 0;
 			return newState != InstructionDecodingState.Completed && newState != InstructionDecodingState.Error;
 		}
 
-		private bool AdvanceToError(InstructionEncodingError error)
+		private bool AdvanceToError(InstructionDecodingError error)
 		{
-			this.error = error;
-			return AdvanceTo(InstructionDecodingState.Error);
+			return AdvanceTo(InstructionDecodingState.Error, substate: (byte)error);
 		}
 
 		private AddressSize GetEffectiveAddressSize()
@@ -291,34 +304,20 @@ namespace Asmuth.X86.Raw
 			Contract.Requires(State >= InstructionDecodingState.ExpectModRM);
 			Contract.Requires(State < InstructionDecodingState.ExpectDisplacement);
 
-			if (displacement != 0) // Check if the opcode allows displacements
-			{
-				displacement = 0;
-				int displacementSize = modRM.GetDisplacementSizeInBytes(sib, GetEffectiveAddressSize());
-				if (displacementSize > 0)
-				{
-					return AdvanceTo(InstructionDecodingState.ExpectDisplacement,
-						substate: (byte)displacementSize);
-				}
-			}
-
-			return AdvanceToImmediateOrEnd();
+			var displacementSize = modRM.GetDisplacementSizeInBytes(sib, GetEffectiveAddressSize());
+			return displacementSize > 0
+				? AdvanceTo(InstructionDecodingState.ExpectDisplacement)
+				: AdvanceToImmediateOrEnd();
 		}
 
 		private bool AdvanceToImmediateOrEnd()
 		{
 			Contract.Requires(State >= InstructionDecodingState.ExpectOpcode);
 			Contract.Requires(State < InstructionDecodingState.ExpectImmediate);
-
-			// The size of the immediate was temporarily stored in immediate
-			if (immediate > 0)
-			{
-				byte immediateSize = (byte)immediate;
-				immediate = 0;
-				return AdvanceTo(InstructionDecodingState.ExpectImmediate, substate: immediateSize);
-			}
-
-			return AdvanceTo(InstructionDecodingState.Completed);
+			
+			return immediateSize > 0
+				? AdvanceTo(InstructionDecodingState.ExpectImmediate)
+				: AdvanceTo(InstructionDecodingState.Completed);
 		}
 		#endregion
 	}

@@ -300,13 +300,17 @@ namespace Asmuth.X86.Raw
 			}
 			throw new NotImplementedException();
 		}
-		
-		public override string ToString()
-		{
-			// SS:[EAX+EAX*8+0x7FFFFFFF]
-			var str = new StringBuilder(25);
 
-			if (IsDirect) str.Append(DirectGpr);
+		public string ToString(OperandSize operandSize, bool hasRex)
+		{
+			// SS:[EAX+EAX*8+0x2000000000]
+			var str = new StringBuilder(30);
+
+			var directGpr = DirectGpr;
+			if (directGpr.HasValue)
+			{
+				str.Append(Gpr.FromCode(directGpr.Value, operandSize, hasRex).Name);
+			}
 			else
 			{
 				if (!IsDefaultSegment)
@@ -347,6 +351,8 @@ namespace Asmuth.X86.Raw
 
 			return str.ToString();
 		}
+
+		public override string ToString() => ToString(OperandSize.Dword, hasRex: false);
 
 		private int GetFlagsField(Flags mask, Flags shift)
 			=> (int)Bits.MaskAndShiftRight((uint)flags, (uint)mask, (int)shift);

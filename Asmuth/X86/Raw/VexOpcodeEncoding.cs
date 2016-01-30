@@ -88,13 +88,13 @@ namespace Asmuth.X86.Raw
 
 	public static class VexOpcodeEncodingEnum
 	{
-		public static XexForm GetXexType(this VexOpcodeEncoding encoding)
+		public static XexType GetXexType(this VexOpcodeEncoding encoding)
 		{
 			switch (encoding & VexOpcodeEncoding.Type_Mask)
 			{
-				case VexOpcodeEncoding.Type_Vex: return XexForm.Vex3;
-				case VexOpcodeEncoding.Type_Xop: return XexForm.Xop;
-				case VexOpcodeEncoding.Type_EVex: return XexForm.EVex;
+				case VexOpcodeEncoding.Type_Vex: return XexType.Vex3;
+				case VexOpcodeEncoding.Type_Xop: return XexType.Xop;
+				case VexOpcodeEncoding.Type_EVex: return XexType.EVex;
 				default: throw new ArgumentException();
 			}
 		}
