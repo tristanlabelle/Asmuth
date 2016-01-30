@@ -9,6 +9,21 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86.Raw
 {
+	public enum GprCode : byte
+	{
+		AL = 0, CL, DL, BL, SplOrAH, BplOrCH, SilOrDH, DilOrBH,
+		R8b, R9b, R10b, R11b, R12b, R13b, R14b, R15b,
+
+		AX = 0, CX, DX, BX, SP, BP, SI, DI,
+		R8w, R9w, R10w, R11w, R12w, R13w, R14w, R15w,
+
+		Eax = 0, Ecx, Edx, Ebx, Esp, Ebp, Esi, Edi,
+		R8d, R9d, R10d, R11d, R12d, R13d, R14d, R15d,
+
+		Rax = 0, Rcx, Rdx, Rbx, Rsp, Rbp, Rsi, Rdi,
+		R8, R9, R10, R11, R12, R13, R14, R15,
+	}
+
 	public enum GprPart : byte
 	{
 		Byte,
@@ -19,8 +34,20 @@ namespace Asmuth.X86.Raw
 		HighByte
 	}
 
-	public static class GprPartEnum
+	public static class GprEnums
 	{
+		[Pure]
+		public static bool RequiresRexBit(this GprCode code)
+			=> code >= GprCode.R8;
+
+		[Pure]
+		public static byte GetLow3Bits(this GprCode code)
+			=> (byte)((int)code & 0x7);
+
+		[Pure]
+		public static OperandSize GetSize(this GprPart part)
+			=> part == GprPart.HighByte ? OperandSize.Byte : (OperandSize)part;
+
 		[Pure]
 		public static int GetSizeInBytes(this GprPart part)
 			=> part == GprPart.HighByte ? 1 : (1 << (int)part);
@@ -37,10 +64,10 @@ namespace Asmuth.X86.Raw
 		public static readonly Gpr CL = new Gpr(1, GprPart.Byte);
 		public static readonly Gpr DL = new Gpr(2, GprPart.Byte);
 		public static readonly Gpr BL = new Gpr(3, GprPart.Byte);
-		public static readonly Gpr SPL = new Gpr(4, GprPart.Byte);
-		public static readonly Gpr BPL = new Gpr(5, GprPart.Byte);
-		public static readonly Gpr SIL = new Gpr(6, GprPart.Byte);
-		public static readonly Gpr DIL = new Gpr(7, GprPart.Byte);
+		public static readonly Gpr Spl = new Gpr(4, GprPart.Byte);
+		public static readonly Gpr Bpl = new Gpr(5, GprPart.Byte);
+		public static readonly Gpr Sil = new Gpr(6, GprPart.Byte);
+		public static readonly Gpr Dil = new Gpr(7, GprPart.Byte);
 
 		public static readonly Gpr AH = new Gpr(0, GprPart.HighByte);
 		public static readonly Gpr CH = new Gpr(1, GprPart.HighByte);
@@ -56,23 +83,23 @@ namespace Asmuth.X86.Raw
 		public static readonly Gpr SI = new Gpr(6, GprPart.Word);
 		public static readonly Gpr DI = new Gpr(7, GprPart.Word);
 
-		public static readonly Gpr EAX = new Gpr(0, GprPart.Dword);
-		public static readonly Gpr ECX = new Gpr(1, GprPart.Dword);
-		public static readonly Gpr EDX = new Gpr(2, GprPart.Dword);
-		public static readonly Gpr EBX = new Gpr(3, GprPart.Dword);
-		public static readonly Gpr ESP = new Gpr(4, GprPart.Dword);
-		public static readonly Gpr EBP = new Gpr(5, GprPart.Dword);
-		public static readonly Gpr ESI = new Gpr(6, GprPart.Dword);
-		public static readonly Gpr EDI = new Gpr(7, GprPart.Dword);
+		public static readonly Gpr Eax = new Gpr(0, GprPart.Dword);
+		public static readonly Gpr Ecx = new Gpr(1, GprPart.Dword);
+		public static readonly Gpr Edx = new Gpr(2, GprPart.Dword);
+		public static readonly Gpr Ebx = new Gpr(3, GprPart.Dword);
+		public static readonly Gpr Esp = new Gpr(4, GprPart.Dword);
+		public static readonly Gpr Ebp = new Gpr(5, GprPart.Dword);
+		public static readonly Gpr Esi = new Gpr(6, GprPart.Dword);
+		public static readonly Gpr Edi = new Gpr(7, GprPart.Dword);
 
-		public static readonly Gpr RAX = new Gpr(0, GprPart.Qword);
-		public static readonly Gpr RCX = new Gpr(1, GprPart.Qword);
-		public static readonly Gpr RDX = new Gpr(2, GprPart.Qword);
-		public static readonly Gpr RBX = new Gpr(3, GprPart.Qword);
-		public static readonly Gpr RSP = new Gpr(4, GprPart.Qword);
-		public static readonly Gpr RBP = new Gpr(5, GprPart.Qword);
-		public static readonly Gpr RSI = new Gpr(6, GprPart.Qword);
-		public static readonly Gpr RDI = new Gpr(7, GprPart.Qword);
+		public static readonly Gpr Rax = new Gpr(0, GprPart.Qword);
+		public static readonly Gpr Rcx = new Gpr(1, GprPart.Qword);
+		public static readonly Gpr Rdx = new Gpr(2, GprPart.Qword);
+		public static readonly Gpr Rbx = new Gpr(3, GprPart.Qword);
+		public static readonly Gpr Rsp = new Gpr(4, GprPart.Qword);
+		public static readonly Gpr Rbp = new Gpr(5, GprPart.Qword);
+		public static readonly Gpr Rsi = new Gpr(6, GprPart.Qword);
+		public static readonly Gpr Rdi = new Gpr(7, GprPart.Qword);
 		#endregion
 
 		// Low nibble: register index
@@ -88,12 +115,12 @@ namespace Asmuth.X86.Raw
 
 		public int Index => value & 0xF;
 		public GprPart Part => (GprPart)(value >> 4);
+		public OperandSize Size => Part.GetSize();
 		public int SizeInBytes => Part.GetSizeInBytes();
 		public bool RequiresRex => Index >= 8 || (Part == GprPart.Byte && Index >= 4);
 		public bool RequiresRexBit => Index >= 8;
 		public bool PreventsRex => Part == GprPart.HighByte;
-		public int EncodedID => Part == GprPart.HighByte ? (4 + Index) : (Index & 7);
-		public int Encoded3BitID => Part == GprPart.HighByte ? (4 + Index) : (Index & 7);
+		public GprCode Code => Part == GprPart.HighByte ? (GprCode)(4 + Index) : (GprCode)(Index & 7);
 
 		public string Name
 		{
@@ -134,19 +161,18 @@ namespace Asmuth.X86.Raw
 		public static bool operator ==(Gpr lhs, Gpr rhs) => Equals(lhs, rhs);
 		public static bool operator !=(Gpr lhs, Gpr rhs) => Equals(lhs, rhs);
 
-		public static Gpr FromEncodedID(int id, int operandSize, bool hasRex)
+		public static Gpr FromCode(GprCode code, OperandSize size, bool hasRex)
 		{
-			Contract.Requires(id >= 0 && id < (hasRex ? 16 : 8));
-
-			if (operandSize == 1)
+			if (size == OperandSize.Byte)
 			{
-				if (!hasRex && id >= 4 && id < 8) return HighByte(id - 4);
-				return Byte(id);
+				if (!hasRex && code >= (GprCode)4 && code < (GprCode)8)
+					return HighByte((int)code - 4);
+				return Byte((int)code);
 			}
-			else if (operandSize == 2) return Word(id);
-			else if (operandSize == 4) return Dword(id);
-			else if (operandSize == 8) return Qword(id);
-			else throw new ArgumentOutOfRangeException(nameof(operandSize));
+			else if (size == OperandSize.Word) return Word(code);
+			else if (size == OperandSize.Dword) return Dword(code);
+			else if (size == OperandSize.Qword) return Qword(code);
+			else throw new ArgumentOutOfRangeException(nameof(size));
 		}
 
 		public static Gpr Byte(int index) => new Gpr(index, GprPart.Byte);
@@ -154,6 +180,9 @@ namespace Asmuth.X86.Raw
 		public static Gpr Word(int index) => new Gpr(index, GprPart.Word);
 		public static Gpr Dword(int index) => new Gpr(index, GprPart.Dword);
 		public static Gpr Qword(int index) => new Gpr(index, GprPart.Qword);
+		public static Gpr Word(GprCode code) => Word((int)code);
+		public static Gpr Dword(GprCode code) => Dword((int)code);
+		public static Gpr Qword(GprCode code) => Qword((int)code);
 
 		#region Static parsing
 		public static string GetBaseName(int index)

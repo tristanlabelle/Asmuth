@@ -26,7 +26,7 @@ namespace Asmuth.X86.Raw
 	public static class ModRMEnum
 	{
 		[Pure]
-		public static ModRM FromFields(byte mod, byte reg, byte rm)
+		public static ModRM FromComponents(byte mod, byte reg, byte rm)
 		{
 			Contract.Requires(mod < 4);
 			Contract.Requires(reg < 8);
@@ -35,15 +35,15 @@ namespace Asmuth.X86.Raw
 		}
 
 		[Pure]
-		public static byte GetRMField(this ModRM modRM)
+		public static byte GetRM(this ModRM modRM)
 			=> (byte)((byte)(modRM & ModRM.RM_Mask) >> (byte)ModRM.RM_Shift);
 
 		[Pure]
-		public static byte GetRegField(this ModRM modRM)
+		public static byte GetReg(this ModRM modRM)
 			=> (byte)((byte)(modRM & ModRM.Reg_Mask) >> (byte)ModRM.Reg_Shift);
 
 		[Pure]
-		public static byte GetModField(this ModRM modRM)
+		public static byte GetMod(this ModRM modRM)
 			=> (byte)((byte)(modRM & ModRM.Mod_Mask) >> (byte)ModRM.Mod_Shift);
 
 		[Pure]
@@ -51,24 +51,25 @@ namespace Asmuth.X86.Raw
 		{
 			switch (modRM & ModRM.Mod_Mask)
 			{
-				case ModRM.Mod_IndirectByteDisplacement: return 1;
-				case ModRM.Mod_IndirectLongDisplacement: return addressSize >= AddressSize._32 ? 4 : 2;
+				case ModRM.Mod_IndirectByteDisplacement:
+					return 1;
+				case ModRM.Mod_IndirectLongDisplacement:
+					return addressSize == AddressSize._16 ? 2 : 4;
 				case ModRM.Mod_Direct: return 0;
 			}
 
 			// Mod = 0
 			if (addressSize == AddressSize._16)
-			{
-				return GetRMField(modRM) == 6 ? 2 : 0;
-			}
-			else
-			{
-				return GetRMField(modRM) == 5 ? 4 : 0;
-			}
+				return GetRM(modRM) == 5 ? 2 : 0;
+
+			if (GetRM(modRM) == 6) return 2;
+
+			// 32-bit mode, mod = 0, RM = 6 (sib byte)
+			return (sib & Sib.Base_Mask) == Sib.Base_Special ? 4 : 0;
 		}
 
 		[Pure]
 		public static bool ImpliesSib(this ModRM modRM, AddressSize addressSize)
-			=> addressSize >= AddressSize._32 && GetRMField(modRM) == 4 && GetModField(modRM) != 3;
+			=> addressSize >= AddressSize._32 && GetRM(modRM) == 4 && GetMod(modRM) != 3;
 	}
 }

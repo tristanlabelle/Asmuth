@@ -46,7 +46,7 @@ namespace Asmuth.X86.Raw
 		public Xex Xex => xex;
 		public byte MainByte => mainByte;
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;
-		public Sib? Sib => (flags & Flags.HasModRM) == Flags.HasModRM && modRM.ImpliesSib() ? sib : (Sib?)null;
+		// public Sib? Sib
 		public int Displacement => displacement;
 		// TODO: immediate
 		// TODO: byte count

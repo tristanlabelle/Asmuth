@@ -21,17 +21,17 @@ namespace Asmuth.X86.Raw
 
 	public static class InstructionDecodingModeEnum
 	{
-		public static int GetDefaultOperandSizeInBytes(this InstructionDecodingMode mode)
-			=> (mode <= InstructionDecodingMode.IA32_Default16) ? 2 : 4;
+		public static OperandSize GetDefaultOperandSize(this InstructionDecodingMode mode)
+			=> (mode <= InstructionDecodingMode.IA32_Default16) ? OperandSize.Word : OperandSize.Dword;
 
-		public static int GetDefaultAddressSizeInBytes(this InstructionDecodingMode mode)
+		public static AddressSize GetDefaultAddressSize(this InstructionDecodingMode mode)
 		{
 			switch (mode)
 			{
-				case InstructionDecodingMode._8086: return 2;
-				case InstructionDecodingMode.IA32_Default16: return 2;
-				case InstructionDecodingMode.IA32_Default32: return 4;
-				case InstructionDecodingMode.SixtyFourBit: return 8;
+				case InstructionDecodingMode._8086: return AddressSize._16;
+				case InstructionDecodingMode.IA32_Default16: return AddressSize._16;
+				case InstructionDecodingMode.IA32_Default32: return AddressSize._32;
+				case InstructionDecodingMode.SixtyFourBit: return AddressSize._64;
 				default: throw new ArgumentOutOfRangeException(nameof(mode));
 			}
 		}

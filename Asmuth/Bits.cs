@@ -9,6 +9,8 @@ namespace Asmuth.X86
 {
 	public static class Bits
 	{
+		public const int PerByte = 8;
+
 		[Pure]
 		public static bool IsSingle(uint value)
 			=> value != 0 && (value & (value - 1)) == 0;

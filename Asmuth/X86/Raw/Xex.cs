@@ -26,6 +26,8 @@ namespace Asmuth.X86.Raw
 	[Flags]
 	public enum Rex : byte
 	{
+		Default = Reserved_Value,
+
 		ByteCount = 1,
 		HighNibble = 0x40,
 

@@ -70,6 +70,7 @@
     <Compile Include="X86\Raw\Flags.cs" />
     <Compile Include="X86\Raw\Gpr.cs" />
     <Compile Include="X86\Raw\ImmediateType.cs" />
+    <Compile Include="X86\Raw\OperandSize.cs" />
     <Compile Include="X86\Raw\OperandType.cs" />
     <Compile Include="X86\Raw\InstructionDecoder.cs" />
     <Compile Include="X86\Raw\InstructionDefinition.cs" />
@@ -97,6 +98,7 @@
     <Compile Include="X86\Raw\Register.cs" />
     <Compile Include="X86\Raw\SegmentRegister.cs" />
     <Compile Include="X86\Raw\Sib.cs" />
+    <Compile Include="X86\Raw\UDReason.cs" />
     <Compile Include="X86\Raw\Xex.cs" />
     <Compile Include="X86\Raw\VexOpcodeEncoding.cs" />
   </ItemGroup>

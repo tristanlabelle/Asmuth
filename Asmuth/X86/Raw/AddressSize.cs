@@ -17,6 +17,10 @@ namespace Asmuth.X86.Raw
 	public static class AddressSizeEnum
 	{
 		[Pure]
+		public static OperandSize ToOperandSize(this AddressSize size)
+			=> (OperandSize)((int)size + 1);
+
+		[Pure]
 		public static AddressSize FromDecodingModeAndOverride(
 			InstructionDecodingMode decodingMode, bool @override)
 		{

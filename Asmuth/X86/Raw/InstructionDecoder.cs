@@ -24,6 +24,10 @@ namespace Asmuth.X86.Raw
 
 	public enum InstructionEncodingError : byte
 	{
+		VexIn8086Mode,
+		LockAndVex,
+		SimdPrefixAndVex,
+		RexAndVex,
 		DuplicateLegacyPrefixGroup,
 		MultipleXex,
 		UnknownOpcode
@@ -103,23 +107,23 @@ namespace Asmuth.X86.Raw
 						return true;
 					}
 
-					if (mode != InstructionDecodingMode._8086)
+					if (mode == InstructionDecodingMode.SixtyFourBit
+						&& ((Rex)@byte & Rex.Reserved_Mask) == Rex.Reserved_Value)
 					{
-						if (mode == InstructionDecodingMode.SixtyFourBit
-							&& ((Rex)@byte & Rex.Reserved_Mask) == Rex.Reserved_Value)
-						{
-							xex = new Xex((Rex)@byte);
-							fields |= InstructionFields.Xex;
-							return AdvanceTo(InstructionDecodingState.ExpectXexByte);
-						}
+						xex = new Xex((Rex)@byte);
+						fields |= InstructionFields.Xex;
+						return AdvanceTo(InstructionDecodingState.ExpectXexByte);
+					}
 
-						if (@byte == (byte)Vex2.FirstByte || @byte == (byte)Vex3.FirstByte
-							|| @byte == (byte)Xop.FirstByte || @byte == (byte)EVex.FirstByte)
-						{
-							xex = new Xex(XexEnums.GetTypeFromByte(@byte));
-							int remainingBytes = ((XexForm)@byte).GetByteCount().Value - 1;
-							return AdvanceTo(InstructionDecodingState.ExpectXexByte, substate: (byte)remainingBytes);
-						}
+					if (@byte == (byte)Vex2.FirstByte || @byte == (byte)Vex3.FirstByte
+						|| @byte == (byte)Xop.FirstByte || @byte == (byte)EVex.FirstByte)
+					{
+						if (mode == InstructionDecodingMode._8086)
+							return AdvanceToError(InstructionEncodingError.VexIn8086Mode);
+
+						xex = new Xex(XexEnums.GetTypeFromByte(@byte));
+						int remainingBytes = ((XexForm)@byte).GetByteCount().Value - 1;
+						return AdvanceTo(InstructionDecodingState.ExpectXexByte, substate: (byte)remainingBytes);
 					}
 
 					goto case InstructionDecodingState.ExpectOpcode;
@@ -140,7 +144,7 @@ namespace Asmuth.X86.Raw
 
 					immediate = (immediate << 8) | @byte;
 					--substate;
-					if (substate > 0) return true;   // One more byte to read
+					if (substate > 0) return true; // One more byte to read
 
 					switch (xex.Type)
 					{
@@ -205,13 +209,13 @@ namespace Asmuth.X86.Raw
 				case InstructionDecodingState.ExpectDisplacement:
 				{
 					throw new NotImplementedException();
-					return AdvanceToImmediateOrEnd();
+					//return AdvanceToImmediateOrEnd();
 				}
 
 				case InstructionDecodingState.ExpectImmediate:
 				{
 					throw new NotImplementedException();
-					return AdvanceTo(InstructionDecodingState.Completed);
+					//return AdvanceTo(InstructionDecodingState.Completed);
 				}
 
 				default:
@@ -289,9 +293,13 @@ namespace Asmuth.X86.Raw
 
 			if (displacement != 0) // Check if the opcode allows displacements
 			{
-				int displacementSize = modRM.GetDisplacementSizeInBytes(sib, GetEffectiveAddressSize());
 				displacement = 0;
-				if (displacementSize > 0) return AdvanceTo(InstructionDecodingState.ExpectDisplacement, substate: (byte)displacementSize);
+				int displacementSize = modRM.GetDisplacementSizeInBytes(sib, GetEffectiveAddressSize());
+				if (displacementSize > 0)
+				{
+					return AdvanceTo(InstructionDecodingState.ExpectDisplacement,
+						substate: (byte)displacementSize);
+				}
 			}
 
 			return AdvanceToImmediateOrEnd();
