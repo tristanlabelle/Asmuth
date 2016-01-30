@@ -35,5 +35,8 @@ namespace Asmuth.X86.Raw
 				default: throw new ArgumentOutOfRangeException(nameof(mode));
 			}
 		}
+
+		public static AddressSize GetEffectiveAddressSize(this InstructionDecodingMode mode, bool @override)
+			=> GetDefaultAddressSize(mode).GetEffective(@override);
 	}
 }

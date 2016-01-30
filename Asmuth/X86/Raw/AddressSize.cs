@@ -21,31 +21,18 @@ namespace Asmuth.X86.Raw
 			=> (OperandSize)((int)size + 1);
 
 		[Pure]
-		public static AddressSize FromDecodingModeAndOverride(
-			InstructionDecodingMode decodingMode, bool @override)
-		{
-			switch (decodingMode)
-			{
-				case InstructionDecodingMode.IA32_Default16:
-					return @override ? AddressSize._32 : AddressSize._16;
-
-				case InstructionDecodingMode.IA32_Default32:
-					return @override ? AddressSize._16 : AddressSize._32;
-
-				case InstructionDecodingMode.SixtyFourBit:
-					return @override ? AddressSize._32 : AddressSize._64;
-
-				default:
-					throw new NotImplementedException();
-			}
-		}
-
-		[Pure]
 		public static int InBytes(this AddressSize size)
 			=> (2 << (int)size);
 
 		[Pure]
 		public static int InBits(this AddressSize size)
 			=> InBytes(size) * 8;
+
+		[Pure]
+		public static AddressSize GetEffective(this AddressSize size, bool @override)
+		{
+			if (!@override) return size;
+			return size == AddressSize._32 ? AddressSize._16 : AddressSize._32;
+		}
 	}
 }

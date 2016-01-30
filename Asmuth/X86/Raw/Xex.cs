@@ -388,9 +388,21 @@ namespace Asmuth.X86.Raw
 		#region Properties
 		public XexType Type => (XexType)(data >> 24);
 
-		public int ByteCount
+		public int MinimumSizeInBytes
 		{
-			get { throw new NotImplementedException(); }
+			get
+			{
+				switch (Type)
+				{
+					case XexType.Legacy: return 0;
+					case XexType.LegacyWithRex: return 1;
+					case XexType.Vex2: return 2;
+					case XexType.Vex3: return 3;
+					case XexType.Xop: return 4;
+					case XexType.EVex: return 4;
+					default: throw new UnreachableException();
+				}
+			}
 		}
 
 		public OpcodeMap OpcodeMap

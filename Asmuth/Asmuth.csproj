@@ -62,6 +62,7 @@
     <Compile Include="Bits.cs" />
     <Compile Include="X86\Raw\AddressSize.cs" />
     <Compile Include="X86\Raw\EffectiveAddress.cs" />
+    <Compile Include="X86\Raw\Instruction.Builder.cs" />
     <Compile Include="X86\Raw\InstructionDecodingMode.cs" />
     <Compile Include="X86\Raw\InstructionDefinition.Merge.cs" />
     <Compile Include="X86\Raw\ConditionCode.cs" />

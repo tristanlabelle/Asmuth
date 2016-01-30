@@ -45,7 +45,7 @@ namespace Asmuth.X86.Raw
 		private InstructionFields fields;
 
 		// Instruction data
-		private LegacyPrefixList legacyPrefixes;
+		private ImmutableLegacyPrefixList legacyPrefixes;
 		private Xex xex;
 		private ulong immediate;
 		private int displacement;
@@ -73,7 +73,7 @@ namespace Asmuth.X86.Raw
 
 		public InstructionDecodingState State => state;
 		public InstructionFields Fields => fields;
-		public LegacyPrefixList LegacyPrefixes => legacyPrefixes;
+		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
 
 		public InstructionDecodingError? Error
 		{
@@ -285,8 +285,7 @@ namespace Asmuth.X86.Raw
 		private AddressSize GetEffectiveAddressSize()
 		{
 			Contract.Requires(state > InstructionDecodingState.ExpectPrefixOrOpcode);
-			return AddressSizeEnum.FromDecodingModeAndOverride(
-				mode, legacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride));
+			return mode.GetEffectiveAddressSize(@override: legacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride));
 		}
 
 		private bool AdvanceToSibOrFurther()

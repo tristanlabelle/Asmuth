@@ -10,7 +10,7 @@ namespace Asmuth.X86.Raw
 	{
 		None = 0,
 		LegacyLock = 1 << 0,
-		LegacyRepeat = 1 << 1,
+		LegacyRepeat = 1 << 1, // Note: intel puts lock and repeat together
 		LegacySegmentOverride = 1 << 2,
 		LegacyBranchHint = LegacySegmentOverride,
 		LegacyOperandSizeOverride = 1 << 3,
