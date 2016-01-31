@@ -154,16 +154,16 @@ namespace Asmuth.X86.Raw
 					{
 						if (builder.Xex.OpcodeMap == OpcodeMap.Default && @byte == 0x0F)
 						{
-							builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Legacy_0F);
+							builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Leading0F);
 							return true;
 						}
 
-						if (builder.Xex.OpcodeMap == OpcodeMap.Legacy_0F)
+						if (builder.Xex.OpcodeMap == OpcodeMap.Leading0F)
 						{
 							switch (@byte)
 							{
-								case 0x38: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Legacy_0F38); return true;
-								case 0x3A: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Legacy_0F3A); return true;
+								case 0x38: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Leading0F38); return true;
+								case 0x3A: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Leading0F3A); return true;
 								default: break;
 							}
 						}
@@ -174,7 +174,7 @@ namespace Asmuth.X86.Raw
 
 					bool hasModRM;
 					OperandSize? immediateSize;
-					if (!lookup.TryLookup(mode, GetOpcode(), out hasModRM, out immediateSize))
+					if (!lookup.TryLookup(mode, GetOpcodeUpToMainByte(), out hasModRM, out immediateSize))
 						AdvanceToError(InstructionDecodingError.UnknownOpcode);
 					builder.ImmediateSize = immediateSize;
 						
@@ -200,7 +200,7 @@ namespace Asmuth.X86.Raw
 					builder.Displacement = (int)@byte << (substate * 8);
 					substate++;
 					var displacementSize = builder.ModRM.Value.GetDisplacementSizeInBytes(
-						builder.Sib.Value, GetEffectiveAddressSize());
+						builder.Sib.GetValueOrDefault(), GetEffectiveAddressSize());
 					if (substate < displacementSize) return true; // More bytes to come
 
 					// Sign-extend
@@ -227,6 +227,20 @@ namespace Asmuth.X86.Raw
 			}
 		}
 
+		public void GetInstruction(out Instruction instruction)
+		{
+			if (state != InstructionDecodingState.Completed)
+				throw new InvalidOperationException();
+			builder.Build(out instruction);
+		}
+		
+		public Instruction GetInstruction()
+		{
+			Instruction instruction;
+			GetInstruction(out instruction);
+			return instruction;
+		}
+
 		/// <summary>
 		/// Resets this <see cref="InstructionDecoder"/> to the <see cref="InstructionDecodingState.Initial"/> state.
 		/// </summary>
@@ -247,11 +261,70 @@ namespace Asmuth.X86.Raw
 			Reset();
 		}
 
-		private Opcode GetOpcode()
+		private AddressSize GetEffectiveAddressSize()
 		{
-			throw new NotImplementedException();
+			Contract.Requires(state > InstructionDecodingState.ExpectPrefixOrOpcode);
+			return mode.GetEffectiveAddressSize(@override: builder.LegacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride));
 		}
 
+		private int GetDisplacementSizeInBytes()
+		{
+			Contract.Requires(state > InstructionDecodingState.ExpectSib);
+			if (!builder.ModRM.HasValue) return 0;
+
+			return builder.ModRM.Value.GetDisplacementSizeInBytes(
+				builder.Sib.GetValueOrDefault(), GetEffectiveAddressSize());
+		}
+
+		private Opcode GetOpcodeUpToMainByte()
+		{
+			var opcode = (Opcode)0;
+			switch (builder.Xex.Type)
+			{
+				case XexType.Legacy:
+				case XexType.LegacyWithRex:
+					opcode |= Opcode.XexType_LegacyOrRex;
+					break;
+
+				case XexType.Vex2:
+				case XexType.Vex3:
+					opcode |= Opcode.XexType_Vex;
+					break;
+
+				case XexType.Xop:
+					opcode |= Opcode.XexType_Xop;
+					break;
+
+				case XexType.EVex:
+					opcode |= Opcode.XexType_EVex;
+					break;
+			}
+
+			if (builder.Xex.Type.AllowsEscapes())
+			{
+				var lastLegacyPrefix = builder.LegacyPrefixes.Tail;
+				if (lastLegacyPrefix == LegacyPrefix.OperandSizeOverride)
+					opcode |= Opcode.SimdPrefix_66;
+				else if (lastLegacyPrefix == LegacyPrefix.RepeatNotEqual)
+					opcode |= Opcode.SimdPrefix_F2;
+				else if (lastLegacyPrefix == LegacyPrefix.RepeatEqual)
+					opcode |= Opcode.SimdPrefix_F3;
+			}
+			else
+			{
+				opcode = opcode.WithSimdPrefix(builder.Xex.SimdPrefix);
+			}
+
+			if (builder.Xex.HasW) opcode |= Opcode.RexW;
+			if (builder.Xex.HasL) opcode |= Opcode.VexL_1;
+			if (builder.Xex.HasL2) opcode |= Opcode.VexL_2;
+
+			opcode = opcode.WithMap(builder.Xex.OpcodeMap);
+			opcode = opcode.WithMainByte(builder.MainByte);
+			return opcode;
+		}
+
+		#region AdvanceTo***
 		private bool AdvanceTo(InstructionDecodingState newState, byte substate = 0)
 		{
 			Contract.Requires(newState > State);
@@ -265,17 +338,11 @@ namespace Asmuth.X86.Raw
 			return AdvanceTo(InstructionDecodingState.Error, substate: (byte)error);
 		}
 
-		private AddressSize GetEffectiveAddressSize()
-		{
-			Contract.Requires(state > InstructionDecodingState.ExpectPrefixOrOpcode);
-			return mode.GetEffectiveAddressSize(@override: builder.LegacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride));
-		}
-
 		private bool AdvanceToSibOrFurther()
 		{
 			Contract.Requires(State == InstructionDecodingState.ExpectModRM);
 			Contract.Requires(Fields.Has(InstructionFields.ModRM));
-			
+
 			return builder.ModRM.Value.ImpliesSib(GetEffectiveAddressSize())
 				? AdvanceTo(InstructionDecodingState.ExpectSib)
 				: AdvanceToDisplacementOrFurther();
@@ -287,7 +354,7 @@ namespace Asmuth.X86.Raw
 			Contract.Requires(State < InstructionDecodingState.ExpectDisplacement);
 
 			var displacementSize = builder.ModRM.Value.GetDisplacementSizeInBytes(
-				builder.Sib.Value, GetEffectiveAddressSize());
+				builder.Sib.GetValueOrDefault(), GetEffectiveAddressSize());
 			return displacementSize > 0
 				? AdvanceTo(InstructionDecodingState.ExpectDisplacement)
 				: AdvanceToImmediateOrEnd();
@@ -297,11 +364,12 @@ namespace Asmuth.X86.Raw
 		{
 			Contract.Requires(State >= InstructionDecodingState.ExpectOpcode);
 			Contract.Requires(State < InstructionDecodingState.ExpectImmediate);
-			
+
 			return builder.ImmediateSize.HasValue
 				? AdvanceTo(InstructionDecodingState.ExpectImmediate)
 				: AdvanceTo(InstructionDecodingState.Completed);
-		}
+		} 
+		#endregion
 		#endregion
 	}
 }

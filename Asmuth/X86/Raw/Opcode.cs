@@ -16,7 +16,7 @@ namespace Asmuth.X86.Raw
 	{
 		// The xex type of the opcode
 		XexType_Shift = 0,
-		XexType_Legacy = 0 << (int)XexType_Shift,
+		XexType_LegacyOrRex = 0 << (int)XexType_Shift,
 		XexType_Vex = 1 << (int)XexType_Shift,
 		XexType_Xop = 2 << (int)XexType_Shift,
 		XexType_EVex = 3 << (int)XexType_Shift,
@@ -96,19 +96,7 @@ namespace Asmuth.X86.Raw
 
 		[Pure]
 		public static OpcodeMap GetMap(this Opcode opcode)
-		{
-			OpcodeMap map = 0;
-			switch (opcode & Opcode.XexType_Mask)
-			{
-				case Opcode.XexType_Legacy: map = OpcodeMap.Type_Legacy; break;
-				case Opcode.XexType_Xop: map = OpcodeMap.Type_Xop; break;
-				case Opcode.XexType_Vex: map = OpcodeMap.Type_Vex; break;
-				case Opcode.XexType_EVex: map = OpcodeMap.Type_Vex; break;
-				default: throw new UnreachableException();
-			}
-
-			return (OpcodeMap)((int)map | ((int)(opcode & Opcode.Map_Mask) >> (int)Opcode.Map_Shift));
-		}
+			=> (OpcodeMap)Bits.MaskAndShiftRight((uint)opcode, (uint)Opcode.Map_Mask, (int)Opcode.Map_Shift);
 
 		[Pure]
 		public static byte GetMainByte(this Opcode opcode)
@@ -133,9 +121,7 @@ namespace Asmuth.X86.Raw
 
 		[Pure]
 		public static Opcode WithMap(this Opcode opcode, OpcodeMap map)
-		{
-			throw new NotImplementedException();
-		}
+			=> (opcode & ~Opcode.Map_Mask) | (Opcode)((uint)map << (int)Opcode.Map_Shift);
 
 		[Pure]
 		public static Opcode WithMainByte(this Opcode opcode, byte mainByte)

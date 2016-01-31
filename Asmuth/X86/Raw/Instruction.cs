@@ -76,6 +76,16 @@ namespace Asmuth.X86.Raw
 			}
 		}
 
+		public int DisplacementSizeInBytes
+		{
+			get
+			{
+				if ((flags & Flags.HasModRM) == 0) return 0;
+				var addressSize = HasEffectiveAddressSizeOf16 ? AddressSize._16 : AddressSize._32;
+				return modRM.GetDisplacementSizeInBytes(sib, addressSize);
+			}
+		}
+
 		public int Displacement => displacement;
 		public ulong Immediate => immediate;
 		public int ImmediateSizeInBytes => (int)Bits.MaskAndShiftRight((uint)flags, (uint)Flags.ImmediateSize_Mask, (int)Flags.ImmediateSize_Shift);

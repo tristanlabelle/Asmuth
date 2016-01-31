@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -147,6 +148,19 @@ namespace Asmuth.X86.Raw
 			return new ImmutableLegacyPrefixList(newStorage);
 		}
 
+		public override string ToString()
+		{
+			var str = new StringBuilder();
+			str.Append('[');
+			for (int i = 0; i < Count; ++i)
+			{
+				if (i > 0) str.Append(", ");
+				str.AppendFormat(CultureInfo.InvariantCulture, "X2", (byte)this[i]);
+			}
+			str.Append(']');
+			return str.ToString();
+		}
+
 		private static uint GetMultiple(int index)
 		{
 			if (index > Capacity) throw new ArgumentOutOfRangeException(nameof(index));
@@ -215,6 +229,8 @@ namespace Asmuth.X86.Raw
 		}
 
 		public ImmutableLegacyPrefixList ToImmutable() => list;
+
+		public override string ToString() => list.ToString();
 
 		public static implicit operator LegacyPrefixList(ImmutableLegacyPrefixList list) => new LegacyPrefixList(list);
 

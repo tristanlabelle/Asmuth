@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -31,6 +32,13 @@ namespace Asmuth.X86.Raw
 
 	public static class LegacyPrefixEnum
 	{
+		[Pure]
+		public static bool IsSimdPrefix(this LegacyPrefix prefix)
+			=> prefix == LegacyPrefix.OperandSizeOverride
+			|| prefix == LegacyPrefix.RepeatNonZero
+			|| prefix == LegacyPrefix.RepeatEqual;
+
+		[Pure]
 		public static InstructionFields GetFieldOrNone(this LegacyPrefix prefix)
 		{
 			switch (prefix)

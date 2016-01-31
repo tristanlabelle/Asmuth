@@ -227,7 +227,7 @@ namespace Asmuth.X86.Raw.Nasm
 
 			private void SetVex(InstructionDefinition.Builder builder, VexOpcodeEncoding vexEncoding)
 			{
-				Contract.Requires((builder.Opcode & Opcode.XexType_Mask) == Opcode.XexType_Legacy);
+				Contract.Requires((builder.Opcode & Opcode.XexType_Mask) == Opcode.XexType_LegacyOrRex);
 				Contract.Requires((builder.Opcode & Opcode.SimdPrefix_Mask) == Opcode.SimdPrefix_None);
 
 				Opcode opcode;

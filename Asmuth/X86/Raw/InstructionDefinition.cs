@@ -51,7 +51,7 @@ namespace Asmuth.X86.Raw
 			var str = new StringBuilder(30);
 
 			var xexType = opcode & Opcode.XexType_Mask;
-			if (xexType == Opcode.XexType_Legacy)
+			if (xexType == Opcode.XexType_LegacyOrRex)
 			{
 				// Legacy Xex: 66 REX.W 0F 38
 				switch (opcode & Opcode.SimdPrefix_Mask)

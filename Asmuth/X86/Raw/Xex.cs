@@ -193,9 +193,9 @@ namespace Asmuth.X86.Raw
 		pp = 1 << 4,
 		L = 1 << 5,
 		vvvv = 1 << 6,
-		mmmmm = 3 << 7,	// mmmmm implies mm
+		mmmmm = 3 << 7, // mmmmm implies mm
 		mm = 2 << 7,
-		mmmmmxop = 1 << 9,	 // XOP version of mmmmm
+		mmmmmxop = 1 << 9, // XOP version of mmmmm
 		R2 = 1 << 10,
 		V2 = 1 << 11,
 		b = 1 << 12,
@@ -320,14 +320,14 @@ namespace Asmuth.X86.Raw
 		#region Constructors
 		public Xex(OpcodeMap map) : this(XexType.Legacy)
 		{
-			Contract.Requires((map.TryAsLegacy() & OpcodeMap.Type_Mask) == OpcodeMap.Type_Legacy);
-			data |= (uint)map.GetValue() << (int)EVex.mm_Shift;
+			Contract.Requires(map.IsEncodableAs(XexType.Legacy));
+			data |= (uint)map << (int)EVex.mm_Shift;
 		}
 
 		public Xex(Rex rex, OpcodeMap map = OpcodeMap.Default) : this(XexType.LegacyWithRex)
 		{
-			Contract.Requires((map.TryAsLegacy() & OpcodeMap.Type_Mask) == OpcodeMap.Type_Legacy);
-			data |= (uint)map.GetValue() << (int)EVex.mm_Shift;
+			Contract.Requires(map.IsEncodableAs(XexType.LegacyWithRex));
+			data |= (uint)map << (int)EVex.mm_Shift;
 			// Could be optimized to bitwise operations
 			if ((rex & Rex.B) != 0) data |= (uint)EVex.B;
 			if ((rex & Rex.X) != 0) data |= (uint)EVex.X;
@@ -394,8 +394,14 @@ namespace Asmuth.X86.Raw
 			{
 				switch (Type)
 				{
-					case XexType.Legacy: return 0;
-					case XexType.LegacyWithRex: return 1;
+					case XexType.Legacy:
+					case XexType.LegacyWithRex:
+						int size = 0;
+						if (SimdPrefix != SimdPrefix.None) ++size;
+						if (Type == XexType.LegacyWithRex) ++size;
+						size += OpcodeMap.GetLeadingByteCount();
+						return size;
+
 					case XexType.Vex2: return 2;
 					case XexType.Vex3: return 3;
 					case XexType.Xop: return 4;
@@ -409,55 +415,29 @@ namespace Asmuth.X86.Raw
 		{
 			get
 			{
-				byte pp = (byte)Bits.MaskAndShiftRight(data, (uint)EVex.pp_Mask, (int)EVex.pp_Shift);
-				switch (Type)
-				{
-					case XexType.Legacy:
-					case XexType.LegacyWithRex:
-						return OpcodeMap.Type_Legacy.WithValue(pp);
-
-					case XexType.Vex2:
-					case XexType.Vex3:
-					case XexType.EVex:
-						return OpcodeMap.Type_Vex.WithValue(pp);
-
-					case XexType.Xop: return OpcodeMap.Type_Xop.WithValue((byte)(7 + pp));
-					default: throw new UnreachableException();
-				}
+				byte pp = (byte)Bits.MaskAndShiftRight(data, (uint)EVex.mm_Mask, (int)EVex.mm_Shift);
+				if (Type == XexType.Xop) pp += 7;
+				return (OpcodeMap)pp;
 			}
 		}
+
+		public SimdPrefix SimdPrefix
+			=> (SimdPrefix)Bits.MaskAndShiftRight(data, (uint)EVex.pp_Mask, (int)EVex.pp_Shift);
+
+		public bool HasW => (data & (uint)EVex.W) != 0;
+		public bool HasX => (data & (uint)EVex.X) != 0;
+		public bool HasR => (data & (uint)EVex.R) != 0;
+		public bool HasB => (data & (uint)EVex.B) != 0;
+		public bool HasL => (data & (uint)EVex.L) != 0;
+		public bool HasL2 => (data & (uint)EVex.L2) != 0;
 		#endregion
 
 		#region Instance Methods
 		public Xex WithOpcodeMap(OpcodeMap map)
 		{
-			var mapType = map & OpcodeMap.Type_Mask;
-			var mapValue = (byte)((uint)(map & OpcodeMap.Value_Mask) >> (int)OpcodeMap.Value_Shift);
-			switch (Type)
-			{
-				case XexType.Legacy:
-				case XexType.LegacyWithRex:
-					Contract.Assert(mapType == OpcodeMap.Type_Legacy);
-					Contract.Assert(mapValue <= 3);
-					break;
-
-				case XexType.Vex2:
-				case XexType.Vex3:
-				case XexType.EVex:
-					Contract.Assert(mapType == OpcodeMap.Type_Vex);
-					Contract.Assert(mapValue >= 1 && mapValue <= 3);
-					break;
-
-				case XexType.Xop:
-					Contract.Assert(mapType == OpcodeMap.Type_Xop);
-					Contract.Assert(mapValue >= 8 && mapValue <= 10);
-					mapValue -= 7;
-					break;
-
-				default: throw new UnreachableException();
-			}
-
-			return new Xex(Bits.SetMask(data, (uint)EVex.pp_Mask, (uint)mapValue << (int)EVex.pp_Shift));
+			Contract.Requires(map.IsEncodableAs(Type));
+			if (Type == XexType.Xop) map = (OpcodeMap)((int)map - 7);
+			return new Xex(Bits.SetMask(data, (uint)EVex.mm_Mask, (uint)map << (int)EVex.mm_Shift));
 		}
 
 		public bool? TryGetFlag(XexFields field)

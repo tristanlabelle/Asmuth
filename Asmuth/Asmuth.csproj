@@ -46,15 +46,6 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Microsoft.Experimental.Collections">
-      <HintPath>packages\Microsoft.Experimental.Collections.1.0.3-alpha\lib\portable-net45+win8+wp8\Microsoft.Experimental.Collections.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Collections.Immutable, Version=1.0.34.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>packages\Microsoft.Bcl.Immutable.1.0.34\lib\portable-net45+win8+wp8+wpa81\System.Collections.Immutable.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="AccessType.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StringExtensions.cs" />
@@ -64,7 +55,6 @@
     <Compile Include="X86\Raw\EffectiveAddress.cs" />
     <Compile Include="X86\Raw\Instruction.Builder.cs" />
     <Compile Include="X86\Raw\InstructionDecodingMode.cs" />
-    <Compile Include="X86\Raw\InstructionDefinition.Merge.cs" />
     <Compile Include="X86\Raw\ConditionCode.cs" />
     <Compile Include="X86\Raw\CpuidFeatureFlags.cs" />
     <Compile Include="X86\Raw\CpuidQuery.cs" />
@@ -75,7 +65,6 @@
     <Compile Include="X86\Raw\OperandType.cs" />
     <Compile Include="X86\Raw\InstructionDecoder.cs" />
     <Compile Include="X86\Raw\InstructionDefinition.cs" />
-    <Compile Include="X86\Raw\InstructionDictionary.cs" />
     <Compile Include="X86\Raw\InstructionFields.cs" />
     <Compile Include="X86\Raw\IInstructionDecoderLookup.cs" />
     <Compile Include="X86\Raw\Nasm\NasmEncodingToken.cs" />
@@ -102,10 +91,6 @@
     <Compile Include="X86\Raw\UDReason.cs" />
     <Compile Include="X86\Raw\Xex.cs" />
     <Compile Include="X86\Raw\VexOpcodeEncoding.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
-    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
 </Project>
