@@ -43,16 +43,7 @@ namespace Asmuth.X86.Raw
 		private InstructionDecodingState state;
 		private byte substate;
 		private InstructionFields fields;
-
-		// Instruction data
-		private ImmutableLegacyPrefixList legacyPrefixes;
-		private Xex xex;
-		private ulong immediate;
-		private int displacement;
-		private byte mainOpcode;
-		private ModRM modRM;
-		private Sib sib;
-		private byte immediateSize;
+		private readonly Instruction.Builder builder = new Instruction.Builder();
 		#endregion
 
 		#region Constructors
@@ -66,14 +57,9 @@ namespace Asmuth.X86.Raw
 		#endregion
 
 		#region Properties
-		public InstructionDecodingMode Mode
-		{
-			get { return mode; }
-		}
-
+		public InstructionDecodingMode Mode => mode;
 		public InstructionDecodingState State => state;
 		public InstructionFields Fields => fields;
-		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
 
 		public InstructionDecodingError? Error
 		{
@@ -103,14 +89,14 @@ namespace Asmuth.X86.Raw
 							return AdvanceToError(InstructionDecodingError.DuplicateLegacyPrefixGroup);
 
 						fields |= legacyPrefixGroupField;
-						legacyPrefixes.Add((LegacyPrefix)@byte);
+						builder.LegacyPrefixes.Add((LegacyPrefix)@byte);
 						return true;
 					}
 
 					if (mode == InstructionDecodingMode.SixtyFourBit
 						&& ((Rex)@byte & Rex.Reserved_Mask) == Rex.Reserved_Value)
 					{
-						xex = new Xex((Rex)@byte);
+						builder.Xex = new Xex((Rex)@byte);
 						fields |= InstructionFields.Xex;
 						return AdvanceTo(InstructionDecodingState.ExpectOpcode);
 					}
@@ -121,8 +107,8 @@ namespace Asmuth.X86.Raw
 						if (mode == InstructionDecodingMode._8086)
 							return AdvanceToError(InstructionDecodingError.VexIn8086Mode);
 
-						xex = new Xex(XexEnums.GetTypeFromByte(@byte));
-						int remainingBytes = xex.Type.GetByteCount().Value - 1;
+						builder.Xex = new Xex(XexEnums.GetTypeFromByte(@byte));
+						int remainingBytes = builder.Xex.Type.GetByteCount().Value - 1;
 						return AdvanceTo(InstructionDecodingState.ExpectXexByte, substate: (byte)remainingBytes);
 					}
 
@@ -131,32 +117,32 @@ namespace Asmuth.X86.Raw
 
 				case InstructionDecodingState.ExpectXexByte:
 				{
-					if (xex.Type == XexType.Xop && (@byte & 0x04) == 0)
+					if (builder.Xex.Type == XexType.Xop && (@byte & 0x04) == 0)
 					{
 						// What we just read was not a XOP, but a POP reg/mem
-						xex = default(Xex);
-						mainOpcode = (byte)Xop.FirstByte;
-						modRM = (ModRM)@byte;
+						builder.Xex = default(Xex);
+						builder.MainByte = (byte)Xop.FirstByte;
+						builder.ModRM = (ModRM)@byte;
 						fields |= InstructionFields.Opcode | InstructionFields.ModRM;
 						state = InstructionDecodingState.ExpectModRM;
 						return AdvanceToSibOrFurther();
 					}
 
 					// Accumulate bytes in the immediate field
-					immediate = (immediate << 8) | @byte;
+					builder.Immediate = (builder.Immediate << 8) | @byte;
 					--substate;
 					if (substate > 0) return true; // One more byte to read
 
-					switch (xex.Type)
+					switch (builder.Xex.Type)
 					{
-						case XexType.Vex2: xex = new Xex((Vex2)immediate | Vex2.Reserved_Value); break;
-						case XexType.Vex3: xex = new Xex((Vex3)immediate | Vex3.Reserved_Value); break;
-						case XexType.Xop: xex = new Xex((Xop)immediate | Xop.Reserved_Value); break;
-						case XexType.EVex: xex = new Xex((EVex)immediate | EVex.Reserved_Value); break;
+						case XexType.Vex2: builder.Xex = new Xex((Vex2)builder.Immediate | Vex2.Reserved_Value); break;
+						case XexType.Vex3: builder.Xex = new Xex((Vex3)builder.Immediate | Vex3.Reserved_Value); break;
+						case XexType.Xop: builder.Xex = new Xex((Xop)builder.Immediate | Xop.Reserved_Value); break;
+						case XexType.EVex: builder.Xex = new Xex((EVex)builder.Immediate | EVex.Reserved_Value); break;
 						default: throw new UnreachableException();
 					}
 
-					immediate = 0; // Stop using as accumulator
+					builder.Immediate = 0; // Stop using as accumulator
 
 					fields |= InstructionFields.Xex;
 					return AdvanceTo(InstructionDecodingState.ExpectOpcode);
@@ -164,70 +150,74 @@ namespace Asmuth.X86.Raw
 
 				case InstructionDecodingState.ExpectOpcode:
 				{
-					if (xex.Type.AllowsEscapes())
+					if (builder.Xex.Type.AllowsEscapes())
 					{
-						if (xex.OpcodeMap == OpcodeMap.Default && @byte == 0x0F)
+						if (builder.Xex.OpcodeMap == OpcodeMap.Default && @byte == 0x0F)
 						{
-							xex = xex.WithOpcodeMap(OpcodeMap.Legacy_0F);
+							builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Legacy_0F);
 							return true;
 						}
 
-						if (xex.OpcodeMap == OpcodeMap.Legacy_0F)
+						if (builder.Xex.OpcodeMap == OpcodeMap.Legacy_0F)
 						{
 							switch (@byte)
 							{
-								case 0x38: xex = xex.WithOpcodeMap(OpcodeMap.Legacy_0F38); return true;
-								case 0x3A: xex = xex.WithOpcodeMap(OpcodeMap.Legacy_0F3A); return true;
+								case 0x38: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Legacy_0F38); return true;
+								case 0x3A: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Legacy_0F3A); return true;
 								default: break;
 							}
 						}
 					}
 
-					mainOpcode = @byte;
+					builder.MainByte = @byte;
 					fields |= InstructionFields.Opcode;
 
 					bool hasModRM;
-					int immediateSize;
+					OperandSize? immediateSize;
 					if (!lookup.TryLookup(mode, GetOpcode(), out hasModRM, out immediateSize))
 						AdvanceToError(InstructionDecodingError.UnknownOpcode);
-					this.immediateSize = (byte)immediateSize;
+					builder.ImmediateSize = immediateSize;
 						
 					return hasModRM ? AdvanceTo(InstructionDecodingState.ExpectModRM) : AdvanceToImmediateOrEnd();
 				}
 
 				case InstructionDecodingState.ExpectModRM:
 				{
-					modRM = (ModRM)@byte;
+					builder.ModRM = (ModRM)@byte;
 					fields |= InstructionFields.ModRM;
 					return AdvanceToSibOrFurther();
 				}
 
 				case InstructionDecodingState.ExpectSib:
 				{
-					sib = (Sib)@byte;
+					builder.Sib = (Sib)@byte;
 					fields |= InstructionFields.Sib;
 					return AdvanceToDisplacementOrFurther();
 				}
 
 				case InstructionDecodingState.ExpectDisplacement:
 				{
-					displacement = (int)@byte << (substate * 8);
+					builder.Displacement = (int)@byte << (substate * 8);
 					substate++;
-					var displacementSize = modRM.GetDisplacementSizeInBytes(sib, GetEffectiveAddressSize());
+					var displacementSize = builder.ModRM.Value.GetDisplacementSizeInBytes(
+						builder.Sib.Value, GetEffectiveAddressSize());
 					if (substate < displacementSize) return true; // More bytes to come
 
 					// Sign-extend
-					if (displacementSize == 1) displacement = unchecked((sbyte)displacement);
-					else if (displacementSize == 2) displacement = unchecked((short)displacement);
+					if (displacementSize == 1)
+						builder.Displacement = unchecked((sbyte)builder.Displacement);
+					else if (displacementSize == 2)
+						builder.Displacement = unchecked((short)builder.Displacement);
 					
 					return AdvanceToImmediateOrEnd();
 				}
 
 				case InstructionDecodingState.ExpectImmediate:
 				{
-					immediate |= (ulong)@byte << (substate * 8);
+					builder.Immediate |= (ulong)@byte << (substate * 8);
 					substate++;
-					if (substate < immediateSize) return true; // More bytes to come
+					if (substate < builder.ImmediateSize.Value.InBytes())
+						return true; // More bytes to come
 
 					return AdvanceTo(InstructionDecodingState.Completed);
 				}
@@ -247,21 +237,14 @@ namespace Asmuth.X86.Raw
 			state = InstructionDecodingState.Initial;
 			substate = 0;
 			fields = 0;
-
-			legacyPrefixes.Clear();
-			immediate = 0;
-			displacement = 0;
-			xex = default(Xex);
-			mainOpcode = 0;
-			modRM = 0;
-			sib = 0;
-			immediateSize = 0;
+			builder.Clear();
+			builder.DefaultAddressSize = mode.GetDefaultAddressSize();
 		}
 
 		public void Reset(InstructionDecodingMode mode)
 		{
-			Reset();
 			this.mode = mode;
+			Reset();
 		}
 
 		private Opcode GetOpcode()
@@ -285,7 +268,7 @@ namespace Asmuth.X86.Raw
 		private AddressSize GetEffectiveAddressSize()
 		{
 			Contract.Requires(state > InstructionDecodingState.ExpectPrefixOrOpcode);
-			return mode.GetEffectiveAddressSize(@override: legacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride));
+			return mode.GetEffectiveAddressSize(@override: builder.LegacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride));
 		}
 
 		private bool AdvanceToSibOrFurther()
@@ -293,7 +276,7 @@ namespace Asmuth.X86.Raw
 			Contract.Requires(State == InstructionDecodingState.ExpectModRM);
 			Contract.Requires(Fields.Has(InstructionFields.ModRM));
 			
-			return modRM.ImpliesSib(GetEffectiveAddressSize())
+			return builder.ModRM.Value.ImpliesSib(GetEffectiveAddressSize())
 				? AdvanceTo(InstructionDecodingState.ExpectSib)
 				: AdvanceToDisplacementOrFurther();
 		}
@@ -303,7 +286,8 @@ namespace Asmuth.X86.Raw
 			Contract.Requires(State >= InstructionDecodingState.ExpectModRM);
 			Contract.Requires(State < InstructionDecodingState.ExpectDisplacement);
 
-			var displacementSize = modRM.GetDisplacementSizeInBytes(sib, GetEffectiveAddressSize());
+			var displacementSize = builder.ModRM.Value.GetDisplacementSizeInBytes(
+				builder.Sib.Value, GetEffectiveAddressSize());
 			return displacementSize > 0
 				? AdvanceTo(InstructionDecodingState.ExpectDisplacement)
 				: AdvanceToImmediateOrEnd();
@@ -314,7 +298,7 @@ namespace Asmuth.X86.Raw
 			Contract.Requires(State >= InstructionDecodingState.ExpectOpcode);
 			Contract.Requires(State < InstructionDecodingState.ExpectImmediate);
 			
-			return immediateSize > 0
+			return builder.ImmediateSize.HasValue
 				? AdvanceTo(InstructionDecodingState.ExpectImmediate)
 				: AdvanceTo(InstructionDecodingState.Completed);
 		}

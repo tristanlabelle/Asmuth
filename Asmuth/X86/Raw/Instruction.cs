@@ -34,9 +34,6 @@ namespace Asmuth.X86.Raw
 
 		private readonly int displacement; // 4 bytes
 
-		// Only 3 instructions have imm64/moffset64 operands,
-		// and they do not allow ModRM bytes, so they cannot have displacements.
-		// For those, consider "displacement" as the most significant 4 bytes
 		private readonly ulong immediate; // 8 bytes
 		#endregion
 
@@ -100,6 +97,28 @@ namespace Asmuth.X86.Raw
 				size += ImmediateSizeInBytes;
 
 				return size;
+			}
+		}
+
+		public InstructionFields Fields
+		{
+			get
+			{
+				var fields = LegacyPrefixes.GetGroups() | InstructionFields.Opcode;
+				if (xex.Type != XexType.Legacy) fields |= InstructionFields.Xex;
+
+				if ((flags & Flags.HasModRM) != 0)
+				{
+					fields |= InstructionFields.ModRM;
+					var addressSize = HasEffectiveAddressSizeOf16 ? AddressSize._16 : AddressSize._32;
+					if (modRM.ImpliesSib(addressSize)) fields |= InstructionFields.Sib;
+					if (modRM.GetDisplacementSizeInBytes(sib, addressSize) > 0)
+						fields |= InstructionFields.Displacement;
+				}
+
+				if (ImmediateSizeInBytes > 0) fields |= InstructionFields.Immediate;
+
+				return fields;
 			}
 		}
 		#endregion

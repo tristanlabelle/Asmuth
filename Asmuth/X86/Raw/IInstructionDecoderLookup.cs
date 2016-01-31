@@ -12,17 +12,6 @@ namespace Asmuth.X86.Raw
 	/// </summary>
 	public interface IInstructionDecoderLookup
 	{
-		bool TryLookup(InstructionDecodingMode mode, Opcode opcode, out bool hasModRM, out int immediateSize);
-	}
-
-	[Flags]
-	public enum InstructionSuffixFlags : byte
-	{
-		None = 0,
-		HasModRM = 1 << 0,
-		AllowSib = 1 << 1,
-		AllowDisplacement = 1 << 2,
-		HasImmediate = 1 << 3,
-		DefaultsTo16BitsAddressing = 1 << 4,
+		bool TryLookup(InstructionDecodingMode mode, Opcode opcode, out bool hasModRM, out OperandSize? immediateSize);
 	}
 }
