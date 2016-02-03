@@ -16,8 +16,8 @@ namespace Asmuth.X86.Raw
 			HasModRM = 1 << 0,
 			EffectiveAddressSize16 = 1 << 1, // For sib byte and size of displacement
 
-			ImmediateSize_Shift = 4,
-			ImmediateSize_Mask = 0xF << ImmediateSize_Shift
+			ImmediateSizeInBytes_Shift = 4,
+			ImmediateSizeInBytes_Mask = 0xF << ImmediateSizeInBytes_Shift
 		}
 
 		#region Fields
@@ -42,7 +42,7 @@ namespace Asmuth.X86.Raw
 		{
 			legacyPrefixes = builder.LegacyPrefixes;
 			xex = builder.Xex; // Validate if redundant with prefixes
-			mainByte = builder.MainByte;
+			mainByte = builder.OpcodeByte;
 			modRM = builder.ModRM.GetValueOrDefault();
 			sib = builder.Sib.GetValueOrDefault(); // Validate if necessary
 			displacement = builder.Displacement; // Validate with mod/sib
@@ -53,8 +53,7 @@ namespace Asmuth.X86.Raw
 			bool hasAddressSizeOverride = legacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride);
 			bool effectiveAddressSize16 = builder.DefaultAddressSize.GetEffective(hasAddressSizeOverride) == AddressSize._16;
 			if (effectiveAddressSize16) flags |= Flags.EffectiveAddressSize16;
-			if (builder.ImmediateSize.HasValue)
-				flags |= (Flags)(builder.ImmediateSize.Value.InBytes() << (int)Flags.ImmediateSize_Shift);
+			flags |= (Flags)(builder.ImmediateSizeInBytes << (int)Flags.ImmediateSizeInBytes_Shift);
 		}
 		#endregion
 
@@ -62,6 +61,8 @@ namespace Asmuth.X86.Raw
 		public bool HasEffectiveAddressSizeOf16 => (flags & Flags.EffectiveAddressSize16) == Flags.EffectiveAddressSize16;
 		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
 		public Xex Xex => xex;
+		public SimdPrefix SimdPrefix => xex.SimdPrefix ?? LegacyPrefixes.SimdPrefix;
+		public OpcodeMap OpcodeMap => xex.OpcodeMap;
 		public byte MainByte => mainByte;
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;
 
@@ -88,13 +89,13 @@ namespace Asmuth.X86.Raw
 
 		public int Displacement => displacement;
 		public ulong Immediate => immediate;
-		public int ImmediateSizeInBytes => (int)Bits.MaskAndShiftRight((uint)flags, (uint)Flags.ImmediateSize_Mask, (int)Flags.ImmediateSize_Shift);
+		public int ImmediateSizeInBytes => (int)Bits.MaskAndShiftRight((uint)flags, (uint)Flags.ImmediateSizeInBytes_Mask, (int)Flags.ImmediateSizeInBytes_Shift);
 
 		public int SizeInBytes
 		{
 			get
 			{
-				int size = legacyPrefixes.Count + xex.MinimumSizeInBytes + 1;
+				int size = legacyPrefixes.Count + xex.SizeInBytes + 1;
 
 				if ((flags & Flags.HasModRM) != 0)
 				{
@@ -115,7 +116,7 @@ namespace Asmuth.X86.Raw
 			get
 			{
 				var fields = LegacyPrefixes.GetGroups() | InstructionFields.Opcode;
-				if (xex.Type != XexType.Legacy) fields |= InstructionFields.Xex;
+				if (xex.Type != XexType.Escapes) fields |= InstructionFields.Xex;
 
 				if ((flags & Flags.HasModRM) != 0)
 				{

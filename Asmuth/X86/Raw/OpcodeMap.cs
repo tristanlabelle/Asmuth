@@ -13,9 +13,9 @@ namespace Asmuth.X86.Raw
 	public enum OpcodeMap : byte
 	{
 		Default = 0,
-		Leading0F = 1,
-		Leading0F38 = 2,
-		Leading0F3A = 3,
+		Escape0F = 1,
+		Escape0F38 = 2,
+		Escape0F3A = 3,
 		Xop8 = 8,
 		Xop9 = 9
 	}
@@ -23,38 +23,20 @@ namespace Asmuth.X86.Raw
 	public static class OpcodeMapEnum
 	{
 		[Pure]
-		public static int GetLeadingByteCount(this OpcodeMap map)
+		public static int GetEscapeByteCount(this OpcodeMap map)
 		{
 			switch (map)
 			{
 				case OpcodeMap.Default: return 0;
-				case OpcodeMap.Leading0F: return 1;
-				case OpcodeMap.Leading0F38: return 2;
-				case OpcodeMap.Leading0F3A: return 2;
+				case OpcodeMap.Escape0F: return 1;
+				case OpcodeMap.Escape0F38: return 2;
+				case OpcodeMap.Escape0F3A: return 2;
 				default: throw new ArgumentException(nameof(map));
 			}
 		}
 
 		[Pure]
-		public static bool IsEncodableAs(this OpcodeMap map, XexType type)
-		{
-			switch (type)
-			{
-				case XexType.Legacy:
-				case XexType.LegacyWithRex:
-					return map <= OpcodeMap.Leading0F3A;
-
-				case XexType.Vex2:
-				case XexType.Vex3:
-				case XexType.EVex:
-					return map >= OpcodeMap.Leading0F && map <= OpcodeMap.Leading0F3A;
-
-				case XexType.Xop:
-					return map == OpcodeMap.Xop8 || map == OpcodeMap.Xop9;
-
-				default:
-					throw new ArgumentException(nameof(map));
-			}
-		}
+		public static bool IsEncodableAsEscapeBytes(this OpcodeMap map)
+			=> map <= OpcodeMap.Escape0F3A;
 	}
 }

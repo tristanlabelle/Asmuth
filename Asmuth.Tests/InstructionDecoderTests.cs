@@ -11,26 +11,49 @@ namespace Asmuth.X86.Raw
 		{
 			public static readonly InstructionLookup Instance = new InstructionLookup();
 
-			public bool TryLookup(InstructionDecodingMode mode, Opcode opcode, out bool hasModRM, out OperandSize? immediateSize)
+			public bool TryLookup(InstructionDecodingMode mode,
+				ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
+				out bool hasModRM, out int immediateSizeInBytes)
 			{
-				if (opcode.GetMainByte() == 0x90)
+				if (xex.OpcodeMap == OpcodeMap.Default && opcode == 0x90)
 				{
 					// NOP
 					hasModRM = false;
-					immediateSize = null;
+					immediateSizeInBytes = 0;
 					return true;
 				}
-				else if (opcode.GetMap() == OpcodeMap.Leading0F && opcode.GetMainByte() == 0x1F)
+				else if (xex.OpcodeMap == OpcodeMap.Escape0F && opcode == 0x1F)
 				{
 					// 3+ byte nop form
 					hasModRM = true;
-					immediateSize = null;
+					immediateSizeInBytes = 0;
+					return true;
+				}
+				else if (xex.OpcodeMap == OpcodeMap.Default && (opcode & 0xF8) == 0xB0)
+				{
+					// MOV x8, imm8
+					hasModRM = false;
+					immediateSizeInBytes = 1;
+					return true;
+				}
+				else if (xex.OpcodeMap == OpcodeMap.Default && (opcode & 0xF8) == 0xB8)
+				{
+					// Mov r(16|32|64), imm(16|32|64)
+					OperandSize operandSize;
+					if (mode == InstructionDecodingMode.SixtyFourBit)
+						operandSize = xex.OperandSize64 ? OperandSize.Qword : OperandSize.Dword;
+					else
+						operandSize = mode.GetDefaultOperandSize().OverrideWordDword(
+							legacyPrefixes.Contains(LegacyPrefix.OperandSizeOverride));
+
+					hasModRM = false;
+					immediateSizeInBytes = operandSize.InBytes();
 					return true;
 				}
 				else
 				{
 					hasModRM = false;
-					immediateSize = null;
+					immediateSizeInBytes = 0;
 					return false;
 				}
 			}
@@ -73,11 +96,30 @@ namespace Asmuth.X86.Raw
 				Assert.AreEqual(length <= 2 ? (byte)0x90 : (byte)0x1F, instruction.MainByte);
 				Assert.AreEqual(
 					length == 2 || length == 6 || length == 9,
-					instruction.LegacyPrefixes.Tail == LegacyPrefix.OperandSizeOverride);
+					instruction.LegacyPrefixes.Count == 1);
 				Assert.AreEqual(length >= 5 && length != 7, instruction.Sib.HasValue);
 				Assert.AreEqual(length <= 3, instruction.DisplacementSizeInBytes == 0);
 				Assert.AreEqual(length >= 4 && length <= 6, instruction.DisplacementSizeInBytes == 1);
 				Assert.AreEqual(length >= 7, instruction.DisplacementSizeInBytes == 4);
+			}
+		}
+
+		[TestMethod]
+		public void TestMovImm()
+		{
+			var instructions = new[]
+			{
+				DecodeSingle(InstructionDecodingMode.IA32_Default32, 0xB0, 0x01), // MOV AL,imm8
+				DecodeSingle(InstructionDecodingMode.IA32_Default16, 0xB8, 0x01, 0x00), // MOV AX,imm16
+				DecodeSingle(InstructionDecodingMode.IA32_Default32, 0xB8, 0x01, 0x00, 0x00, 0x00), // MOV EAX,imm32
+				DecodeSingle(InstructionDecodingMode.SixtyFourBit, 0x48, 0xB8, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00), // MOV RAX,imm64
+			};
+
+			for (int i = 0; i < instructions.Length; ++i)
+			{
+				var instruction = instructions[i];
+				Assert.AreEqual(1 << i, instruction.ImmediateSizeInBytes);
+				Assert.AreEqual(1UL, instruction.Immediate);
 			}
 		}
 

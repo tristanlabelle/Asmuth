@@ -9,18 +9,17 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86.Raw
 {
-	// XEX is a made-up name for the "main prefixes",
-	// which sit between the legacy prefixes and the main opcode byte.
+	// XEX is a made-up name for all non-legacy prefixes and escape bytes.
 	// This includes escape bytes, REX + escape bytes, VEX, XOP and EVEX
 
 	public enum XexType : byte
 	{
-		Legacy = 0,
-		LegacyWithRex = (byte)Raw.Rex.HighNibble,
-		Vex2 = (byte)Raw.Vex2.FirstByte,
-		Vex3 = (byte)Raw.Vex3.FirstByte,
-		Xop = (byte)Raw.Xop.FirstByte,
-		EVex = (byte)Raw.EVex.FirstByte,
+		Escapes,
+		RexAndEscapes,
+		Vex2,
+		Vex3,
+		Xop,
+		EVex,
 	}
 
 	[Flags]
@@ -34,10 +33,10 @@ namespace Asmuth.X86.Raw
 		Reserved_Mask = 0xF0,
 		Reserved_Value = 0x40,
 
-		B = 1 << 0,
-		X = 1 << 1,
-		R = 1 << 2,
-		W = 1 << 3
+		BaseRegExtension = 1 << 0, // B
+		IndexRegExtension = 1 << 1, // X
+		ModRegExtension = 1 << 2, // R
+		OperandSize64 = 1 << 3 // W
 	}
 
 	[Flags]
@@ -47,23 +46,23 @@ namespace Asmuth.X86.Raw
 		FirstByte = 0xC5,
 
 		Reserved_Mask = 0xFF00,
-		Reserved_Value = 0xC700,
+		Reserved_Value = 0xC500,
 
-		// Compressed SIMD prefix
-		pp_Shift = 0,
-		pp_None = 0 << pp_Shift,
-		pp_66 = 1 << pp_Shift,
-		pp_F2 = 2 << pp_Shift,
-		pp_F3 = 3 << pp_Shift,
-		pp_Mask = 3 << pp_Shift,
+		// pp
+		SimdPrefix_Shift = 0,
+		SimdPrefix_None = 0 << SimdPrefix_Shift,
+		SimdPrefix_66 = 1 << SimdPrefix_Shift,
+		SimdPrefix_F2 = 2 << SimdPrefix_Shift,
+		SimdPrefix_F3 = 3 << SimdPrefix_Shift,
+		SimdPrefix_Mask = 3 << SimdPrefix_Shift,
 
-		L = 1 << 2,
+		VectorSize256 = 1 << 2, // L
 
-		// NDS Register specifier
-		vvvv_Shift = 3,
-		vvvv_Mask = 15 << vvvv_Shift,
+		// vvvv
+		NonDestructiveReg_Shift = 3,
+		NonDestructiveReg_Mask = 15 << NonDestructiveReg_Shift,
 
-		R = 1 << 7,
+		ModRegExtension = 1 << 7, // R
 	}
 
 	[Flags]
@@ -75,32 +74,32 @@ namespace Asmuth.X86.Raw
 		Reserved_Mask = 0xFF0000,
 		Reserved_Value = 0xC40000,
 
-		// Compressed SIMD prefix
-		pp_Shift = 0,
-		pp_None = 0U << (int)pp_Shift,
-		pp_66 = 1U << (int)pp_Shift,
-		pp_F2 = 2U << (int)pp_Shift,
-		pp_F3 = 3U << (int)pp_Shift,
-		pp_Mask = 3U << (int)pp_Shift,
+		// pp
+		SimdPrefix_Shift = 0,
+		SimdPrefix_None = 0U << (int)SimdPrefix_Shift,
+		SimdPrefix_66 = 1U << (int)SimdPrefix_Shift,
+		SimdPrefix_F2 = 2U << (int)SimdPrefix_Shift,
+		SimdPrefix_F3 = 3U << (int)SimdPrefix_Shift,
+		SimdPrefix_Mask = 3U << (int)SimdPrefix_Shift,
 
-		L = 1 << 2,
+		VectorSize256 = 1 << 2, // L
 
-		// NDS Register specifier
-		vvvv_Shift = 3,
-		vvvv_Mask = 15U << (int)vvvv_Shift,
+		// vvvv
+		NonDestructiveReg_Shift = 3,
+		NonDestructiveReg_Mask = 15U << (int)NonDestructiveReg_Shift,
 
-		W = 1 << 7,
+		OperandSize64 = 1 << 7,
 
 		// Opcode map
-		mmmmm_Shift = 8,
-		mmmmm_0F = 1 << (int)mmmmm_Shift,
-		mmmmm_0F38 = 2 << (int)mmmmm_Shift,
-		mmmmm_0F3A = 3 << (int)mmmmm_Shift,
-		mmmmm_Mask = 0x1FU << (int)mmmmm_Shift,
+		OpcodeMap_Shift = 8,
+		OpcodeMap_0F = 1 << (int)OpcodeMap_Shift,
+		OpcodeMap_0F38 = 2 << (int)OpcodeMap_Shift,
+		OpcodeMap_0F3A = 3 << (int)OpcodeMap_Shift,
+		OpcodeMap_Mask = 0x1FU << (int)OpcodeMap_Shift,
 
-		B = 1 << 13,
-		X = 1 << 14,
-		R = 1 << 15,
+		BaseRegExtension = 1 << 13,
+		IndexRegExtension = 1 << 14,
+		ModRegExtension = 1 << 15,
 	}
 
 	[Flags]
@@ -182,39 +181,14 @@ namespace Asmuth.X86.Raw
 		z = 1 << 23
 	}
 
-	[Flags]
-	public enum XexFields : ushort
-	{
-		None = 0,
-		B = 1 << 0,
-		X = 1 << 1,
-		R = 1 << 2,
-		W = 1 << 3,
-		pp = 1 << 4,
-		L = 1 << 5,
-		vvvv = 1 << 6,
-		mmmmm = 3 << 7, // mmmmm implies mm
-		mm = 2 << 7,
-		mmmmmxop = 1 << 9, // XOP version of mmmmm
-		R2 = 1 << 10,
-		V2 = 1 << 11,
-		b = 1 << 12,
-		L2 = 1 << 13,
-		z = 1 << 14,
-
-		Mask_Escapes = pp,
-		Mask_RexOnly = B | X | R | W,
-		Mask_RexAndEscapes = Mask_RexOnly | Mask_Escapes,
-		Mask_Vex2 = pp | L | vvvv | R,
-		Mask_Vex3 = pp | L | vvvv | W | mmmmm | B | X | R,
-		Mask_Xop = pp | L | vvvv | W | mmmmmxop | B | X | R,
-		Mask_EVex = mm | R2 | B | X | pp | vvvv | W | V2 | b | L | L2 | z,
-	}
-
 	public static class XexEnums
 	{
 		[Pure]
-		public static bool AllowsEscapes(this XexType xexType) => xexType <= XexType.LegacyWithRex;
+		public static bool AllowsEscapes(this XexType xexType) => xexType <= XexType.RexAndEscapes;
+
+		[Pure]
+		public static bool IsVex(this XexType xexType)
+			=> xexType == XexType.Vex2 || xexType == XexType.Vex3;
 
 		[Pure]
 		public static XexType GetTypeFromByte(byte value)
@@ -225,183 +199,194 @@ namespace Asmuth.X86.Raw
 				case (byte)Vex3.FirstByte: return XexType.Vex3;
 				case (byte)Xop.FirstByte: return XexType.Xop;
 				case (byte)EVex.FirstByte: return XexType.EVex;
-				default: return ((value & 0xF0) == (byte)Rex.HighNibble) ? XexType.LegacyWithRex : XexType.Legacy;		
+				default: return ((value & 0xF0) == (byte)Rex.HighNibble) ? XexType.RexAndEscapes : XexType.Escapes;
 			}
 		}
 
 		[Pure]
-		public static void GetByteCountRange(this XexType type, out int min, out int max)
+		public static int GetMinSizeInBytes(this XexType type)
 		{
 			switch (type)
 			{
-				case XexType.Legacy: min = 0; max = 2; break;
-				case XexType.LegacyWithRex: min = 1; max = 3; break;
-				case XexType.Vex2: min = max = 2; break;
-				case XexType.Vex3: min = max = 3; break;
-				case XexType.Xop: min = max = 3; break;
-				case XexType.EVex: min = max = 4; break;
-				default: throw new ArgumentException("Invalid XexType", "type");
-			}
-		}
-
-		[Pure]
-		public static byte? GetByteCount(this XexType type)
-		{
-			switch (type)
-			{
-				case XexType.Legacy: case XexType.LegacyWithRex: return null;
+				case XexType.Escapes: return 0;
+				case XexType.RexAndEscapes: return 1;
 				case XexType.Vex2: return 2;
 				case XexType.Vex3: return 3;
+				case XexType.Xop: return 3;
 				case XexType.EVex: return 4;
 				default: throw new ArgumentException("Invalid XexType", "type");
 			}
 		}
 
 		[Pure]
-		public static XexFields GetFields(this XexType type)
+		public static bool CanEncodeMap(this XexType type, OpcodeMap map)
 		{
 			switch (type)
 			{
-				case XexType.Legacy: return XexFields.Mask_Escapes;
-				case XexType.LegacyWithRex: return XexFields.Mask_RexAndEscapes;
-				case XexType.Vex2: return XexFields.Mask_Vex2;
-				case XexType.Vex3: return XexFields.Mask_Vex3;
-				case XexType.Xop: return XexFields.Mask_Xop;
-				case XexType.EVex: return XexFields.Mask_EVex;
-				default: throw new ArgumentException("Invalid XexType.", "type");
+				case XexType.Escapes:
+				case XexType.RexAndEscapes:
+					return map <= OpcodeMap.Escape0F3A;
+
+				case XexType.Vex2:
+				case XexType.Vex3:
+				case XexType.EVex:
+					return map >= OpcodeMap.Escape0F && map <= OpcodeMap.Escape0F3A;
+
+				case XexType.Xop:
+					return map == OpcodeMap.Xop8 || map == OpcodeMap.Xop9;
+
+				default:
+					throw new ArgumentException(nameof(map));
 			}
 		}
 
 		[Pure]
-		public static bool HasFields(this XexType type, XexFields mask)
-			=> Has(GetFields(type), mask);
+		public static SimdPrefix GetSimdPrefix(this Vex2 vex)
+			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.SimdPrefix_Mask, (int)Vex2.SimdPrefix_Shift);
+		
+		[Pure]
+		public static byte GetNonDestructiveReg(this Vex2 vex)
+			=> (byte)Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.NonDestructiveReg_Mask, (int)Vex2.NonDestructiveReg_Shift);
 
 		[Pure]
-		public static bool Has(this XexFields fields, XexFields mask)
-			=> (fields & mask) == mask;
+		public static SimdPrefix GetSimdPrefix(this Vex3 vex)
+			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3.SimdPrefix_Mask, (int)Vex3.SimdPrefix_Shift);
 
 		[Pure]
-		public static int GetBitCount(this XexFields field)
-		{
-			Contract.Requires(IsSingleField(field));
-			switch (field)
-			{
-				case XexFields.mm: return 2;
-				case XexFields.pp: return 2;
-				case XexFields.vvvv: return 4;
-				case XexFields.mmmmm: return 5;
-				case XexFields.mmmmmxop: return 5;
-				default: return 1;
-			}
-		}
+		public static OpcodeMap GetOpcodeMap(this Vex3 vex)
+			=> (OpcodeMap)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3.OpcodeMap_Mask, (int)Vex3.OpcodeMap_Shift);
 
 		[Pure]
-		public static bool IsSingleField(this XexFields fields)
-			=> fields == XexFields.mmmmm || Bits.IsSingle((uint)fields);
-
-		[Pure]
-		public static int TryGetFieldOffset(this XexType type, XexFields field)
-		{
-			Contract.Requires(IsSingleField(field));
-			throw new NotImplementedException();
-		}
+		public static byte GetNonDestructiveReg(this Vex3 vex)
+			=> (byte)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3.NonDestructiveReg_Mask, (int)Vex3.NonDestructiveReg_Shift);
 	}
 
 	[StructLayout(LayoutKind.Sequential, Size = 4)]
 	public struct Xex : IEquatable<Xex>
 	{
+		private enum Flags : uint
+		{
+			XexType_Shift = 0,
+			XexType_Mask = 7 << (int)XexType_Shift,
+
+			SimdPrefix_Shift = XexType_Shift + 3,
+			SimdPrefix_Mask = 3U << (int)SimdPrefix_Shift,
+
+			OpcodeMap_Shift = SimdPrefix_Shift + 2,
+			OpcodeMap_Mask = 0x1F << (int)OpcodeMap_Shift,
+
+			NonDestructiveReg_Shift = OpcodeMap_Shift + 5,
+			NonDestructiveReg_Mask = 0x1F << (int)NonDestructiveReg_Shift,
+
+			VectorSize_Shift = NonDestructiveReg_Shift + 5,
+			VectorSize_128 = 0 << (int)VectorSize_Shift,
+			VectorSize_256 = 1 << (int)VectorSize_Shift,
+			VectorSize_512 = 2 << (int)VectorSize_Shift,
+			VectorSize_Mask = 3 << (int)VectorSize_Shift,
+
+			OperandSize64 = 1 << (int)(VectorSize_Shift + 2),
+			ModRegExtension = OperandSize64 << 1,
+			BaseRegExtension = ModRegExtension << 1,
+			IndexRegExtension = BaseRegExtension << 1,
+		}
+
 		#region Fields
 		public static readonly Xex None = new Xex();
 
-		// High byte is type, low 3 bytes are like EVEX
-		private readonly uint data;
+		private readonly Flags flags;
 		#endregion
 
 		#region Constructors
-		public Xex(OpcodeMap map) : this(XexType.Legacy)
+		public Xex(OpcodeMap escapes)
 		{
-			Contract.Requires(map.IsEncodableAs(XexType.Legacy));
-			data |= (uint)map << (int)EVex.mm_Shift;
+			Contract.Requires(escapes.IsEncodableAsEscapeBytes());
+			flags = BaseFlags(XexType.Escapes, Raw.SimdPrefix.None, escapes);
 		}
 
-		public Xex(Rex rex, OpcodeMap map = OpcodeMap.Default) : this(XexType.LegacyWithRex)
+		public Xex(Rex rex, OpcodeMap escapes = OpcodeMap.Default)
 		{
-			Contract.Requires(map.IsEncodableAs(XexType.LegacyWithRex));
-			data |= (uint)map << (int)EVex.mm_Shift;
-			// Could be optimized to bitwise operations
-			if ((rex & Rex.B) != 0) data |= (uint)EVex.B;
-			if ((rex & Rex.X) != 0) data |= (uint)EVex.X;
-			if ((rex & Rex.R) != 0) data |= (uint)EVex.R;
-			if ((rex & Rex.W) != 0) data |= (uint)EVex.W;
+			Contract.Requires(escapes.IsEncodableAsEscapeBytes());
+			flags = BaseFlags(XexType.Escapes, Raw.SimdPrefix.None, escapes);
+			if ((rex & Rex.OperandSize64) != 0) flags |= Flags.OperandSize64;
+			if ((rex & Rex.ModRegExtension) != 0) flags |= Flags.ModRegExtension;
+			if ((rex & Rex.BaseRegExtension) != 0) flags |= Flags.BaseRegExtension;
+			if ((rex & Rex.IndexRegExtension) != 0) flags |= Flags.IndexRegExtension;
 		}
 
-		public Xex(Vex2 vex2) : this(XexType.Vex2)
+		public Xex(Vex2 vex2)
 		{
-			data |= ((uint)(vex2 & Vex2.pp_Mask) >> (int)Vex2.pp_Shift) << (int)EVex.pp_Shift;
-			data |= ((uint)(vex2 & Vex2.vvvv_Mask) >> (int)Vex2.vvvv_Shift) << (int)EVex.vvvv_Shift;
-			// Could be optimized to bitwise operations
-			if ((vex2 & Vex2.R) != 0) data |= (uint)EVex.R;
-			if ((vex2 & Vex2.L) != 0) data |= (uint)EVex.L;
+			flags = BaseFlags(XexType.Vex2, vex2.GetSimdPrefix(), OpcodeMap.Default);
+			flags |= (Flags)((uint)vex2.GetNonDestructiveReg() << (int)Flags.NonDestructiveReg_Shift);
+			if ((vex2 & Vex2.ModRegExtension) != 0) flags |= Flags.ModRegExtension;
+			if ((vex2 & Vex2.VectorSize256) != 0) flags |= Flags.VectorSize_256;
 		}
 
-		public Xex(Vex3 vex3) : this(XexType.Vex3)
+		public Xex(Vex3 vex3)
 		{
-			// The mmmmm field goes from 5 to 2 bits
-			var map = (byte)((uint)(vex3 & Vex3.mmmmm_Mask) >> (int)Vex3.mmmmm_Shift);
-			if (map >= 4) throw new ArgumentException();
-			data |= FromVex3(vex3, map);
+			throw new NotImplementedException();
 		}
 
-		public Xex(Xop xop) : this(XexType.Xop)
+		public Xex(Xop xop)
 		{
-			// The mmmmm field goes from 5 to 2 bits
-			var map = (byte)((uint)(xop & Xop.mmmmm_Mask) >> (int)Xop.mmmmm_Shift);
-			if (map < 8 || map > 10) throw new ArgumentException();
-			data |= FromVex3((Vex3)(uint)xop, (byte)(map & 4));
+			throw new NotImplementedException();
 		}
 
-		public Xex(EVex evex) : this(XexType.EVex)
+		public Xex(EVex evex)
 		{
-			data |= (uint)evex & 0xFFFFFF;
+			throw new NotImplementedException();
 		}
 
-		public Xex(XexType type) { data = (uint)type << 24; }
-
-		private Xex(uint data) { this.data = data; }
-
-		private static uint FromVex3(Vex3 vex3, byte map)
+		private Xex(Flags flags)
 		{
-			Contract.Requires(map < 4);
-			uint data = 0;
-			data |= ((uint)(vex3 & Vex3.pp_Mask) >> (int)Vex3.pp_Shift) << (int)EVex.pp_Shift;
-			data |= (uint)map << (int)EVex.mm_Shift;
-			data |= ((uint)(~vex3 & Vex3.vvvv_Mask) >> (int)Vex3.vvvv_Shift) << (int)EVex.vvvv_Shift;
-			if ((vex3 & Vex3.B) != 0) data |= (uint)EVex.B;
-			if ((vex3 & Vex3.X) != 0) data |= (uint)EVex.X;
-			if ((vex3 & Vex3.R) != 0) data |= (uint)EVex.R;
-			if ((vex3 & Vex3.W) != 0) data |= (uint)EVex.W;
-			if ((vex3 & Vex3.L) != 0) data |= (uint)EVex.L;
-			return data;
+			this.flags = flags;
 		}
 		#endregion
 
 		#region Properties
-		public XexType Type => (XexType)(data >> 24);
+		public XexType Type => (XexType)GetField(Flags.XexType_Mask, Flags.XexType_Shift);
+		public OpcodeMap OpcodeMap => (OpcodeMap)GetField(Flags.OpcodeMap_Mask, Flags.OpcodeMap_Shift);
 
-		public int MinimumSizeInBytes
+		public SimdPrefix? SimdPrefix
+		{
+			get
+			{
+				if (Type <= XexType.RexAndEscapes) return null;
+				return (SimdPrefix)GetField(Flags.SimdPrefix_Mask, Flags.SimdPrefix_Shift);
+			}
+		}
+
+		public bool OperandSize64 => (flags & Flags.OperandSize64) != 0;
+		public bool ModRegExtension => (flags & Flags.ModRegExtension) != 0;
+		public bool BaseRegExtension => (flags & Flags.BaseRegExtension) != 0;
+		public bool IndexRegExtension => (flags & Flags.IndexRegExtension) != 0;
+
+		public OperandSize VectorSize => (OperandSize)((uint)OperandSize._128 + GetField(Flags.VectorSize_Mask, Flags.VectorSize_Shift));
+
+		public byte? NonDestructiveReg
 		{
 			get
 			{
 				switch (Type)
 				{
-					case XexType.Legacy:
-					case XexType.LegacyWithRex:
-						int size = 0;
-						if (SimdPrefix != SimdPrefix.None) ++size;
-						if (Type == XexType.LegacyWithRex) ++size;
-						size += OpcodeMap.GetLeadingByteCount();
-						return size;
+					case XexType.Vex2:
+					case XexType.Vex3:
+					case XexType.Xop:
+					case XexType.EVex:
+						return (byte)GetField(Flags.NonDestructiveReg_Mask, Flags.NonDestructiveReg_Shift);
 
+					default: return null;
+				}
+			}
+		}
+		
+		public int SizeInBytes
+		{
+			get
+			{
+				switch (Type)
+				{
+					case XexType.Escapes: return OpcodeMap.GetEscapeByteCount();
+					case XexType.RexAndEscapes: return 1 + OpcodeMap.GetEscapeByteCount();
 					case XexType.Vex2: return 2;
 					case XexType.Vex3: return 3;
 					case XexType.Xop: return 4;
@@ -410,63 +395,31 @@ namespace Asmuth.X86.Raw
 				}
 			}
 		}
-
-		public OpcodeMap OpcodeMap
-		{
-			get
-			{
-				byte pp = (byte)Bits.MaskAndShiftRight(data, (uint)EVex.mm_Mask, (int)EVex.mm_Shift);
-				if (Type == XexType.Xop) pp += 7;
-				return (OpcodeMap)pp;
-			}
-		}
-
-		public SimdPrefix SimdPrefix
-			=> (SimdPrefix)Bits.MaskAndShiftRight(data, (uint)EVex.pp_Mask, (int)EVex.pp_Shift);
-
-		public bool HasW => (data & (uint)EVex.W) != 0;
-		public bool HasX => (data & (uint)EVex.X) != 0;
-		public bool HasR => (data & (uint)EVex.R) != 0;
-		public bool HasB => (data & (uint)EVex.B) != 0;
-		public bool HasL => (data & (uint)EVex.L) != 0;
-		public bool HasL2 => (data & (uint)EVex.L2) != 0;
 		#endregion
 
-		#region Instance Methods
+		#region Methods
 		public Xex WithOpcodeMap(OpcodeMap map)
 		{
-			Contract.Requires(map.IsEncodableAs(Type));
-			if (Type == XexType.Xop) map = (OpcodeMap)((int)map - 7);
-			return new Xex(Bits.SetMask(data, (uint)EVex.mm_Mask, (uint)map << (int)EVex.mm_Shift));
-		}
-
-		public bool? TryGetFlag(XexFields field)
-		{
-			Contract.Requires(field.IsSingleField());
-			Contract.Requires(field.GetBitCount() == 1);
-
-			int offset = XexType.EVex.TryGetFieldOffset(field);
-			if (offset < 0) return null;
-
-			return ((data >> offset) & 1) == 1;
-		}
-
-		public byte? TryGetField(XexFields field)
-		{
-			Contract.Requires(field.IsSingleField());
-
-			int bitCount = field.GetBitCount();
-			int offset = XexType.EVex.TryGetFieldOffset(field);
-			if (offset < 0) return null;
-
-			return (byte)((data >> offset) & ((1 << bitCount) - 1));
+			Contract.Requires(Type.CanEncodeMap(map));
+			return new Xex((flags & ~Flags.OpcodeMap_Mask)
+				| (Flags)((uint)map << (int)Flags.OpcodeMap_Shift));
 		}
 
 		public static bool Equals(Xex first, Xex second) => first.Equals(second);
-		public bool Equals(Xex other) => data == other.data;
+		public bool Equals(Xex other) => flags == other.flags;
 		public override bool Equals(object obj) => obj is Xex && Equals((Xex)obj);
-		public override int GetHashCode() => unchecked((int)data);
+		public override int GetHashCode() => unchecked((int)flags);
 		public override string ToString() => Type.ToString();
+
+		private static T NotImplemented<T>() { throw new NotImplementedException(); }
+
+		private uint GetField(Flags mask, Flags shift)
+			=> Bits.MaskAndShiftRight((uint)flags, (uint)mask, (int)shift);
+
+		private static Flags BaseFlags(XexType type, SimdPrefix simdPrefix, OpcodeMap opcodeMap)
+			=> (Flags)(((uint)type << (int)Flags.XexType_Shift)
+				| ((uint)simdPrefix << (int)Flags.SimdPrefix_Shift)
+				| ((uint)opcodeMap << (int)Flags.OpcodeMap_Shift));
 		#endregion
 
 		#region Operators

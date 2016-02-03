@@ -285,7 +285,7 @@ namespace Asmuth.X86.Raw
 			var directGpr = DirectGpr;
 			if (directGpr.HasValue)
 			{
-				rex = directGpr.Value.RequiresRexBit() ? (Rex.Reserved_Value | Rex.B) : (Rex?)null;
+				rex = directGpr.Value.RequiresRexBit() ? (Rex.Reserved_Value | Rex.BaseRegExtension) : (Rex?)null;
 				modRM = ModRMEnum.FromComponents(mod: 11, reg: modReg, rm: directGpr.Value.GetLow3Bits());
 				sib = null;
 				displacementSize = null;

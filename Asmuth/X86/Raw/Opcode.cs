@@ -30,7 +30,7 @@ namespace Asmuth.X86.Raw
 		SimdPrefix_F3 = 3 << (int)SimdPrefix_Shift,
 		SimdPrefix_Mask = 3 << (int)SimdPrefix_Shift,
 
-		// Xex flags
+		// Xex operand size flags
 		RexW = 1 << 4,
 		VexL_Shift = 5,
 		VexL_0 = 0 << (int)VexL_Shift,

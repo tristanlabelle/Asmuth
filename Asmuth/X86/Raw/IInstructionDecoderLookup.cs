@@ -12,6 +12,8 @@ namespace Asmuth.X86.Raw
 	/// </summary>
 	public interface IInstructionDecoderLookup
 	{
-		bool TryLookup(InstructionDecodingMode mode, Opcode opcode, out bool hasModRM, out OperandSize? immediateSize);
+		bool TryLookup(InstructionDecodingMode mode,
+			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
+			out bool hasModRM, out int immediateSizeInBytes);
 	}
 }

@@ -14,7 +14,8 @@ namespace Asmuth.X86.Raw
 		Dword,
 		Qword,
 		_128,
-		_526
+		_256,
+		_512
 	}
 
 	public static class OperandSizeEnum
@@ -30,5 +31,13 @@ namespace Asmuth.X86.Raw
 
 		[Pure]
 		public static int InBits(this OperandSize? size) => InBytes(size) * Bits.PerByte;
+
+		[Pure]
+		public static OperandSize OverrideWordDword(this OperandSize size, bool @override)
+		{
+			if (size == OperandSize.Word) return @override ? OperandSize.Dword : OperandSize.Word;
+			if (size == OperandSize.Dword) return @override ? OperandSize.Word : OperandSize.Dword;
+			throw new ArgumentOutOfRangeException(nameof(size));
+		}
 	}
 }

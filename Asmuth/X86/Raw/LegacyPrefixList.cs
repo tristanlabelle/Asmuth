@@ -32,6 +32,15 @@ namespace Asmuth.X86.Raw
 			LegacyPrefix.GSSegmentOverride,
 		};
 
+		private static readonly uint[] multiples = new uint[]
+		{
+			1,
+			(uint)lookup.Length,
+			(uint)(lookup.Length * lookup.Length),
+			(uint)(lookup.Length * lookup.Length * lookup.Length),
+			(uint)(lookup.Length * lookup.Length * lookup.Length * lookup.Length),
+		};
+
 		public static readonly ImmutableLegacyPrefixList Empty;
 		public const int Capacity = 5;
 
@@ -44,74 +53,63 @@ namespace Asmuth.X86.Raw
 		#region Properties
 		public int Count => (int)(storage >> 24);
 		public bool IsEmpty => Count == 0;
-		public LegacyPrefix? Tail => IsEmpty ? (LegacyPrefix?)null : this[Count - 1];
-		#endregion
-
-		public LegacyPrefix this[int index]
+		
+		public SimdPrefix SimdPrefix
 		{
 			get
 			{
-				return lookup[(storage & 0xFFFFFF) / GetMultiple(index) % lookup.Length];
+				if (IsEmpty) return SimdPrefix.None;
+				switch (this[Count - 1])
+				{
+					case LegacyPrefix.OperandSizeOverride: return SimdPrefix._66;
+					case LegacyPrefix.RepeatNotEqual: return SimdPrefix._F2;
+					case LegacyPrefix.RepeatEqual: return SimdPrefix._F3;
+					default: return SimdPrefix.None;
+				}
 			}
-			set { throw new NotImplementedException(); }
 		}
+		#endregion
+
+		public LegacyPrefix this[int index]
+			=> lookup[(storage & 0xFFFFFF) / multiples[index] % lookup.Length];
 
 		#region Methods
 		public bool Contains(LegacyPrefix item) => IndexOf(item) >= 0;
 
 		public InstructionFields GetGroups()
 		{
-			var count = Count;
-			uint temp = storage & 0xFFFFFF;
 			var groups = (InstructionFields)0;
-			for (int i = 0; i < count;)
-			{
-				groups |= lookup[temp % lookup.Length].GetFieldOrNone();
-				i++;
-				temp /= (uint)lookup.Length;
-			}
+			for (int i = 0; i < Count; ++i)
+				groups |= this[i].GetFieldOrNone();
 			return groups;
-		}
-
-		public bool ContainsGroups(InstructionFields fields)
-		{
-			var count = 0;
-			uint temp = storage & 0xFFFFFF;
-			for (int i = 0; i < count;)
-			{
-				fields &= ~lookup[temp % lookup.Length].GetFieldOrNone();
-				if (fields == 0) return true;
-				i++;
-				temp /= (uint)lookup.Length;
-			}
-			return false;
 		}
 
 		public void CopyTo(LegacyPrefix[] array, int arrayIndex)
 		{
-			var count = 0;
-			uint temp = storage & 0xFFFFFF;
-			for (int i = 0; i < count;)
-			{
-				array[arrayIndex + i] = lookup[temp % lookup.Length];
-				i++;
-				temp /= (uint)lookup.Length;
-			}
+			for (int i = 0; i < Count; ++i)
+				array[arrayIndex + i] = this[i];
 		}
 
 		public int IndexOf(LegacyPrefix item)
 		{
-			var count = Count;
-			uint temp = storage & 0xFFFFFF;
-			for (int i = 0; i < count;)
-			{
-				if (lookup[temp % lookup.Length] == item)
+			for (int i = 0; i < Count; ++i)
+				if (this[i] == item)
 					return i;
-				i++;
-				temp /= (uint)lookup.Length;
-			}
-
 			return -1;
+		}
+
+		public ImmutableLegacyPrefixList SetAt(int index, LegacyPrefix item)
+		{
+			var group = item.GetFieldOrNone();
+			for (int i = 0; i < Count; ++i)
+				if (i != index && this[i].GetFieldOrNone() == group)
+					throw new ArgumentException();
+
+			var data = storage & 0xFFFFFF;
+			uint multiple = multiples[index];
+			data = (data / multiple / (uint)lookup.Length * (uint)lookup.Length
+				+ ToIndex(item)) * multiple + data % multiple;
+			return new ImmutableLegacyPrefixList((storage & 0xFF000000) | data);
 		}
 
 		public ImmutableLegacyPrefixList Add(LegacyPrefix item) => Insert(Count, item);
@@ -120,15 +118,15 @@ namespace Asmuth.X86.Raw
 		public ImmutableLegacyPrefixList Insert(int index, LegacyPrefix item)
 		{
 			if (index < 0 || index > Count) throw new ArgumentOutOfRangeException(nameof(index));
-			var field = item.GetFieldOrNone();
-			if (field == InstructionFields.None) throw new ArgumentException();
-			if (ContainsGroups(field)) throw new InvalidOperationException();
+			var group = item.GetFieldOrNone();
+			if (group == InstructionFields.None) throw new ArgumentException();
+			if ((GetGroups() & group) != 0) throw new InvalidOperationException();
 
-			uint newStorage = storage & 0xFFFFFF;
-			uint multiple = GetMultiple(index);
-			newStorage = (newStorage / multiple * (uint)lookup.Length + ToIndex(item)) * multiple + newStorage % multiple;
-			newStorage |= (storage & 0xFF000000) + 0x01000000;
-			return new ImmutableLegacyPrefixList(newStorage);
+			uint data = storage & 0xFFFFFF;
+			uint multiple = multiples[index];
+			data = (data / multiple * (uint)lookup.Length + ToIndex(item)) * multiple + data % multiple;
+			data |= (storage & 0xFF000000) + 0x01000000;
+			return new ImmutableLegacyPrefixList(data);
 		}
 
 		public ImmutableLegacyPrefixList Remove(LegacyPrefix item)
@@ -142,7 +140,7 @@ namespace Asmuth.X86.Raw
 			if (index < 0 || index >= Count) throw new ArgumentOutOfRangeException(nameof(index));
 
 			uint newStorage = storage & 0xFFFFFF;
-			uint multiple = GetMultiple(index);
+			uint multiple = multiples[index];
 			newStorage = newStorage / multiple / (uint)lookup.Length * multiple + newStorage % multiple;
 			newStorage |= (storage & 0xFF000000) - 0x01000000;
 			return new ImmutableLegacyPrefixList(newStorage);
@@ -161,18 +159,6 @@ namespace Asmuth.X86.Raw
 			return str.ToString();
 		}
 
-		private static uint GetMultiple(int index)
-		{
-			if (index > Capacity) throw new ArgumentOutOfRangeException(nameof(index));
-			uint multiple = 1;
-			while (index > 0)
-			{
-				multiple *= 7;
-				index--;
-			}
-			return multiple;
-		}
-
 		private static uint ToIndex(LegacyPrefix prefix)
 		{
 			int index = Array.IndexOf(lookup, prefix);
@@ -183,13 +169,19 @@ namespace Asmuth.X86.Raw
 
 		public static implicit operator ImmutableLegacyPrefixList(LegacyPrefixList list) => list.ToImmutable();
 
+		LegacyPrefix IList<LegacyPrefix>.this[int index]
+		{
+			get { return this[index]; }
+			set { throw new NotSupportedException(); }
+		}
+
+		int IList<LegacyPrefix>.IndexOf(LegacyPrefix prefix) { throw new NotSupportedException(); }
+		void IList<LegacyPrefix>.Insert(int index, LegacyPrefix prefix) { throw new NotSupportedException(); }
+		void IList<LegacyPrefix>.RemoveAt(int index) { throw new NotSupportedException(); }
 		bool ICollection<LegacyPrefix>.IsReadOnly => true;
 		void ICollection<LegacyPrefix>.Add(LegacyPrefix prefix) { throw new NotSupportedException(); }
 		bool ICollection<LegacyPrefix>.Remove(LegacyPrefix prefix) { throw new NotSupportedException(); }
 		void ICollection<LegacyPrefix>.Clear() { throw new NotSupportedException(); }
-		int IList<LegacyPrefix>.IndexOf(LegacyPrefix prefix) { throw new NotSupportedException(); }
-		void IList<LegacyPrefix>.Insert(int index, LegacyPrefix prefix) { throw new NotSupportedException(); }
-		void IList<LegacyPrefix>.RemoveAt(int index) { throw new NotSupportedException(); }
 		IEnumerator<LegacyPrefix> IEnumerable<LegacyPrefix>.GetEnumerator() { throw new NotImplementedException(); }
 		IEnumerator IEnumerable.GetEnumerator() { throw new NotImplementedException(); }
 	}
@@ -205,7 +197,7 @@ namespace Asmuth.X86.Raw
 
 		public int Count => list.Count;
 		public bool IsEmpty => list.IsEmpty;
-		public LegacyPrefix? Tail => list.Tail;
+		public SimdPrefix SimdPrefix => list.SimdPrefix;
 
 		public LegacyPrefix this[int index]
 		{
