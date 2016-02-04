@@ -61,7 +61,6 @@ namespace Asmuth.X86.Raw
 		public bool HasEffectiveAddressSizeOf16 => (flags & Flags.EffectiveAddressSize16) == Flags.EffectiveAddressSize16;
 		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
 		public Xex Xex => xex;
-		public SimdPrefix SimdPrefix => xex.SimdPrefix ?? LegacyPrefixes.SimdPrefix;
 		public OpcodeMap OpcodeMap => xex.OpcodeMap;
 		public byte MainByte => mainByte;
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;
@@ -131,6 +130,14 @@ namespace Asmuth.X86.Raw
 
 				return fields;
 			}
+		}
+		#endregion
+
+		#region Methods
+		public bool HasSimdPrefix(SimdPrefix prefix)
+		{
+			if (xex.SimdPrefix.HasValue) return xex.SimdPrefix == prefix;
+			return legacyPrefixes.PotentialSimdPrefix == prefix;
 		}
 		#endregion
 	}

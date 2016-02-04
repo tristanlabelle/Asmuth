@@ -23,12 +23,12 @@ namespace Asmuth.X86.Raw
 		Type_Mask = 3 << (int)Type_Shift,
 
 		// 2 bits
-		Vvvv_Shift = 2,
-		Vvvv_Invalid = 0 << (int)Vvvv_Shift,
-		Vvvv_Nds = 1 << (int)Vvvv_Shift,
-		Vvvv_Ndd = 2 << (int)Vvvv_Shift,
-		Vvvv_Dds = 3 << (int)Vvvv_Shift,
-		Vvvv_Mask = 3 << (int)Vvvv_Shift,
+		NonDestructiveReg_Shift = 2,
+		NonDestructiveReg_Invalid = 0 << (int)NonDestructiveReg_Shift,
+		NonDestructiveReg_Source = 1 << (int)NonDestructiveReg_Shift,
+		NonDestructiveReg_Dest = 2 << (int)NonDestructiveReg_Shift,
+		NonDestructiveReg_SecondSource = 3 << (int)NonDestructiveReg_Shift,
+		NonDestructiveReg_Mask = 3 << (int)NonDestructiveReg_Shift,
 
 		// 2 bits
 		VectorLength_Shift = 4,
@@ -228,12 +228,12 @@ namespace Asmuth.X86.Raw
 				default: throw new ArgumentException();
 			}
 
-			switch (encoding & VexOpcodeEncoding.Vvvv_Mask)
+			switch (encoding & VexOpcodeEncoding.NonDestructiveReg_Mask)
 			{
-				case VexOpcodeEncoding.Vvvv_Nds: str.Append(".NDS"); break;
-				case VexOpcodeEncoding.Vvvv_Ndd: str.Append(".NDD"); break;
-				case VexOpcodeEncoding.Vvvv_Dds: str.Append(".DDS"); break;
-				case VexOpcodeEncoding.Vvvv_Invalid: break;
+				case VexOpcodeEncoding.NonDestructiveReg_Source: str.Append(".NDS"); break;
+				case VexOpcodeEncoding.NonDestructiveReg_Dest: str.Append(".NDD"); break;
+				case VexOpcodeEncoding.NonDestructiveReg_SecondSource: str.Append(".DDS"); break;
+				case VexOpcodeEncoding.NonDestructiveReg_Invalid: break;
 				default: throw new UnreachableException();
 			}
 

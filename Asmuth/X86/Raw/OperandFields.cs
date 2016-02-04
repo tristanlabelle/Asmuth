@@ -13,16 +13,15 @@ namespace Asmuth.X86.Raw
 	public enum OperandFields : byte
 	{
 		None = 0,
-		Opcode_Low3 = 1 << 0,
-		ModRM_Reg = Opcode_Low3,
-		ModRM_RM = 1 << 1,
-		Sib_Base = 1 << 2,
-		Sib_Index = 1 << 3,
-		Immediate = 1 << 4,
-		Vex_V = 1 << 5,
-		EVex_Vidx = Sib_Index,
-		EVex_Opmask = 1 << 6,
-		EVex_IS4 = Immediate,
-		SecondImmediate = 1 << 7
+		OpcodeReg = 1 << 0, // Low 3 bits of opcode (no ModRM)
+		ModReg = OpcodeReg, // ModRM.Reg
+		BaseReg = 1 << 1, // ModRM.RM / SIB.Base
+		IndexReg = 1 << 2, // SIB.Index
+		NonDestructiveReg = 1 << 3, // Vex.vvvv
+		VectorOpmask = 1 << 4, // Evex.aaa
+		Immediate = 1 << 5, // imm
+		Immediate2 = 1 << 6, // imm (ENTER imm, imm)
+		Vidx = IndexReg, // Evex.vidx
+		IS4 = Immediate, // Evex.is4
 	}
 }

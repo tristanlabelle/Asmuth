@@ -56,13 +56,13 @@ namespace Asmuth.X86.Raw.Nasm
 			switch (c)
 			{
 				case '-': return OperandFields.None;
-				case 'r': return OperandFields.ModRM_Reg;
-				case 'm': return OperandFields.ModRM_RM;
-				case 'x': return OperandFields.Sib_Index;
+				case 'r': return OperandFields.ModReg;
+				case 'm': return OperandFields.BaseReg;
+				case 'x': return OperandFields.IndexReg;
 				case 'i': return OperandFields.Immediate;
-				case 'j': return OperandFields.SecondImmediate;
-				case 'v': return OperandFields.Vex_V;
-				case 's': return OperandFields.EVex_IS4;
+				case 'j': return OperandFields.Immediate2;
+				case 'v': return OperandFields.NonDestructiveReg;
+				case 's': return OperandFields.IS4;
 				default: return null;
 			}
 		}
@@ -191,10 +191,10 @@ namespace Asmuth.X86.Raw.Nasm
 		{
 			switch (tokens[tokenIndex])
 			{
-				case "nds": encoding |= VexOpcodeEncoding.Vvvv_Nds; break;
-				case "ndd": encoding |= VexOpcodeEncoding.Vvvv_Ndd; break;
-				case "dds": encoding |= VexOpcodeEncoding.Vvvv_Dds; break;
-				default: encoding |= VexOpcodeEncoding.Vvvv_Invalid; return;
+				case "nds": encoding |= VexOpcodeEncoding.NonDestructiveReg_Source; break;
+				case "ndd": encoding |= VexOpcodeEncoding.NonDestructiveReg_Dest; break;
+				case "dds": encoding |= VexOpcodeEncoding.NonDestructiveReg_SecondSource; break;
+				default: encoding |= VexOpcodeEncoding.NonDestructiveReg_Invalid; return;
 			}
 
 			++tokenIndex;

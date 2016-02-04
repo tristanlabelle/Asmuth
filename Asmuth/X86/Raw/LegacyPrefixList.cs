@@ -54,17 +54,17 @@ namespace Asmuth.X86.Raw
 		public int Count => (int)(storage >> 24);
 		public bool IsEmpty => Count == 0;
 		
-		public SimdPrefix SimdPrefix
+		public SimdPrefix? PotentialSimdPrefix
 		{
 			get
 			{
-				if (IsEmpty) return SimdPrefix.None;
+				if (IsEmpty) return null;
 				switch (this[Count - 1])
 				{
 					case LegacyPrefix.OperandSizeOverride: return SimdPrefix._66;
 					case LegacyPrefix.RepeatNotEqual: return SimdPrefix._F2;
 					case LegacyPrefix.RepeatEqual: return SimdPrefix._F3;
-					default: return SimdPrefix.None;
+					default: return null;
 				}
 			}
 		}
@@ -197,12 +197,12 @@ namespace Asmuth.X86.Raw
 
 		public int Count => list.Count;
 		public bool IsEmpty => list.IsEmpty;
-		public SimdPrefix SimdPrefix => list.SimdPrefix;
+		public SimdPrefix? PotentialSimdPrefix => list.PotentialSimdPrefix;
 
 		public LegacyPrefix this[int index]
 		{
 			get { return list[index]; }
-			set { throw new NotImplementedException(); }
+			set { list = list.SetAt(index, value); }
 		}
 
 		public bool Contains(LegacyPrefix prefix) => list.Contains(prefix);
