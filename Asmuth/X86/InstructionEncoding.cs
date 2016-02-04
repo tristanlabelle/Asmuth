@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw
+namespace Asmuth.X86
 {
 	/// <summary>
 	/// Describes the encoding of an instruction in a way that complements a <see cref="Opcode"/> value.

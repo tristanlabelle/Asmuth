@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw
+namespace Asmuth.X86
 {
 	// XEX is a made-up name for all non-legacy prefixes and escape bytes.
 	// This includes escape bytes, REX + escape bytes, VEX, XOP and EVEX
@@ -300,13 +300,13 @@ namespace Asmuth.X86.Raw
 		public Xex(OpcodeMap escapes)
 		{
 			Contract.Requires(escapes.IsEncodableAsEscapeBytes());
-			flags = BaseFlags(XexType.Escapes, Raw.SimdPrefix.None, escapes);
+			flags = BaseFlags(XexType.Escapes, X86.SimdPrefix.None, escapes);
 		}
 
 		public Xex(Rex rex, OpcodeMap escapes = OpcodeMap.Default)
 		{
 			Contract.Requires(escapes.IsEncodableAsEscapeBytes());
-			flags = BaseFlags(XexType.Escapes, Raw.SimdPrefix.None, escapes);
+			flags = BaseFlags(XexType.Escapes, X86.SimdPrefix.None, escapes);
 			if ((rex & Rex.OperandSize64) != 0) flags |= Flags.OperandSize64;
 			if ((rex & Rex.ModRegExtension) != 0) flags |= Flags.ModRegExtension;
 			if ((rex & Rex.BaseRegExtension) != 0) flags |= Flags.BaseRegExtension;

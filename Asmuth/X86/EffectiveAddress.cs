@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw
+namespace Asmuth.X86
 {
 	[Flags]
 	public enum AddressingModeFlags
@@ -114,13 +114,13 @@ namespace Asmuth.X86.Raw
 
 		public static EffectiveAddress Absolute(AddressSize size, int address)
 		{
-			Contract.Requires(size > Raw.AddressSize._16 || (short)address == address);
+			Contract.Requires(size > X86.AddressSize._16 || (short)address == address);
 			return new EffectiveAddress(BaseFlags(size), address);
 		}
 
 		public static EffectiveAddress Absolute(AddressSize size, SegmentRegister segment, int address)
 		{
-			Contract.Requires(size > Raw.AddressSize._16 || (short)address == address);
+			Contract.Requires(size > X86.AddressSize._16 || (short)address == address);
 			return new EffectiveAddress(BaseFlags(size, segment), address);
 		}
 
@@ -130,8 +130,8 @@ namespace Asmuth.X86.Raw
 		{
 			Contract.Requires(scale == 1 || scale == 2 || scale == 4 || scale == 8
 				|| (scale == 0 && !index.HasValue));
-			Contract.Requires(@base != AddressBaseRegister.Rip || (addressSize == Raw.AddressSize._64 && index.HasValue));
-			if (addressSize == Raw.AddressSize._16)
+			Contract.Requires(@base != AddressBaseRegister.Rip || (addressSize == X86.AddressSize._64 && index.HasValue));
+			if (addressSize == X86.AddressSize._16)
 			{
 				Contract.Requires((short)displacement == displacement);
 				if (@base.HasValue)
@@ -290,7 +290,7 @@ namespace Asmuth.X86.Raw
 				sib = null;
 				displacementSize = null;
 			}
-			else if (AddressSize == Raw.AddressSize._16)
+			else if (AddressSize == X86.AddressSize._16)
 			{
 				rex = null;
 				sib = null;

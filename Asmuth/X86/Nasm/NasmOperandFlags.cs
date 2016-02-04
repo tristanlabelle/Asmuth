@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw.Nasm
+namespace Asmuth.X86.Nasm
 {
 	[Flags]
 	public enum NasmOperandFlags : ushort

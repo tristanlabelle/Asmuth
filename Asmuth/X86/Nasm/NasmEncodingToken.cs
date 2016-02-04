@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw.Nasm
+namespace Asmuth.X86.Nasm
 {
 	[StructLayout(LayoutKind.Sequential, Size = 2)]
 	public struct NasmEncodingToken

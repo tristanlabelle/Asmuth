@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw
+namespace Asmuth.X86
 {
 	public enum GprCode : byte
 	{

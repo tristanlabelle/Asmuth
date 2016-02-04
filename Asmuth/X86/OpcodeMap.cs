@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw
+namespace Asmuth.X86
 {
 	// We cheat a bit here:
 	// VEX only defines 1, 2, 3, but we use 0 to mean no leading byte,

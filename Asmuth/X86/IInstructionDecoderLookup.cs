@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw
+namespace Asmuth.X86
 {
 	/// <summary>
 	/// Provides an <see cref="InstructionDecoder"/> with the means to query encoding information from an instruction database.

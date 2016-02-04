@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw.Nasm
+namespace Asmuth.X86.Nasm
 {
 	[AttributeUsage(AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
 	internal sealed class NasmNameAttribute : Attribute

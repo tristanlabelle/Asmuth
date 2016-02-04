@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw
+namespace Asmuth.X86
 {
 	// CPUID, EAX = 0x00000001
 	public enum CpuidFeatureFlags : ulong

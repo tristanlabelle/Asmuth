@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw.Nasm
+namespace Asmuth.X86.Nasm
 {
 	/// <summary>
 	/// An entry in NASM's insns.dat file.

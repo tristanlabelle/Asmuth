@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw
+namespace Asmuth.X86
 {
 	[StructLayout(LayoutKind.Sequential, Size = 24)]
 	public partial struct Instruction
