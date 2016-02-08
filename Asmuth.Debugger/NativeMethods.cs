@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 namespace Asmuth.Debugger
 {
 	using BOOL = Boolean;
+	using BYTE = Byte;
 	using DWORD = UInt32;
 	using DWORD64 = UInt64;
 	using HANDLE = IntPtr;
@@ -24,7 +26,7 @@ namespace Asmuth.Debugger
 	using SIZE_T = UIntPtr;
 	using ULONG_PTR = UIntPtr;
 	using WORD = UInt16;
-	using System.Diagnostics.Contracts;
+
 	internal static class Advapi32
 	{
 		private const string DllName = "advapi32.dll";
@@ -91,10 +93,30 @@ namespace Asmuth.Debugger
 		[return: MarshalAs(UnmanagedType.Bool)]
 		public static extern BOOL OpenProcessToken(HANDLE ProcessHandle, DWORD DesiredAccess, [Out] out HANDLE TokenHandle);
 	}
-	
+
 	internal static class Kernel32
 	{
 		private const string DllName = "kernel32.dll";
+
+		public const DWORD SIZE_OF_80387_REGISTERS = 80;
+
+		public const DWORD CONTEXT_i386 = 0x00010000; // this assumes that i386 and
+		public const DWORD CONTEXT_i486 = 0x00010000; // i486 have identical context records
+
+		public const DWORD CONTEXT_CONTROL = CONTEXT_i386 | 0x00000001; // SS:SP, CS:IP, FLAGS, BP
+		public const DWORD CONTEXT_INTEGER = CONTEXT_i386 | 0x00000002; // AX, BX, CX, DX, SI, DI
+		public const DWORD CONTEXT_SEGMENTS = CONTEXT_i386 | 0x00000004; // DS, ES, FS, GS
+		public const DWORD CONTEXT_FLOATING_POINT = CONTEXT_i386 | 0x00000008; // 387 state
+		public const DWORD CONTEXT_DEBUG_REGISTERS = CONTEXT_i386 | 0x00000010; // DB 0-3,6,7
+		public const DWORD CONTEXT_EXTENDED_REGISTERS = CONTEXT_i386 | 0x00000020; // cpu specific extensions
+
+		public const DWORD CONTEXT_FULL = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS;
+		public const DWORD CONTEXT_ALL = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS
+			| CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
+
+		public const DWORD CONTEXT_XSTATE = CONTEXT_i386 | 0x00000040;
+
+		public const DWORD MAXIMUM_SUPPORTED_EXTENSION = 512;
 
 		public const DWORD EXCEPTION_DEBUG_EVENT = 1;
 		public const DWORD CREATE_THREAD_DEBUG_EVENT = 2;
@@ -113,8 +135,74 @@ namespace Asmuth.Debugger
 		public const DWORD DBG_EXCEPTION_NOT_HANDLED = 0x80010001;
 		public const DWORD DBG_CONTINUE = 0x00010002;
 
+		public const DWORD EXCEPTION_NONCONTINUABLE = 0x1;
+		public const DWORD STATUS_GUARD_PAGE_VIOLATION = 0x80000001;
+		public const DWORD STATUS_DATATYPE_MISALIGNMENT = 0x80000002;
+		public const DWORD STATUS_BREAKPOINT = 0x80000003;
+		public const DWORD STATUS_SINGLE_STEP = 0x80000004;
+		public const DWORD STATUS_ACCESS_VIOLATION = 0xC0000005;
+		public const DWORD STATUS_IN_PAGE_ERROR = 0xC0000006;
+		public const DWORD STATUS_INVALID_HANDLE = 0xC0000008;
+		public const DWORD STATUS_NO_MEMORY = 0xC0000017;
+		public const DWORD STATUS_ILLEGAL_INSTRUCTION = 0xC000001D;
+		public const DWORD STATUS_NONCONTINUABLE_EXCEPTION = 0xC0000025;
+		public const DWORD STATUS_INVALID_DISPOSITION = 0xC0000026;
+		public const DWORD STATUS_ARRAY_BOUNDS_EXCEEDED = 0xC000008C;
+		public const DWORD STATUS_FLOAT_DENORMAL_OPERAND = 0xC000008D;
+		public const DWORD STATUS_FLOAT_DIVIDE_BY_ZERO = 0xC000008E;
+		public const DWORD STATUS_FLOAT_INEXACT_RESULT = 0xC000008F;
+		public const DWORD STATUS_FLOAT_INVALID_OPERATION = 0xC0000090;
+		public const DWORD STATUS_FLOAT_OVERFLOW = 0xC0000091;
+		public const DWORD STATUS_FLOAT_STACK_CHECK = 0xC0000092;
+		public const DWORD STATUS_FLOAT_UNDERFLOW = 0xC0000093;
+		public const DWORD STATUS_INTEGER_DIVIDE_BY_ZERO = 0xC0000094;
+		public const DWORD STATUS_INTEGER_OVERFLOW = 0xC0000095;
+		public const DWORD STATUS_PRIVILEGED_INSTRUCTION = 0xC0000096;
+		public const DWORD STATUS_STACK_OVERFLOW = 0xC00000FD;
+		public const DWORD STATUS_CONTROL_C_EXIT = 0xC000013A;
+
+		// from winbase.h
+		public const DWORD EXCEPTION_ACCESS_VIOLATION = STATUS_ACCESS_VIOLATION;
+		public const DWORD EXCEPTION_DATATYPE_MISALIGNMENT = STATUS_DATATYPE_MISALIGNMENT;
+		public const DWORD EXCEPTION_BREAKPOINT = STATUS_BREAKPOINT;
+		public const DWORD EXCEPTION_SINGLE_STEP = STATUS_SINGLE_STEP;
+		public const DWORD EXCEPTION_ARRAY_BOUNDS_EXCEEDED = STATUS_ARRAY_BOUNDS_EXCEEDED;
+		public const DWORD EXCEPTION_FLT_DENORMAL_OPERAND = STATUS_FLOAT_DENORMAL_OPERAND;
+		public const DWORD EXCEPTION_FLT_DIVIDE_BY_ZERO = STATUS_FLOAT_DIVIDE_BY_ZERO;
+		public const DWORD EXCEPTION_FLT_INEXACT_RESULT = STATUS_FLOAT_INEXACT_RESULT;
+		public const DWORD EXCEPTION_FLT_INVALID_OPERATION = STATUS_FLOAT_INVALID_OPERATION;
+		public const DWORD EXCEPTION_FLT_OVERFLOW = STATUS_FLOAT_OVERFLOW;
+		public const DWORD EXCEPTION_FLT_STACK_CHECK = STATUS_FLOAT_STACK_CHECK;
+		public const DWORD EXCEPTION_FLT_UNDERFLOW = STATUS_FLOAT_UNDERFLOW;
+		public const DWORD EXCEPTION_INT_DIVIDE_BY_ZERO = STATUS_INTEGER_DIVIDE_BY_ZERO;
+		public const DWORD EXCEPTION_INT_OVERFLOW = STATUS_INTEGER_OVERFLOW;
+		public const DWORD EXCEPTION_PRIV_INSTRUCTION = STATUS_PRIVILEGED_INSTRUCTION;
+		public const DWORD EXCEPTION_IN_PAGE_ERROR = STATUS_IN_PAGE_ERROR;
+		public const DWORD EXCEPTION_ILLEGAL_INSTRUCTION = STATUS_ILLEGAL_INSTRUCTION;
+		public const DWORD EXCEPTION_NONCONTINUABLE_EXCEPTION = STATUS_NONCONTINUABLE_EXCEPTION;
+		public const DWORD EXCEPTION_STACK_OVERFLOW = STATUS_STACK_OVERFLOW;
+		public const DWORD EXCEPTION_INVALID_DISPOSITION = STATUS_INVALID_DISPOSITION;
+		public const DWORD EXCEPTION_GUARD_PAGE = STATUS_GUARD_PAGE_VIOLATION;
+		public const DWORD EXCEPTION_INVALID_HANDLE = STATUS_INVALID_HANDLE;
+
 		public const DWORD INFINITE = 0xFFFFFFFF;
 
+		[StructLayout(LayoutKind.Sequential, Size = (int)MAXIMUM_SUPPORTED_EXTENSION)]
+		public struct CONTEXT_X86_EXTENDED_REGISTERS { }
+
+		[StructLayout(LayoutKind.Sequential)]
+		public struct CONTEXT_X86
+		{
+			DWORD ContextFlags;
+			DWORD Dr0, Dr1, Dr2, Dr3, Dr6, Dr7; // if CONTEXT_DEBUG_REGISTERS
+			FLOATING_SAVE_AREA FloatSave; // if CONTEXT_FLOATING_POINT
+			DWORD SegGs, SegFs, SegEs, SegDs; // if CONTEXT_SEGMENTS
+			DWORD Edi, Esi, Ebx, Edx, Ecx, Eax; // if CONTEXT_INTEGER
+			DWORD Ebp, Eip, SegCs, EFlags, Esp, SegSs; // if CONTEXT_CONTROL
+			CONTEXT_X86_EXTENDED_REGISTERS ExtendedRegisters; // if CONTEXT_EXTENDED_REGISTERS
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
 		public struct CREATE_PROCESS_DEBUG_INFO
 		{
 			public HANDLE hFile;
@@ -129,6 +217,7 @@ namespace Asmuth.Debugger
 			public WORD fUnicode;
 		}
 
+		[StructLayout(LayoutKind.Sequential)]
 		public struct CREATE_THREAD_DEBUG_INFO
 		{
 			public HANDLE hThread;
@@ -136,18 +225,27 @@ namespace Asmuth.Debugger
 			public LPTHREAD_START_ROUTINE lpStartAddress;
 		}
 
+		[StructLayout(LayoutKind.Sequential)]
 		public struct EXCEPTION_DEBUG_INFO32
 		{
 			public EXCEPTION_RECORD32 ExceptionRecord;
 			public DWORD dwFirstChance;
 		}
 
+		[StructLayout(LayoutKind.Sequential)]
 		public struct EXCEPTION_DEBUG_INFO64
 		{
 			public EXCEPTION_RECORD64 ExceptionRecord;
 			public DWORD dwFirstChance;
 		}
 
+		[StructLayout(LayoutKind.Sequential, Size = sizeof(DWORD) * 15)]
+		public struct EXCEPTION_INFORMATION32
+		{
+			public DWORD _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15;
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
 		public struct EXCEPTION_RECORD32
 		{
 			public DWORD ExceptionCode;
@@ -155,12 +253,16 @@ namespace Asmuth.Debugger
 			public DWORD ExceptionRecord;
 			public DWORD ExceptionAddress;
 			public DWORD NumberParameters;
-			public DWORD ExceptionInformation0, ExceptionInformation1, ExceptionInformation2, ExceptionInformation3,
-				ExceptionInformation4, ExceptionInformation5, ExceptionInformation6, ExceptionInformation7,
-				ExceptionInformation8, ExceptionInformation9, ExceptionInformation10, ExceptionInformation11,
-				ExceptionInformation12, ExceptionInformation13, ExceptionInformation14, ExceptionInformation15;
+			public EXCEPTION_INFORMATION32 ExceptionInformation;
 		}
 
+		[StructLayout(LayoutKind.Sequential, Size = sizeof(DWORD64) * 15)]
+		public struct EXCEPTION_INFORMATION64
+		{
+			public DWORD64 _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15;
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
 		public struct EXCEPTION_RECORD64
 		{
 			public DWORD ExceptionCode;
@@ -169,22 +271,36 @@ namespace Asmuth.Debugger
 			public DWORD64 ExceptionAddress;
 			public DWORD NumberParameters;
 			public DWORD __unusedAlignment;
-			public DWORD64 ExceptionInformation0, ExceptionInformation1, ExceptionInformation2, ExceptionInformation3,
-				ExceptionInformation4, ExceptionInformation5, ExceptionInformation6, ExceptionInformation7,
-				ExceptionInformation8, ExceptionInformation9, ExceptionInformation10, ExceptionInformation11,
-				ExceptionInformation12, ExceptionInformation13, ExceptionInformation14, ExceptionInformation15;
+			public EXCEPTION_INFORMATION64 ExceptionInformation;
 		}
 
+		[StructLayout(LayoutKind.Sequential)]
 		public struct EXIT_PROCESS_DEBUG_INFO
 		{
 			public DWORD dwExitCode;
 		}
 
+		[StructLayout(LayoutKind.Sequential)]
 		public struct EXIT_THREAD_DEBUG_INFO
 		{
 			public DWORD dwExitCode;
 		}
 
+		[StructLayout(LayoutKind.Sequential)]
+		public struct FLOATING_SAVE_AREA
+		{
+			DWORD ControlWord;
+			DWORD StatusWord;
+			DWORD TagWord;
+			DWORD ErrorOffset;
+			DWORD ErrorSelector;
+			DWORD DataOffset;
+			DWORD DataSelector;
+			BYTE RegisterArea[SIZE_OF_80387_REGISTERS];
+			DWORD Cr0NpxState;
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
 		public struct LOAD_DLL_DEBUG_INFO
 		{
 			public HANDLE hFile;
@@ -195,11 +311,13 @@ namespace Asmuth.Debugger
 			public WORD fUnicode;
 		}
 
+		[StructLayout(LayoutKind.Sequential)]
 		public struct UNLOAD_DLL_DEBUG_INFO
 		{
 			public LPVOID lpBaseOfDll;
 		}
 
+		[StructLayout(LayoutKind.Sequential)]
 		public struct OUTPUT_DEBUG_STRING_INFO
 		{
 			public LPSTR lpDebugStringData;
@@ -207,6 +325,7 @@ namespace Asmuth.Debugger
 			public WORD nDebugStringLength;
 		}
 
+		[StructLayout(LayoutKind.Sequential)]
 		public struct RIP_INFO
 		{
 			public DWORD dwError;
@@ -271,7 +390,7 @@ namespace Asmuth.Debugger
 		[DllImport(DllName, SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
 		public static extern BOOL FlushInstructionCache(HANDLE hProcess, LPCVOID lpBaseAddress, SIZE_T dwSize);
-		
+
 		[DllImport(DllName, SetLastError = true)]
 		public static extern HANDLE GetCurrentProcess();
 
@@ -312,7 +431,7 @@ namespace Asmuth.Debugger
 		[DllImport(DllName, SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
 		public static extern BOOL WriteProcessMemory(HANDLE hProcess, LPVOID lpBaseAddress, LPVOID lpBuffer, SIZE_T nSize, out SIZE_T lpNumberOfBytesWritten);
-		
+
 		public static string GetFinalPathNameByHandle(IntPtr handle, DWORD dwFlags)
 		{
 			var pathLength = GetFinalPathNameByHandle(handle, null, 0, dwFlags);

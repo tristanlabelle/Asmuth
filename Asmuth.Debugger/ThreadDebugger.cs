@@ -14,7 +14,7 @@ namespace Asmuth.Debugger
 	{
 		private readonly ProcessDebugger process;
 		private readonly CREATE_THREAD_DEBUG_INFO debugInfo;
-		private bool isRunning;
+		private ulong? instructionPointer;
 
 		// Called on worker thread
 		internal ThreadDebugger(ProcessDebugger process, CREATE_THREAD_DEBUG_INFO debugInfo)
@@ -27,10 +27,13 @@ namespace Asmuth.Debugger
 		
 		public int ID => unchecked((int)GetThreadId(debugInfo.hThread));
 		public ProcessDebugger Process => process;
-		public bool IsRunning => isRunning;
+		public bool IsRunning => !instructionPointer.HasValue;
+		public ulong InstructionPointer => instructionPointer.Value;
 
 		public void Continue(bool handled = true)
 		{
+			Contract.Requires(!IsRunning);
+			instructionPointer = null;
 			CheckWin32(ContinueDebugEvent(
 				unchecked((uint)process.ID),
 				unchecked((uint)ID),
@@ -44,9 +47,15 @@ namespace Asmuth.Debugger
 		}
 
 		// Called on worker thread
-		internal void OnBroken()
+		internal void OnBroken(ulong instructionPointer)
 		{
-			isRunning = false;
+			this.instructionPointer = instructionPointer;
+		}
+
+		// Called on worker thread
+		internal void OnContinued()
+		{
+			this.instructionPointer = null;
 		}
 	}
 }

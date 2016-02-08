@@ -22,8 +22,6 @@ namespace Asmuth.Debugger
 		private readonly Thread workerThread;
 		private volatile bool disposing;
 
-		public object ContractThread { get; private set; }
-
 		public Debugger()
 		{
 			workerThread = new Thread((ParameterizedThreadStart)WorkerThreadMain);
@@ -102,6 +100,16 @@ namespace Asmuth.Debugger
 			bool @break = false;
 			switch (debugEvent.dwDebugEventCode)
 			{
+				case EXCEPTION_DEBUG_EVENT:
+					{
+						var record = IntPtr.Size == sizeof(int)
+							? ExceptionRecord.FromStruct(ref debugEvent.Exception32.ExceptionRecord)
+							: ExceptionRecord.FromStruct(ref debugEvent.Exception64.ExceptionRecord);
+						var thread = process.FindThread(unchecked((int)debugEvent.dwThreadId));
+						process.OnException(thread, record, @break: out @break);
+					}
+					break;
+
 				case CREATE_THREAD_DEBUG_EVENT:
 					process.OnThreadCreated(unchecked((int)debugEvent.dwThreadId), debugEvent.CreateThread, @break: out @break);
 					break;

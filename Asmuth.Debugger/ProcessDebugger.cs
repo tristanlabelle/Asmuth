@@ -34,6 +34,7 @@ namespace Asmuth.Debugger
 		// Called back from worker thread
 		public event EventHandler<ProcessDebuggerEventArgs<ThreadDebugger>> ThreadCreated;
 		public event EventHandler<ProcessDebuggerEventArgs<ProcessModule>> ModuleLoaded;
+		public event EventHandler<ProcessDebuggerEventArgs<ExceptionRecord>> ExceptionRaised;
 		public event EventHandler<ProcessDebuggerEventArgs<string>> StringOutputted;
 
 		internal IntPtr Handle => debugInfo.hProcess;
@@ -70,11 +71,35 @@ namespace Asmuth.Debugger
 					debugger.EnqueueWorkerThreadRequest(() =>
 					{
 						if (!DebugBreakProcess(Handle))
-							CompleteBreakTask(null, GetLastWin32Exception());
+							TryCompleteBreakTask(null, GetLastWin32Exception());
 					});
 				}
 
 				return synchronizedBreakTaskCompletionSource.Value.Task;
+			}
+		}
+
+		public void ReadMemory(ulong sourceAddress, UIntPtr buffer, UIntPtr length)
+		{
+			Contract.Requires((ulong)(UIntPtr)sourceAddress == sourceAddress);
+			while ((ulong)length > 0)
+			{
+				UIntPtr readCount;
+				CheckWin32(ReadProcessMemory(Handle, (IntPtr)sourceAddress, (IntPtr)(ulong)buffer, length, out readCount));
+				buffer = (UIntPtr)((ulong)buffer + (ulong)readCount);
+				length = (UIntPtr)((ulong)length - (ulong)readCount);
+			}
+		}
+
+		public void WriteMemory(UIntPtr buffer, ulong destinationAddress, UIntPtr length)
+		{
+			Contract.Requires((ulong)(UIntPtr)destinationAddress == destinationAddress);
+			while ((ulong)length > 0)
+			{
+				UIntPtr writtenCount;
+				CheckWin32(WriteProcessMemory(Handle, (IntPtr)destinationAddress, (IntPtr)(ulong)buffer, length, out writtenCount));
+				buffer = (UIntPtr)((ulong)buffer + (ulong)writtenCount);
+				length = (UIntPtr)((ulong)length - (ulong)writtenCount);
 			}
 		}
 
@@ -122,6 +147,19 @@ namespace Asmuth.Debugger
 		}
 
 		// Called on worker thread
+		internal void OnException(ThreadDebugger thread, ExceptionRecord record, out bool @break)
+		{
+			thread.OnBroken(record.Address);
+
+			if (record.Code == EXCEPTION_BREAKPOINT && TryCompleteBreakTask(thread))
+				@break = true;
+			else
+				RaiseEvent(ExceptionRaised, record, out @break);
+
+			if (@break) thread.OnContinued();
+		}
+
+		// Called on worker thread
 		internal void OnOutputString(OUTPUT_DEBUG_STRING_INFO debugString, out bool @break)
 		{
 			var handler = StringOutputted;
@@ -138,34 +176,21 @@ namespace Asmuth.Debugger
 				RaiseEvent(handler, str, out @break);
 			}
 		}
-
-		// Called on worker thread
-		internal void OnBrokenIntoThread(int id)
-		{
-			var thread = FindThread(id);
-			Contract.Assert(thread != null);
-			thread.OnBroken();
-
-			CompleteBreakTask(thread);
-		}
-
-		private void CompleteBreakTask(ThreadDebugger thread, Exception exception = null)
+		
+		private bool TryCompleteBreakTask(ThreadDebugger thread, Exception exception = null)
 		{
 			TaskCompletionSource<ThreadDebugger> breakTaskCompletionSource = null;
 			using (synchronizedBreakTaskCompletionSource.Enter())
 			{
-				if (synchronizedBreakTaskCompletionSource.Value != null)
-				{
-					breakTaskCompletionSource = synchronizedBreakTaskCompletionSource.Value;
-					synchronizedBreakTaskCompletionSource.Value = null;
-				}
+				if (synchronizedBreakTaskCompletionSource.Value == null) return false;
+				
+				breakTaskCompletionSource = synchronizedBreakTaskCompletionSource.Value;
+				synchronizedBreakTaskCompletionSource.Value = null;
 			}
-
-			if (breakTaskCompletionSource != null)
-			{
-				if (exception == null) breakTaskCompletionSource.SetResult(thread);
-				else breakTaskCompletionSource.SetException(exception);
-			}
+			
+			if (exception == null) breakTaskCompletionSource.SetResult(thread);
+			else breakTaskCompletionSource.SetException(exception);
+			return true;
 		}
 	}
 }
