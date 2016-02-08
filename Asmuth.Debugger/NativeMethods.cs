@@ -187,19 +187,19 @@ namespace Asmuth.Debugger
 
 		public const DWORD INFINITE = 0xFFFFFFFF;
 
-		[StructLayout(LayoutKind.Sequential, Size = (int)MAXIMUM_SUPPORTED_EXTENSION)]
-		public struct CONTEXT_X86_EXTENDED_REGISTERS { }
-
 		[StructLayout(LayoutKind.Sequential)]
 		public struct CONTEXT_X86
 		{
-			DWORD ContextFlags;
-			DWORD Dr0, Dr1, Dr2, Dr3, Dr6, Dr7; // if CONTEXT_DEBUG_REGISTERS
-			FLOATING_SAVE_AREA FloatSave; // if CONTEXT_FLOATING_POINT
-			DWORD SegGs, SegFs, SegEs, SegDs; // if CONTEXT_SEGMENTS
-			DWORD Edi, Esi, Ebx, Edx, Ecx, Eax; // if CONTEXT_INTEGER
-			DWORD Ebp, Eip, SegCs, EFlags, Esp, SegSs; // if CONTEXT_CONTROL
-			CONTEXT_X86_EXTENDED_REGISTERS ExtendedRegisters; // if CONTEXT_EXTENDED_REGISTERS
+			[StructLayout(LayoutKind.Sequential, Size = (int)MAXIMUM_SUPPORTED_EXTENSION)]
+			public struct EXTENDED_REGISTERS { }
+
+			public DWORD ContextFlags;
+			public DWORD Dr0, Dr1, Dr2, Dr3, Dr6, Dr7; // if CONTEXT_DEBUG_REGISTERS
+			public FLOATING_SAVE_AREA FloatSave; // if CONTEXT_FLOATING_POINT
+			public DWORD SegGs, SegFs, SegEs, SegDs; // if CONTEXT_SEGMENTS
+			public DWORD Edi, Esi, Ebx, Edx, Ecx, Eax; // if CONTEXT_INTEGER
+			public DWORD Ebp, Eip, SegCs, EFlags, Esp, SegSs; // if CONTEXT_CONTROL
+			public EXTENDED_REGISTERS ExtendedRegisters; // if CONTEXT_EXTENDED_REGISTERS
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
@@ -239,39 +239,33 @@ namespace Asmuth.Debugger
 			public DWORD dwFirstChance;
 		}
 
-		[StructLayout(LayoutKind.Sequential, Size = sizeof(DWORD) * 15)]
-		public struct EXCEPTION_INFORMATION32
-		{
-			public DWORD _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15;
-		}
-
 		[StructLayout(LayoutKind.Sequential)]
 		public struct EXCEPTION_RECORD32
 		{
+			[StructLayout(LayoutKind.Sequential, Size = sizeof(DWORD) * 15)]
+			public struct EXCEPTION_INFORMATION { }
+
 			public DWORD ExceptionCode;
 			public DWORD ExceptionFlags;
 			public DWORD ExceptionRecord;
 			public DWORD ExceptionAddress;
 			public DWORD NumberParameters;
-			public EXCEPTION_INFORMATION32 ExceptionInformation;
-		}
-
-		[StructLayout(LayoutKind.Sequential, Size = sizeof(DWORD64) * 15)]
-		public struct EXCEPTION_INFORMATION64
-		{
-			public DWORD64 _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15;
+			public EXCEPTION_INFORMATION ExceptionInformation;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
 		public struct EXCEPTION_RECORD64
 		{
+			[StructLayout(LayoutKind.Sequential, Size = sizeof(DWORD64) * 15)]
+			public struct EXCEPTION_INFORMATION { }
+
 			public DWORD ExceptionCode;
 			public DWORD ExceptionFlags;
 			public DWORD64 ExceptionRecord;
 			public DWORD64 ExceptionAddress;
 			public DWORD NumberParameters;
 			public DWORD __unusedAlignment;
-			public EXCEPTION_INFORMATION64 ExceptionInformation;
+			public EXCEPTION_INFORMATION ExceptionInformation;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
@@ -289,6 +283,9 @@ namespace Asmuth.Debugger
 		[StructLayout(LayoutKind.Sequential)]
 		public struct FLOATING_SAVE_AREA
 		{
+			[StructLayout(LayoutKind.Sequential, Size = (int)SIZE_OF_80387_REGISTERS)]
+			public struct REGISTER_AREA { }
+
 			DWORD ControlWord;
 			DWORD StatusWord;
 			DWORD TagWord;
@@ -296,7 +293,7 @@ namespace Asmuth.Debugger
 			DWORD ErrorSelector;
 			DWORD DataOffset;
 			DWORD DataSelector;
-			BYTE RegisterArea[SIZE_OF_80387_REGISTERS];
+			REGISTER_AREA RegisterArea;
 			DWORD Cr0NpxState;
 		}
 
