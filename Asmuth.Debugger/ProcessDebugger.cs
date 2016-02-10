@@ -19,7 +19,7 @@ namespace Asmuth.Debugger
 		private readonly Debugger debugger;
 		private readonly CREATE_PROCESS_DEBUG_INFO debugInfo;
 		private readonly ConcurrentDictionary<int, ThreadDebugger> threadsByID = new ConcurrentDictionary<int, ThreadDebugger>();
-		private readonly BlockingCollection<ProcessModule> modules = new BlockingCollection<ProcessModule>();
+		private readonly ConcurrentDictionary<ulong, ProcessModule> modulesByBaseAddress = new ConcurrentDictionary<ulong, ProcessModule>();
 		private readonly Synchronized<TaskCompletionSource<ThreadDebugger>> synchronizedBreakTaskCompletionSource
 			= new Synchronized<TaskCompletionSource<ThreadDebugger>>();
 
@@ -32,10 +32,12 @@ namespace Asmuth.Debugger
 		}
 
 		// Called back from worker thread
-		public event EventHandler<ProcessDebuggerEventArgs<ThreadDebugger>> ThreadCreated;
-		public event EventHandler<ProcessDebuggerEventArgs<ProcessModule>> ModuleLoaded;
-		public event EventHandler<ProcessDebuggerEventArgs<ExceptionRecord>> ExceptionRaised;
-		public event EventHandler<ProcessDebuggerEventArgs<string>> StringOutputted;
+		public event EventHandler<ThreadDebugEventArgs> ThreadCreated;
+		public event EventHandler<ThreadDebugEventArgs> ThreadExited;
+		public event EventHandler<ModuleDebugEventArgs> ModuleLoaded;
+		public event EventHandler<ModuleDebugEventArgs> ModuleUnloaded;
+		public event EventHandler<ExceptionDebugEventArgs> ExceptionRaised;
+		public event EventHandler<DebugStringOutputEventArgs> StringOutputted;
 
 		internal IntPtr Handle => debugInfo.hProcess;
 
@@ -52,7 +54,7 @@ namespace Asmuth.Debugger
 		public int ID => unchecked((int)GetProcessId(Handle));
 
 		public ThreadDebugger[] GetThreads() => threadsByID.Values.ToArray();
-		public ProcessModule[] GetModules() => modules.ToArray();
+		public ProcessModule[] GetModules() => modulesByBaseAddress.Values.ToArray();
 
 		public ThreadDebugger FindThread(int id)
 		{
@@ -86,6 +88,7 @@ namespace Asmuth.Debugger
 			{
 				UIntPtr readCount;
 				CheckWin32(ReadProcessMemory(Handle, (IntPtr)sourceAddress, (IntPtr)(ulong)buffer, length, out readCount));
+				sourceAddress += (ulong)readCount;
 				buffer = (UIntPtr)((ulong)buffer + (ulong)readCount);
 				length = (UIntPtr)((ulong)length - (ulong)readCount);
 			}
@@ -98,6 +101,7 @@ namespace Asmuth.Debugger
 			{
 				UIntPtr writtenCount;
 				CheckWin32(WriteProcessMemory(Handle, (IntPtr)destinationAddress, (IntPtr)(ulong)buffer, length, out writtenCount));
+				destinationAddress += (ulong)writtenCount;
 				buffer = (UIntPtr)((ulong)buffer + (ulong)writtenCount);
 				length = (UIntPtr)((ulong)length - (ulong)writtenCount);
 			}
@@ -112,7 +116,8 @@ namespace Asmuth.Debugger
 		}
 
 		// Called on worker thread
-		private void RaiseEvent<TData>(EventHandler<ProcessDebuggerEventArgs<TData>> handler, TData data, out bool @break)
+		private void RaiseEvent<TArgs>(EventHandler<TArgs> handler, TArgs args, out bool @break)
+			where TArgs : DebugEventArgs
 		{
 			if (handler == null)
 			{
@@ -120,47 +125,73 @@ namespace Asmuth.Debugger
 			}
 			else
 			{
-				var args = new ProcessDebuggerEventArgs<TData>(data);
 				handler(this, args);
 				@break = args.Break;
 			}
 		}
 
-		// Called on worker thread
-		internal ThreadDebugger OnThreadCreated(int id, CREATE_THREAD_DEBUG_INFO debugInfo, out bool @break)
+		#region Callbacks from worker thread
+		internal void OnThreadCreated(int id, CREATE_THREAD_DEBUG_INFO debugInfo, out bool @break)
 		{
 			var thread = new ThreadDebugger(this, debugInfo);
 			threadsByID.TryAdd(id, thread);
-
-			RaiseEvent(ThreadCreated, thread, out @break);
-			return thread;
+			RaiseEvent(ThreadCreated, new ThreadDebugEventArgs(thread), out @break);
 		}
 
-		// Called on worker thread
-		internal ProcessModule OnModuleLoaded(LOAD_DLL_DEBUG_INFO debugInfo, out bool @break)
+		internal void OnThreadExited(uint id, uint exitCode, out bool @break)
+		{
+			var thread = FindThread(unchecked((int)id));
+			thread.OnExited(exitCode);
+			RaiseEvent(ThreadExited, new ThreadDebugEventArgs(thread), out @break);
+		}
+		
+		internal void OnModuleLoaded(LOAD_DLL_DEBUG_INFO debugInfo, out bool @break)
 		{
 			var module = new ProcessModule(debugInfo);
-			modules.Add(module);
-
-			RaiseEvent(ModuleLoaded, module, out @break);
-			return module;
+			modulesByBaseAddress.TryAdd(module.BaseAddress, module);
+			RaiseEvent(ModuleLoaded, new ModuleDebugEventArgs(module), out @break);
 		}
-
-		// Called on worker thread
-		internal void OnException(ThreadDebugger thread, ExceptionRecord record, out bool @break)
+		
+		internal void OnModuleUnloaded(ulong baseAddress, out bool @break)
 		{
-			thread.OnBroken(record.Address);
-
-			if (record.Code == EXCEPTION_BREAKPOINT && TryCompleteBreakTask(thread))
-				@break = true;
+			ProcessModule module;
+			if (modulesByBaseAddress.TryRemove(baseAddress, out module))
+			{
+				RaiseEvent(ModuleUnloaded, new ModuleDebugEventArgs(module), out @break);
+			}
 			else
-				RaiseEvent(ExceptionRaised, record, out @break);
+			{
+				Contract.Assert(false, "Mismatched unload dll message.");
+				@break = false;
+			}
+		}
+		
+		internal void OnException(uint id, ExceptionRecord record, out bool @break)
+		{
+			var thread = FindThread(unchecked((int)id));
+			if (thread == null)
+			{
+				Contract.Assert(false, "Received exception from unknown thread.");
+				@break = false;
+				return;
+			}
+
+			thread.OnBroken();
+			
+			if (record.Code == EXCEPTION_BREAKPOINT && TryCompleteBreakTask(thread))
+			{
+				@break = true;
+			}
+			else
+			{
+				var eventArgs = new ExceptionDebugEventArgs(thread, record);
+				RaiseEvent(ExceptionRaised, eventArgs, out @break);
+			}
 
 			if (@break) thread.OnContinued();
 		}
-
-		// Called on worker thread
-		internal void OnOutputString(OUTPUT_DEBUG_STRING_INFO debugString, out bool @break)
+		
+		internal void OnOutputString(string str, out bool @break)
 		{
 			var handler = StringOutputted;
 			if (handler == null)
@@ -169,14 +200,11 @@ namespace Asmuth.Debugger
 			}
 			else
 			{
-				var encoding = debugString.fUnicode == 0 ? Encoding.ASCII : Encoding.Unicode;
-				var bytes = new byte[debugString.nDebugStringLength];
-				Marshal.Copy(debugString.lpDebugStringData, bytes, 0, bytes.Length);
-				var str = encoding.GetString(bytes);
-				RaiseEvent(handler, str, out @break);
+				RaiseEvent(handler, new DebugStringOutputEventArgs(str), out @break);
 			}
 		}
-		
+		#endregion
+
 		private bool TryCompleteBreakTask(ThreadDebugger thread, Exception exception = null)
 		{
 			TaskCompletionSource<ThreadDebugger> breakTaskCompletionSource = null;

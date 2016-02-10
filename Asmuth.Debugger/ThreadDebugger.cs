@@ -14,7 +14,8 @@ namespace Asmuth.Debugger
 	{
 		private readonly ProcessDebugger process;
 		private readonly CREATE_THREAD_DEBUG_INFO debugInfo;
-		private ulong? instructionPointer;
+		private volatile bool isRunning = true;
+		private volatile object exitCode;
 
 		// Called on worker thread
 		internal ThreadDebugger(ProcessDebugger process, CREATE_THREAD_DEBUG_INFO debugInfo)
@@ -27,17 +28,26 @@ namespace Asmuth.Debugger
 		
 		public int ID => unchecked((int)GetThreadId(debugInfo.hThread));
 		public ProcessDebugger Process => process;
-		public bool IsRunning => !instructionPointer.HasValue;
-		public ulong InstructionPointer => instructionPointer.Value;
+		public bool IsRunning => isRunning;
 
 		public void Continue(bool handled = true)
 		{
 			Contract.Requires(!IsRunning);
-			instructionPointer = null;
+			isRunning = true;
+
+			// TODO: Move to worker thread
 			CheckWin32(ContinueDebugEvent(
 				unchecked((uint)process.ID),
 				unchecked((uint)ID),
 				handled ? DBG_CONTINUE : DBG_EXCEPTION_NOT_HANDLED));
+		}
+
+		internal CONTEXT_X86 GetContext(uint flags)
+		{
+			var context = new CONTEXT_X86();
+			context.ContextFlags = flags;
+			CheckWin32(GetThreadContext(debugInfo.hThread, ref context));
+			return context;
 		}
 
 		// Called on either thread
@@ -47,15 +57,21 @@ namespace Asmuth.Debugger
 		}
 
 		// Called on worker thread
-		internal void OnBroken(ulong instructionPointer)
+		internal void OnBroken()
 		{
-			this.instructionPointer = instructionPointer;
+			isRunning = false;
 		}
 
 		// Called on worker thread
 		internal void OnContinued()
 		{
-			this.instructionPointer = null;
+			isRunning = true;
+		}
+
+		internal void OnExited(uint exitCode)
+		{
+			isRunning = false;
+			this.exitCode = (object)exitCode;
 		}
 	}
 }

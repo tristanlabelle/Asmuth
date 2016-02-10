@@ -20,6 +20,7 @@ namespace Asmuth.Debugger
 		}
 
 		public string FilePath => GetFinalPathNameByHandle(debugInfo.hFile, 0);
+		public ulong BaseAddress => unchecked((ulong)debugInfo.lpBaseOfDll);
 
 		internal void Dispose()
 		{

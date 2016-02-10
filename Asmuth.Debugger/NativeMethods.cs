@@ -408,6 +408,10 @@ namespace Asmuth.Debugger
 		public static extern BOOL GetThreadContext(HANDLE hThread, LPCONTEXT lpContext);
 
 		[DllImport(DllName, SetLastError = true)]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		public static extern BOOL GetThreadContext(HANDLE hThread, ref CONTEXT_X86 lpContext);
+
+		[DllImport(DllName, SetLastError = true)]
 		public static extern DWORD GetThreadId(HANDLE Thread);
 
 		[DllImport(DllName, SetLastError = true)]
@@ -444,8 +448,7 @@ namespace Asmuth.Debugger
 	{
 		public static void CheckWin32(bool result)
 		{
-			if (result) return;
-			throw GetLastWin32Exception();
+			if (!result) throw GetLastWin32Exception();
 		}
 
 		public static Exception GetLastWin32Exception()

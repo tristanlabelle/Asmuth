@@ -47,7 +47,7 @@
     <Compile Include="ExceptionRecord.cs" />
     <Compile Include="NativeMethods.cs" />
     <Compile Include="ProcessDebugger.cs" />
-    <Compile Include="ProcessDebuggerEventArgs.cs" />
+    <Compile Include="DebugEventArgs.cs" />
     <Compile Include="ProcessModule.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

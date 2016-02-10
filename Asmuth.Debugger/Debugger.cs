@@ -13,7 +13,7 @@ namespace Asmuth.Debugger
 	using static Advapi32;
 	using static NativeMethods;
 	using static Kernel32;
-
+	using System.Runtime.InteropServices;
 	public sealed partial class Debugger : IDisposable
 	{
 		private readonly ConcurrentDictionary<int, ProcessAttachment> processAttachments
@@ -105,8 +105,7 @@ namespace Asmuth.Debugger
 						var record = IntPtr.Size == sizeof(int)
 							? ExceptionRecord.FromStruct(ref debugEvent.Exception32.ExceptionRecord)
 							: ExceptionRecord.FromStruct(ref debugEvent.Exception64.ExceptionRecord);
-						var thread = process.FindThread(unchecked((int)debugEvent.dwThreadId));
-						process.OnException(thread, record, @break: out @break);
+						process.OnException(debugEvent.dwThreadId, record, @break: out @break);
 					}
 					break;
 
@@ -114,12 +113,25 @@ namespace Asmuth.Debugger
 					process.OnThreadCreated(unchecked((int)debugEvent.dwThreadId), debugEvent.CreateThread, @break: out @break);
 					break;
 
+				case EXIT_THREAD_DEBUG_EVENT:
+					process.OnThreadExited(debugEvent.dwThreadId, debugEvent.ExitThread.dwExitCode, @break: out @break);
+					break;
+
 				case LOAD_DLL_DEBUG_EVENT:
 					process.OnModuleLoaded(debugEvent.LoadDll, @break: out @break);
 					break;
 
 				case OUTPUT_DEBUG_STRING_EVENT:
-					process.OnOutputString(debugEvent.DebugString, @break: out @break);
+					{
+						var str = debugEvent.DebugString.fUnicode == 0
+							? Marshal.PtrToStringAnsi(debugEvent.DebugString.lpDebugStringData, debugEvent.DebugString.nDebugStringLength)
+							: Marshal.PtrToStringUni(debugEvent.DebugString.lpDebugStringData, debugEvent.DebugString.nDebugStringLength);
+						process.OnOutputString(str, @break: out @break);
+					}
+					break;
+
+				case UNLOAD_DLL_DEBUG_EVENT:
+					process.OnModuleUnloaded((ulong)debugEvent.UnloadDll.lpBaseOfDll, @break: out @break);
 					break;
 
 				default:

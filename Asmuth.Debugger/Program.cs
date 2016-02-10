@@ -9,6 +9,8 @@ using System.Diagnostics.Contracts;
 
 namespace Asmuth.Debugger
 {
+	using static Kernel32;
+
 	class Program
 	{
 		static void Main(string[] args)
@@ -23,6 +25,8 @@ namespace Asmuth.Debugger
 			var notepadProcess = Process.Start(@"C:\Windows\SysWow64\notepad.exe");
 			var notepadDebugger = await debugger.AttachToProcessAsync(notepadProcess, @break: false);
 			var brokenThread = await notepadDebugger.BreakAsync();
+
+			var context = brokenThread.GetContext(CONTEXT_FULL);
 			Contract.Assert(!brokenThread.IsRunning);
 		}
 	}
