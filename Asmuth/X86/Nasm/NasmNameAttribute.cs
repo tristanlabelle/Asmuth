@@ -22,7 +22,7 @@ namespace Asmuth.X86.Nasm
 		public string Name => name;
 	}
 
-	internal sealed class NasmEnum<TEnum> where TEnum : struct
+	internal static class NasmEnum<TEnum> where TEnum : struct
 	{
 		private static readonly Dictionary<string, TEnum> namesToEnumerants;
 		private static readonly Dictionary<TEnum, string> enumerantToNames;

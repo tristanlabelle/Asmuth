@@ -41,7 +41,7 @@ namespace Asmuth.X86
 
 	public static class ConditionCodeEnum
 	{
-		private static readonly ushort[] testedEFlags = new[]
+		private static readonly ushort[] testedEFlags = 
 		{
 			(ushort)Flags.Overflow, // Overflow
 			(ushort)Flags.Overflow, // Not overflow
@@ -72,7 +72,7 @@ namespace Asmuth.X86
 			| (1 << (int)ConditionCode.GreaterOrEqual)
 			| (1 << (int)ConditionCode.LessOrEqual);
 
-		private static readonly string[] suffixes = new[]
+		private static readonly string[] suffixes = 
 		{
 			"O", "NO", "B", "AE", "E", "NE", "BE", "A",
 			"S", "NS", "P", "NP", "L", "GE", "LE", "G"

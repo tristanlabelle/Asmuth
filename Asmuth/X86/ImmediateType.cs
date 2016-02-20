@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 namespace Asmuth.X86
 {
 	// InstructionEncoding depends on this being 5 bits
+	[Flags]
 	public enum ImmediateType : byte
 	{
 		Size_Shift = 0,

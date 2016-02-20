@@ -11,6 +11,7 @@ namespace Asmuth.X86
 	[StructLayout(LayoutKind.Sequential, Size = 24)]
 	public partial struct Instruction
 	{
+		[Flags]
 		private enum Flags : byte
 		{
 			HasModRM = 1 << 0,

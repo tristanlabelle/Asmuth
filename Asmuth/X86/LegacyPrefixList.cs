@@ -17,7 +17,7 @@ namespace Asmuth.X86
 	[StructLayout(LayoutKind.Sequential, Size = sizeof(uint))]
 	public struct ImmutableLegacyPrefixList : IList<LegacyPrefix>, IReadOnlyList<LegacyPrefix>
 	{
-		private static readonly LegacyPrefix[] lookup = new[]
+		private static readonly LegacyPrefix[] lookup =
 		{
 			LegacyPrefix.OperandSizeOverride,
 			LegacyPrefix.AddressSizeOverride,
@@ -32,7 +32,7 @@ namespace Asmuth.X86
 			LegacyPrefix.GSSegmentOverride,
 		};
 
-		private static readonly uint[] multiples = new uint[]
+		private static readonly uint[] multiples =
 		{
 			1,
 			(uint)lookup.Length,

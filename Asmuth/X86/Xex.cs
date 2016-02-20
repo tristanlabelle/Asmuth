@@ -214,7 +214,7 @@ namespace Asmuth.X86
 				case XexType.Vex3: return 3;
 				case XexType.Xop: return 3;
 				case XexType.EVex: return 4;
-				default: throw new ArgumentException("Invalid XexType", "type");
+				default: throw new ArgumentException("Invalid XexType", nameof(type));
 			}
 		}
 
@@ -264,6 +264,7 @@ namespace Asmuth.X86
 	[StructLayout(LayoutKind.Sequential, Size = 4)]
 	public struct Xex : IEquatable<Xex>
 	{
+		[Flags]
 		private enum Flags : uint
 		{
 			XexType_Shift = 0,

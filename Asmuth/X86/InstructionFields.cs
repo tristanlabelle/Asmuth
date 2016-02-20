@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86
 {
+	[Flags]
 	public enum InstructionFields : ushort
 	{
 		None = 0,
@@ -20,7 +21,8 @@ namespace Asmuth.X86
 		ModRM = 1 << 7,
 		Sib = 1 << 8,
 		Displacement = 1 << 9,
-		Immediate = 1 << 10
+		Immediate1 = 1 << 10,
+		Immediate2 = 1 << 11
 	}
 
 	public static class InstructionFieldsEnum
