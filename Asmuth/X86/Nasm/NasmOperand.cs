@@ -6,25 +6,28 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86.Nasm
 {
-	public struct NasmOperand
+	public struct NasmOperand : IEquatable<NasmOperand>
 	{
-		public readonly NasmOperandType Type;
 		public readonly OperandFields Field;
+		public readonly NasmOperandType Type;
 
 		public NasmOperand(OperandFields field, NasmOperandType type)
 		{
 			this.Field = field;
 			this.Type = type;
 		}
+
+		public bool Equals(NasmOperand other) => Type == other.Type && Field == other.Field;
+		public override bool Equals(object obj) => obj is NasmOperand && Equals((NasmOperand)obj);
+		public override int GetHashCode() => ((int)Field << 16) | (int)Type;
+
+		public static bool Equals(NasmOperand first, NasmOperand second) => first.Equals(second);
+		public static bool operator ==(NasmOperand lhs, NasmOperand rhs) => Equals(lhs, rhs);
+		public static bool operator !=(NasmOperand lhs, NasmOperand rhs) => !Equals(lhs, rhs);
 	}
 
 	public enum NasmOperandType : byte
 	{
-		// Value:3 (undef, 0, 1, 2, 3, 4, 5, 6)
-		// Size:4 (undef, 8, 16, 24, 32, 48, 64, 80, 128, 256, 512)
-		// Mem:1
-		// Type:4 (imm, gpr, creg, dreg, treg, fpureg = mmxreg, xmm, k, bnd, vm32x)
-
 		Void,
 
 		Unity,

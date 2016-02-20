@@ -15,27 +15,18 @@ namespace Asmuth.X86.Nasm
 	/// </summary>
 	public static class NasmInsns
 	{
-		private static readonly Regex ignoredLineRegex = new Regex(@"
-			\A [ \t]*
-			(
-				;.* # comments
-				| ( # NASM pseudo-instructions
-					(D|RES)[BWDQTOYZ]
-					| INCBIN
-					| EQU
-					| TIMES
-					| HINT_NOP\d+
-				) [ \t] .*
-			)?
-			\Z", RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace);
-		private static readonly Regex instructionTemplateLineRegex = new Regex(@"
-			\A [ \t]*
-			(?<mnemonic>\S+) [ \t]+
-			(?<operand_values>\S+) [ \t]+
-			\[ ((?<operand_fields>[a-z-+]+):((?<evex_tuple_type>[a-z0-9]+):)?)? [ \t]+ (?<encoding>[^\]\r\n\t]+?) \s* \] [ \t]+
-			(?<flags>\S+)
-			[ \t]* \Z
-			", RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+		private static readonly Regex instructionLineColumnRegex = new Regex(
+			@"(\[[^\]]*\]|\S.*?)(?=\s*(\t|\Z))", RegexOptions.CultureInvariant);
+
+		private static readonly Regex codeStringColumnRegex = new Regex(
+			@"\A\[
+				(
+					(?<operand_fields>[a-z-+]+):
+					((?<evex_tuple_type>[a-z0-9]+):)?
+				)?
+				\s*\t\s*
+				(?<encoding>[^\]\r\n\t]+?)
+			\s*\]\Z", RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant);
 
 		public static IEnumerable<NasmInsnsEntry> Read(TextReader textReader)
 		{
@@ -70,32 +61,58 @@ namespace Asmuth.X86.Nasm
 		public static bool IsIgnoredLine(string line)
 		{
 			Contract.Requires(line != null);
-
-			return ignoredLineRegex.IsMatch(line);
+			// Blank or with comment
+			return Regex.IsMatch(line, @"\A\s*(;.*)?\Z", RegexOptions.CultureInvariant);
 		}
 
 		public static NasmInsnsEntry ParseLine(string line)
 		{
 			Contract.Requires(line != null);
 
-			var match = instructionTemplateLineRegex.Match(line);
-			if (!match.Success) throw new FormatException();
-
+			var columnMatches = instructionLineColumnRegex.Matches(line);
+			if (columnMatches.Count != 4) throw new FormatException();
+			
 			var entryBuilder = new NasmInsnsEntry.Builder();
-			entryBuilder.Mnemonic = match.Groups["mnemonic"].Value;
 
-			ParseEncoding(entryBuilder, match.Groups["encoding"].Value);
-			ParseOperands(entryBuilder, match.Groups["operand_fields"].Value, match.Groups["operand_values"].Value);
-			ParseFlags(entryBuilder, match.Groups["flags"].Value);
+			// Mnemonic
+			var mnemonicColumn = columnMatches[0].Value;
+			if (!Regex.IsMatch(mnemonicColumn, @"\A[A-Z_0-9]+\Z", RegexOptions.CultureInvariant))
+				throw new FormatException("Invalid mnemonic column format.");
+			entryBuilder.Mnemonic = mnemonicColumn;
 
-			var evexTupleTypeGroup = match.Groups["evex_tuple_type"];
-			if (evexTupleTypeGroup.Success)
-				entryBuilder.EVexTupleType = (NasmEVexTupleType)Enum.Parse(typeof(NasmEVexTupleType), evexTupleTypeGroup.Value, ignoreCase: true);
+			// Encoding
+			var codeStringColumn = columnMatches[2].Value;
+			var operandFieldsString = string.Empty;
+			if (codeStringColumn != "ignore")
+			{
+				var codeStringMatch = codeStringColumnRegex.Match(codeStringColumn);
+				if (!codeStringMatch.Success) throw new FormatException("Invalid code string column format.");
 
+				operandFieldsString = codeStringMatch.Groups["operand_fields"].Value;
+				var evexTupleTypesString = codeStringMatch.Groups["evex_tuple_type"].Value;
+				var encodingString = codeStringMatch.Groups["encoding"].Value;
+
+				ParseCodeString(entryBuilder, encodingString);
+
+				if (evexTupleTypesString.Length > 0)
+				{
+					entryBuilder.EVexTupleType = (NasmEVexTupleType)Enum.Parse(
+						typeof(NasmEVexTupleType), evexTupleTypesString, ignoreCase: true);
+				}
+			}
+
+			// Operands
+			var operandsColumn = columnMatches[1].Value;
+			ParseOperands(entryBuilder, operandFieldsString, operandsColumn);
+
+			// Flags
+			var flagsColumn = columnMatches[3].Value;
+			ParseFlags(entryBuilder, flagsColumn);
+			
 			return entryBuilder.Build(reuse: false);
 		}
 
-		private static void ParseEncoding(NasmInsnsEntry.Builder entryBuilder, string str)
+		private static void ParseCodeString(NasmInsnsEntry.Builder entryBuilder, string str)
 		{
 			var tokens = str.Split(' ');
 			int tokenIndex = 0;
@@ -270,7 +287,7 @@ namespace Asmuth.X86.Nasm
 		{
 			if (fieldsString.Length == 0)
 			{
-				Contract.Assert(valuesString == "void");
+				Contract.Assert(valuesString == "void" || valuesString == "ignore");
 				return;
 			}
 
@@ -301,6 +318,7 @@ namespace Asmuth.X86.Nasm
 
 		private static void ParseFlags(NasmInsnsEntry.Builder entryBuilder, string str)
 		{
+			if (str == "ignore") return;
 			foreach (var flagStr in str.Split(','))
 			{
 				var enumerantName = char.IsDigit(flagStr[0]) ? '_' + flagStr : flagStr;

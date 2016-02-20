@@ -21,9 +21,9 @@ namespace Asmuth.X86
 		OperandSize_Fixed16 = 2 << (int)OperandSize_Shift,
 		OperandSize_Fixed32 = 3 << (int)OperandSize_Shift,
 		OperandSize_Fixed64 = 4 << (int)OperandSize_Shift,
-		OperandSize_16To64 = 5 << (int)OperandSize_Shift,
+		OperandSize_16Or32 = 5 << (int)OperandSize_Shift,
 		OperandSize_32Or64 = 6 << (int)OperandSize_Shift,
-		OperandSize_64Or16 = 7 << (int)OperandSize_Shift,
+		OperandSize_16Or32Or64 = 7 << (int)OperandSize_Shift,
 		OperandSize_Mask = 7 << (int)OperandSize_Shift,
 
 		// How the REX.W field is used

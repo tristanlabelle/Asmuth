@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Asmuth.X86.Nasm
 {
 	[StructLayout(LayoutKind.Sequential, Size = 2)]
-	public struct NasmEncodingToken
+	public struct NasmEncodingToken : IEquatable<NasmEncodingToken>
 	{
 		public readonly NasmEncodingTokenType Type;
 		public readonly byte Byte;
@@ -20,6 +20,10 @@ namespace Asmuth.X86.Nasm
 			this.Type = type;
 			this.Byte = @byte;
 		}
+
+		public bool Equals(NasmEncodingToken other) => Type == other.Type && Byte == other.Byte;
+		public override bool Equals(object obj) => obj is NasmEncodingToken && Equals((NasmEncodingToken)obj);
+		public override int GetHashCode() => ((int)Type << 8) | Byte;
 
 		public override string ToString()
 		{
@@ -33,6 +37,10 @@ namespace Asmuth.X86.Nasm
 				default: return NasmEnum<NasmEncodingTokenType>.GetNameOrNull(Type) ?? Type.ToString();
 			}
 		}
+
+		public static bool Equals(NasmEncodingToken first, NasmEncodingToken second) => first.Equals(second);
+		public static bool operator ==(NasmEncodingToken lhs, NasmEncodingToken rhs) => Equals(lhs, rhs);
+		public static bool operator !=(NasmEncodingToken lhs, NasmEncodingToken rhs) => !Equals(lhs, rhs);
 
 		public static NasmEncodingTokenType TryParseType(string name)
 		{

@@ -127,7 +127,7 @@ namespace Asmuth.X86
 						fields |= InstructionFields.Displacement;
 				}
 
-				if (ImmediateSizeInBytes > 0) fields |= InstructionFields.Immediate;
+				if (ImmediateSizeInBytes > 0) fields |= InstructionFields.Immediate1;
 
 				return fields;
 			}

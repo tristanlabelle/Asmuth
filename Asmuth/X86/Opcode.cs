@@ -76,7 +76,7 @@ namespace Asmuth.X86
 		// When doing lookups, we can only consider parts of the opcode
 		// that unambiguously identify an operation.
 		// We have to ignore: simd prefixes, primary nibble, xex flags, extra bytes
-		LookupKey_Mask = XexType_Mask | Map_Mask | MainByte_High4Mask,
+		LookupKey_Mask = Map_Mask | MainByte_High4Mask,
 	}
 
 	public enum SimdPrefix : byte

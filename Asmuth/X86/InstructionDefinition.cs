@@ -10,39 +10,50 @@ namespace Asmuth.X86
 {
 	public sealed partial class InstructionDefinition
 	{
+		public struct Data
+		{
+			public string Mnemonic;
+			public Opcode Opcode;
+			public InstructionEncoding Encoding;
+			public CpuidFeatureFlags RequiredFeatureFlags;
+			public Flags? AffectedFlags;
+		}
+
 		#region Fields
-		private string mnemonic;
-		private Opcode opcode;
-		private InstructionEncoding encoding;
-		private CpuidFeatureFlags requiredFeatureFlags;
-		private Flags? affectedFlags;
-		private IList<OperandDefinition> operands;
+		private readonly Data data;
+		private readonly IReadOnlyList<OperandDefinition> operands;
 		#endregion
 
 		#region Constructor
-		private InstructionDefinition() { }
+		public InstructionDefinition(ref Data data, IEnumerable<OperandDefinition> operands)
+		{
+			Contract.Requires(operands != null);
+			this.data = data;
+			this.data.Opcode &= this.data.Encoding.GetOpcodeFixedMask();
+			this.operands = operands.ToArray();
+		}
 		#endregion
 
 		#region Properties
-		public string Mnemonic => mnemonic;
-		public Opcode Opcode => opcode;
-		public Opcode OpcodeFixedMask => encoding.GetOpcodeFixedMask();
-		public InstructionEncoding Encoding => encoding;
-		public CpuidFeatureFlags RequiredFeatureFlags => requiredFeatureFlags;
-		public Flags? AffectedFlags => affectedFlags;
-		public IReadOnlyList<OperandDefinition> Operands => (IReadOnlyList<OperandDefinition>)operands;
+		public string Mnemonic => data.Mnemonic;
+		public Opcode Opcode => data.Opcode;
+		public Opcode OpcodeFixedMask => data.Encoding.GetOpcodeFixedMask();
+		public InstructionEncoding Encoding => data.Encoding;
+		public CpuidFeatureFlags RequiredFeatureFlags => data.RequiredFeatureFlags;
+		public Flags? AffectedFlags => data.AffectedFlags;
+		public IReadOnlyList<OperandDefinition> Operands => operands;
 		#endregion
 
 		#region Methods
 		public bool IsMatch(Opcode opcode)
 		{
 			// The caller cannot distinguish between legacy and SIMD prefixes
-			Opcode fixedMask = encoding.GetOpcodeFixedMask();
-			return (opcode & fixedMask) == (this.opcode & fixedMask)
-				|| (opcode.WithSimdPrefix(SimdPrefix.None) & fixedMask) == (this.opcode & fixedMask);
+			Opcode fixedMask = Encoding.GetOpcodeFixedMask();
+			return (opcode & fixedMask) == (this.Opcode & fixedMask)
+				|| (opcode.WithSimdPrefix(SimdPrefix.None) & fixedMask) == (this.Opcode & fixedMask);
 		}
 
-		public string GetEncodingString() => GetEncodingString(opcode, encoding);
+		public string GetEncodingString() => GetEncodingString(Opcode, Encoding);
 
 		public override string ToString() => Mnemonic;
 
@@ -217,64 +228,6 @@ namespace Asmuth.X86
 			// TODO: Append immediates
 
 			return str.ToString();
-		}
-		#endregion
-
-		#region Builder class
-		public sealed class Builder
-		{
-			private InstructionDefinition instruction = CreateEmpty();
-
-			#region Properties
-			public string Mnemonic
-			{
-				get { return instruction.mnemonic; }
-				set { instruction.mnemonic = value; }
-			}
-
-			public Opcode Opcode
-			{
-				get { return instruction.opcode; }
-				set { instruction.opcode = value; }
-			}
-
-			public InstructionEncoding Encoding
-			{
-				get { return instruction.encoding; }
-				set { instruction.encoding = value; }
-			}
-
-			public CpuidFeatureFlags RequiredFeatureFlags
-			{
-				get { return instruction.requiredFeatureFlags; }
-				set { instruction.requiredFeatureFlags = value; }
-			}
-
-			public Flags? AffectedFlags
-			{
-				get { return instruction.affectedFlags; }
-				set { instruction.affectedFlags = value; }
-			}
-
-			public IList<OperandDefinition> Operands => instruction.operands;
-			#endregion
-
-			#region Methods
-			public InstructionDefinition Build(bool reuse = true)
-			{
-				instruction.opcode &= instruction.Encoding.GetOpcodeFixedMask();
-				var result = instruction;
-				instruction = reuse ? CreateEmpty() : null;
-				return result;
-			}
-
-			private static InstructionDefinition CreateEmpty()
-			{
-				var instruction = new InstructionDefinition();
-				instruction.operands = new List<OperandDefinition>();
-				return instruction;
-			}
-			#endregion
 		}
 		#endregion
 	}

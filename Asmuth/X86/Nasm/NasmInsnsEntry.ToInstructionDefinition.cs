@@ -28,19 +28,19 @@ namespace Asmuth.X86.Nasm
 				Immediates
 			}
 
-			private InstructionDefinition.Builder builder;
+			private InstructionDefinition.Data instructionData;
 			private State state;
 
 			public InstructionDefinition Convert(NasmInsnsEntry entry)
 			{
 				Contract.Requires(entry != null);
-
-				builder = new InstructionDefinition.Builder();
-				builder.Mnemonic = entry.Mnemonic;
+				
+				instructionData.Mnemonic = entry.Mnemonic;
 				ConvertEncodingTokens(entry);
-				ConvertOperands(entry);
+				var operands = new List<OperandDefinition>();
+				ConvertOperands(entry, operands);
 
-				return builder.Build(reuse: false);
+				return new InstructionDefinition(ref instructionData, operands);
 			}
 
 			#region ConvertEncodingTokens
@@ -56,7 +56,7 @@ namespace Asmuth.X86.Nasm
 					{
 						case NasmEncodingTokenType.Vex:
 							Contract.Assert(!hasVex);
-							SetVex(builder, entry.VexEncoding);
+							SetVex(entry.VexEncoding);
 							hasVex = true;
 							break;
 
@@ -119,18 +119,18 @@ namespace Asmuth.X86.Nasm
 							{
 								if (!hasVex)
 								{
-									if ((builder.Opcode & Opcode.Map_Mask) == Opcode.Map_Default
+									if ((instructionData.Opcode & Opcode.Map_Mask) == Opcode.Map_Default
 										&& token.Byte == 0x0F)
 									{
-										builder.Opcode = builder.Opcode.WithMap(Opcode.Map_0F);
+										instructionData.Opcode = instructionData.Opcode.WithMap(Opcode.Map_0F);
 										AdvanceTo(State.Map0F);
 										continue;
 									}
 
-									if ((builder.Opcode & Opcode.Map_Mask) == Opcode.Map_0F
+									if ((instructionData.Opcode & Opcode.Map_Mask) == Opcode.Map_0F
 										&& (token.Byte == 0x38 || token.Byte == 0x3A))
 									{
-										builder.Opcode = builder.Opcode.WithMap(
+										instructionData.Opcode = instructionData.Opcode.WithMap(
 											token.Byte == 0x38 ? Opcode.Map_0F38 : Opcode.Map_0F3A);
 										AdvanceTo(State.PostMap);
 										continue;
@@ -148,7 +148,7 @@ namespace Asmuth.X86.Nasm
 							}
 
 							Contract.Assert(state == State.PostModRM);
-							builder.Opcode = builder.Opcode.WithExtraByte(token.Byte);
+							instructionData.Opcode = instructionData.Opcode.WithExtraByte(token.Byte);
 							AddImmediate(ImmediateType.OpcodeExtension);
 							break;
 
@@ -225,43 +225,43 @@ namespace Asmuth.X86.Nasm
 				}
 			}
 
-			private void SetVex(InstructionDefinition.Builder builder, VexOpcodeEncoding vexEncoding)
+			private void SetVex(VexOpcodeEncoding vexEncoding)
 			{
-				Contract.Requires((builder.Opcode & Opcode.XexType_Mask) == Opcode.XexType_LegacyOrRex);
-				Contract.Requires((builder.Opcode & Opcode.SimdPrefix_Mask) == Opcode.SimdPrefix_None);
+				Contract.Requires((instructionData.Opcode & Opcode.XexType_Mask) == Opcode.XexType_LegacyOrRex);
+				Contract.Requires((instructionData.Opcode & Opcode.SimdPrefix_Mask) == Opcode.SimdPrefix_None);
 
 				Opcode opcode;
 				InstructionEncoding encoding;
 				vexEncoding.ToOpcodeEncoding(out opcode, out encoding);
 
 				// TODO: Make sure these or's are safe
-				builder.Opcode |= opcode;
-				builder.Encoding |= encoding;
+				instructionData.Opcode |= opcode;
+				instructionData.Encoding |= encoding;
 
 				AdvanceTo(State.PostMap);
 			}
 
 			private void SetSimdPrefix(SimdPrefix prefix)
 			{
-				Contract.Requires(builder.Opcode.GetSimdPrefix() == SimdPrefix.None);
-				builder.Opcode = builder.Opcode.WithSimdPrefix(prefix);
+				Contract.Requires(instructionData.Opcode.GetSimdPrefix() == SimdPrefix.None);
+				instructionData.Opcode = instructionData.Opcode.WithSimdPrefix(prefix);
 				AdvanceTo(State.PostSimdPrefix);
 			}
 
 			private void SetOpcode(InstructionEncoding encoding, byte @byte)
 			{
-				builder.Encoding = builder.Encoding.WithOpcodeFormat(InstructionEncoding.OpcodeFormat_FixedByte);
-				builder.Opcode = builder.Opcode.WithMainByte(@byte);
+				instructionData.Encoding = instructionData.Encoding.WithOpcodeFormat(InstructionEncoding.OpcodeFormat_FixedByte);
+				instructionData.Opcode = instructionData.Opcode.WithMainByte(@byte);
 				AdvanceTo(State.PostOpcode);
 			}
 
 			private void SetModRM(InstructionEncoding format, byte @byte = 0)
 			{
 				Contract.Requires(state == State.PostOpcode);
-				Contract.Requires((builder.Encoding & InstructionEncoding.ModRM_Mask) == InstructionEncoding.ModRM_None);
-				builder.Encoding = builder.Encoding.WithModRM(format);
+				Contract.Requires((instructionData.Encoding & InstructionEncoding.ModRM_Mask) == InstructionEncoding.ModRM_None);
+				instructionData.Encoding = instructionData.Encoding.WithModRM(format);
 				if (format != InstructionEncoding.ModRM_None && format != InstructionEncoding.ModRM_Any)
-					builder.Opcode = builder.Opcode.WithExtraByte(@byte);
+					instructionData.Opcode = instructionData.Opcode.WithExtraByte(@byte);
 				AdvanceTo(State.PostModRM);
 			}
 
@@ -270,12 +270,12 @@ namespace Asmuth.X86.Nasm
 				Contract.Requires(state >= State.PostOpcode);
 				Contract.Requires((type & ImmediateType.Type_Mask) != ImmediateType.Type_None);
 
-				int immediateCount = builder.Encoding.GetImmediateCount();
+				int immediateCount = instructionData.Encoding.GetImmediateCount();
 				Contract.Requires(immediateCount < 2);
 				if (immediateCount == 0)
-					builder.Encoding |= builder.Encoding.WithFirstImmediateType(type);
+					instructionData.Encoding |= instructionData.Encoding.WithFirstImmediateType(type);
 				else
-					builder.Encoding |= builder.Encoding.WithSecondImmediateType(type);
+					instructionData.Encoding |= instructionData.Encoding.WithSecondImmediateType(type);
 
 				AdvanceTo(State.Immediates);
 			}
@@ -288,7 +288,7 @@ namespace Asmuth.X86.Nasm
 			#endregion
 
 			#region ConvertOperands
-			private void ConvertOperands(NasmInsnsEntry entry)
+			private void ConvertOperands(NasmInsnsEntry entry, ICollection<OperandDefinition> operands)
 			{
 				// TODO: Convert operands
 			}
