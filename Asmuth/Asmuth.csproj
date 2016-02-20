@@ -64,6 +64,7 @@
     <Compile Include="X86\Flags.cs" />
     <Compile Include="X86\Gpr.cs" />
     <Compile Include="X86\ImmediateType.cs" />
+    <Compile Include="X86\InstructionDefinition.Merge.cs" />
     <Compile Include="X86\InstructionDictionary.cs" />
     <Compile Include="X86\OperandSize.cs" />
     <Compile Include="X86\OperandType.cs" />

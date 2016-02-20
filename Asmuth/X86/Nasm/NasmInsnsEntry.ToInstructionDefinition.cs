@@ -100,7 +100,7 @@ namespace Asmuth.X86.Nasm
 
 						// Rex
 						case NasmEncodingTokenType.Rex_NoB:
-						case NasmEncodingTokenType.Rex_NoW:	// TODO: handle this?
+						case NasmEncodingTokenType.Rex_NoW: // TODO: handle this?
 						case NasmEncodingTokenType.Rex_LockAsRexR: // TODO: implies operand size 32
 							break;
 
@@ -216,7 +216,7 @@ namespace Asmuth.X86.Nasm
 							break; // TODO: do something with those VM(32|64)[xy]?
 
 						case NasmEncodingTokenType.Misc_NoHigh8Register:
-						case NasmEncodingTokenType.Misc_AssembleWaitPrefix:	// Implicit WAIT prefix when assembling instruction
+						case NasmEncodingTokenType.Misc_AssembleWaitPrefix: // Implicit WAIT prefix when assembling instruction
 							break;
 
 						default:
