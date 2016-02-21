@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asmuth.Tests", "Asmuth.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asmuth.Debugger", "Asmuth.Debugger\Asmuth.Debugger.csproj", "{129CCF95-811B-4DF5-896B-993AD222F21F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Asmuth.Disassembler", "Asmuth.Disassembler\Asmuth.Disassembler.csproj", "{0C757FE7-F21E-49B1-BF84-ADEED39E6678}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{129CCF95-811B-4DF5-896B-993AD222F21F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{129CCF95-811B-4DF5-896B-993AD222F21F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{129CCF95-811B-4DF5-896B-993AD222F21F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0C757FE7-F21E-49B1-BF84-ADEED39E6678}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C757FE7-F21E-49B1-BF84-ADEED39E6678}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C757FE7-F21E-49B1-BF84-ADEED39E6678}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C757FE7-F21E-49B1-BF84-ADEED39E6678}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
