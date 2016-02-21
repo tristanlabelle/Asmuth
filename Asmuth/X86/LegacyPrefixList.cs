@@ -54,17 +54,17 @@ namespace Asmuth.X86
 		public int Count => (int)(storage >> 24);
 		public bool IsEmpty => Count == 0;
 		
-		public SimdPrefix? PotentialSimdPrefix
+		public SimdPrefix PotentialSimdPrefix
 		{
 			get
 			{
-				if (IsEmpty) return null;
+				if (IsEmpty) return SimdPrefix.None;
 				switch (this[Count - 1])
 				{
 					case LegacyPrefix.OperandSizeOverride: return SimdPrefix._66;
 					case LegacyPrefix.RepeatNotEqual: return SimdPrefix._F2;
 					case LegacyPrefix.RepeatEqual: return SimdPrefix._F3;
-					default: return null;
+					default: return SimdPrefix.None;
 				}
 			}
 		}

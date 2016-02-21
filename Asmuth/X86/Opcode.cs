@@ -117,10 +117,16 @@ namespace Asmuth.X86
 			=> (opcode & ~Opcode.SimdPrefix_Mask) | (Opcode)((uint)simdPrefix << (int)Opcode.SimdPrefix_Shift);
 
 		[Pure]
-		public static Opcode WithMap(this Opcode opcode, Opcode map)
+		public static Opcode WithRexW(this Opcode opcode, bool rexW)
+			=> (opcode & ~Opcode.RexW) | (rexW ? Opcode.RexW : 0);
+
+		[Pure]
+		public static Opcode WithVectorSize(this Opcode opcode, OperandSize size)
 		{
-			Contract.Requires((map & ~Opcode.Map_Mask) == 0);
-			return (opcode & ~Opcode.Map_Mask) | map;
+			Contract.Requires(size >= OperandSize._128 && size <= OperandSize._512);
+			opcode &= ~Opcode.VexL_Mask;
+			opcode |= (Opcode)((size - OperandSize._128) << (int)Opcode.VexL_0);
+			return opcode;
 		}
 
 		[Pure]

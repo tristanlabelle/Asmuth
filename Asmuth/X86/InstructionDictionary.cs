@@ -21,26 +21,51 @@ namespace Asmuth.X86
 			byOpcodeKey.Add(instruction.Opcode & Opcode.LookupKey_Mask, instruction);
 		}
 
-		public InstructionDefinition Find(Opcode opcode)
+		public InstructionDefinition Find(Opcode opcode, bool explicitSimdPrefix)
 		{
 			var key = opcode & Opcode.LookupKey_Mask;
-			foreach (var candidate in byOpcodeKey[opcode & Opcode.LookupKey_Mask])
+			foreach (var candidate in byOpcodeKey[key])
 				if (candidate.IsMatch(opcode))
 					return candidate;
-			return null;
+			return explicitSimdPrefix ? null : Find(opcode.WithSimdPrefix(SimdPrefix.None), explicitSimdPrefix: true);
 		}
+
+		private static int GetOperandSizeMatchLevel(InstructionEncoding encoding, OperandSize size)
+		{
+			switch (encoding & InstructionEncoding.OperandSize_Mask)
+			{
+				case InstructionEncoding.OperandSize_Ignored: return 0;
+				case InstructionEncoding.OperandSize_16Or32Or64: return 1;
+				case InstructionEncoding.OperandSize_16Or32: return 2;
+				case InstructionEncoding.OperandSize_32Or64: return 2;
+				case InstructionEncoding.OperandSize_Fixed8: return 3;
+				case InstructionEncoding.OperandSize_Fixed16: return size == OperandSize.Word ? 3 : -1;
+				case InstructionEncoding.OperandSize_Fixed32: return size == OperandSize.Dword ? 3 : -1;
+				case InstructionEncoding.OperandSize_Fixed64: return size == OperandSize.Qword ? 3 : -1;
+				default: throw new ArgumentException();
+			}
+		}
+
 
 		bool IInstructionDecoderLookup.TryLookup(
 			InstructionDecodingMode mode, ImmutableLegacyPrefixList legacyPrefixes,
 			Xex xex, byte opcode, out bool hasModRM, out int immediateSizeInBytes)
 		{
+			var operandSize = mode.GetEffectiveOperandSize(legacyPrefixes, xex);
+			var addressSize = mode.GetEffectiveAddressSize(legacyPrefixes);
+			InstructionDefinition bestMatch = null;
+			int bestOperandSizeMatchLevel = -1;
+
 			var lookupKey = OpcodeEnum.MakeLookupKey(xex.OpcodeMap, opcode);
 			foreach (var instruction in byOpcodeKey[lookupKey])
 			{
 				var encoding = instruction.Encoding;
 
-				// Ensure we match the opcode
-				if ((opcode & encoding.GetOpcodeMainByteFixedMask()) != instruction.Opcode.GetMainByte())
+				// Ensure we (loosely) match the SIMD prefix
+				var simdPrefix = instruction.Opcode.GetSimdPrefix();
+				if (xex.SimdPrefix.HasValue && xex.SimdPrefix.Value != simdPrefix)
+					continue;
+				if (simdPrefix != SimdPrefix.None && legacyPrefixes.PotentialSimdPrefix != simdPrefix)
 					continue;
 
 				// Ensure we match the RexW requirements
@@ -50,16 +75,29 @@ namespace Asmuth.X86
 					continue;
 				}
 
-				var operandSize = mode.GetEffectiveOperandSize(legacyPrefixes, xex);
-				var addressSize = mode.GetEffectiveAddressSize(legacyPrefixes);
-				hasModRM = encoding.HasModRM();
-				immediateSizeInBytes = encoding.GetImmediatesSizeInBytes(operandSize, addressSize);
-				return true;
+				// Ensure we match the opcode
+				if ((opcode & encoding.GetOpcodeMainByteFixedMask()) != instruction.Opcode.GetMainByte())
+					continue;
+
+				// Record the candidate, favoring more specific operand size matches
+				var operandSizeMatchLevel = GetOperandSizeMatchLevel(encoding, operandSize);
+				if (operandSizeMatchLevel > bestOperandSizeMatchLevel)
+				{
+					bestMatch = instruction;
+					bestOperandSizeMatchLevel = operandSizeMatchLevel;
+				}
 			}
 
-			hasModRM = false;
-			immediateSizeInBytes = 0;
-			return false;
+			if (bestMatch == null)
+			{
+				hasModRM = false;
+				immediateSizeInBytes = 0;
+				return false;
+			}
+
+			hasModRM = bestMatch.Encoding.HasModRM();
+			immediateSizeInBytes = bestMatch.Encoding.GetImmediatesSizeInBytes(operandSize, addressSize);
+			return true;
 		}
 	}
 }

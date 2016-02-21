@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -51,7 +52,7 @@ namespace Asmuth.X86.Nasm
 				state = State.Prefixes;
 
 				bool hasVex = false;
-				NasmEncodingTokenType addressSize = 0, operandSize = 0;
+				NasmEncodingTokenType addressSize = 0;
 				foreach (var token in entry.EncodingTokens)
 				{
 					switch (token.Type)
@@ -72,13 +73,45 @@ namespace Asmuth.X86.Nasm
 							break;
 
 						case NasmEncodingTokenType.OperandSize_Fixed16:
+							SetOperandSize(InstructionEncoding.OperandSize_Fixed16);
+							break;
+
 						case NasmEncodingTokenType.OperandSize_Fixed32:
+							SetOperandSize(InstructionEncoding.OperandSize_Fixed32);
+							break;
+
 						case NasmEncodingTokenType.OperandSize_Fixed64:
+							SetOperandSize(InstructionEncoding.OperandSize_Fixed64);
+							break;
+							
 						case NasmEncodingTokenType.OperandSize_Fixed64_RexExtensionsOnly:
+							{
+								InstructionEncoding newOperandSize;
+								switch (instructionData.Encoding & InstructionEncoding.OperandSize_Mask)
+								{
+									case 0:
+										newOperandSize = InstructionEncoding.OperandSize_16Or32Or64;
+										break;
+
+									case InstructionEncoding.OperandSize_Fixed16:
+										newOperandSize = InstructionEncoding.OperandSize_16Or32Or64;
+										break;
+
+									case InstructionEncoding.OperandSize_Fixed32:
+										newOperandSize = InstructionEncoding.OperandSize_32Or64;
+										break;
+
+									default: throw new InvalidDataException();
+								}
+
+								instructionData.Encoding &= ~InstructionEncoding.OperandSize_Mask;
+								SetOperandSize(newOperandSize);
+							}
+							break;
+
 						case NasmEncodingTokenType.OperandSize_NoOverride:
-							Contract.Assert(state <= State.PostSimdPrefix);
-							Contract.Assert(addressSize == 0);
-							operandSize = token.Type;
+							// TODO: What does this mean for the instruction encoding?
+							SetOperandSize(InstructionEncoding.OperandSize_16Or32);
 							break;
 
 						// Legacy prefixes
@@ -124,7 +157,7 @@ namespace Asmuth.X86.Nasm
 									if ((instructionData.Opcode & Opcode.Map_Mask) == Opcode.Map_Default
 										&& token.Byte == 0x0F)
 									{
-										instructionData.Opcode = instructionData.Opcode.WithMap(Opcode.Map_0F);
+										instructionData.Opcode = instructionData.Opcode.WithMap(OpcodeMap.Escape0F);
 										AdvanceTo(State.Map0F);
 										continue;
 									}
@@ -133,7 +166,7 @@ namespace Asmuth.X86.Nasm
 										&& (token.Byte == 0x38 || token.Byte == 0x3A))
 									{
 										instructionData.Opcode = instructionData.Opcode.WithMap(
-											token.Byte == 0x38 ? Opcode.Map_0F38 : Opcode.Map_0F3A);
+											token.Byte == 0x38 ? OpcodeMap.Escape0F38 : OpcodeMap.Escape0F3A);
 										AdvanceTo(State.PostMap);
 										continue;
 									}
@@ -176,8 +209,13 @@ namespace Asmuth.X86.Nasm
 							SetOpcode(InstructionEncoding.OpcodeFormat_EmbeddedConditionCode, (byte)(token.Byte & 0xF0));
 							continue;
 
-						case NasmEncodingTokenType.ModRM: SetModRM(InstructionEncoding.ModRM_Any); break;
-						case NasmEncodingTokenType.ModRM_FixedReg: SetModRM(InstructionEncoding.ModRM_FixedReg, (byte)(token.Byte << 3)); break;
+						case NasmEncodingTokenType.ModRM:
+							SetModRM(InstructionEncoding.ModRM_Any);
+							break;
+
+						case NasmEncodingTokenType.ModRM_FixedReg:
+							SetModRM(InstructionEncoding.ModRM_FixedReg, (byte)(token.Byte << 3));
+							break;
 
 						// Immediates
 						case NasmEncodingTokenType.Immediate_Byte:
@@ -198,28 +236,28 @@ namespace Asmuth.X86.Nasm
 							AddImmediate(ImmediateSize.Fixed32);
 							break;
 
-						case NasmEncodingTokenType.Immediate_WordOrDword: AddImmediate(ImmediateSize.Operand16Or32); break;
+						case NasmEncodingTokenType.Immediate_WordOrDword:
+							AddImmediate(ImmediateSize.Operand16Or32);
+							break;
 
-						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword: AddImmediate(ImmediateSize.Operand16Or32Or64); break;
-						case NasmEncodingTokenType.Immediate_Qword: AddImmediate(ImmediateSize.Fixed64); break;
+						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword:
+							AddImmediate(ImmediateSize.Operand16Or32Or64);
+							break;
+
+						case NasmEncodingTokenType.Immediate_Qword:
+							AddImmediate(ImmediateSize.Fixed64);
+							break;
 
 						case NasmEncodingTokenType.Immediate_RelativeOffset:
-							switch (operandSize)
+							switch (instructionData.Encoding & InstructionEncoding.OperandSize_Mask)
 							{
-								case default(NasmEncodingTokenType):
-								case NasmEncodingTokenType.OperandSize_NoOverride:
-									AddImmediate(ImmediateSize.Address16Or32);
-									break;
-
-								case NasmEncodingTokenType.OperandSize_Fixed16: AddImmediate(ImmediateSize.Fixed16); break;
-								case NasmEncodingTokenType.OperandSize_Fixed32: AddImmediate(ImmediateSize.Fixed32); break;
-
-								case NasmEncodingTokenType.AddressSize_Fixed64:
-								case NasmEncodingTokenType.OperandSize_Fixed64_RexExtensionsOnly:
-									AddImmediate(ImmediateSize.Fixed64);
-									break;
-
-								default: throw new UnreachableException();
+								case InstructionEncoding.OperandSize_Ignored: AddImmediate(ImmediateSize.Operand16Or32); break;
+								case InstructionEncoding.OperandSize_Fixed16: AddImmediate(ImmediateSize.Fixed16); break;
+								case InstructionEncoding.OperandSize_Fixed32: AddImmediate(ImmediateSize.Fixed32); break;
+								case InstructionEncoding.OperandSize_Fixed64: AddImmediate(ImmediateSize.Fixed64); break;
+								case InstructionEncoding.OperandSize_16Or32: AddImmediate(ImmediateSize.Operand16Or32); break;
+								case InstructionEncoding.OperandSize_16Or32Or64: AddImmediate(ImmediateSize.Operand16Or32Or64); break;
+								default: throw new InvalidDataException();
 							}
 							break;
 
@@ -249,6 +287,13 @@ namespace Asmuth.X86.Nasm
 				}
 			}
 
+			private void SetOperandSize(InstructionEncoding encoding)
+			{
+				Contract.Assert(state <= State.PostSimdPrefix);
+				Contract.Assert((instructionData.Encoding & InstructionEncoding.OperandSize_Mask) == 0);
+				instructionData.Encoding |= encoding;
+			}
+
 			private void SetVex(VexOpcodeEncoding vexEncoding)
 			{
 				Contract.Requires((instructionData.Opcode & Opcode.XexType_Mask) == Opcode.XexType_LegacyOrRex);
@@ -272,9 +317,11 @@ namespace Asmuth.X86.Nasm
 				AdvanceTo(State.PostSimdPrefix);
 			}
 
-			private void SetOpcode(InstructionEncoding encoding, byte @byte)
+			private void SetOpcode(InstructionEncoding formatEncoding, byte @byte)
 			{
-				instructionData.Encoding = instructionData.Encoding.WithOpcodeFormat(InstructionEncoding.OpcodeFormat_FixedByte);
+				Contract.Requires((formatEncoding & ~InstructionEncoding.OpcodeFormat_Mask) == 0);
+				Contract.Assert((instructionData.Encoding & InstructionEncoding.OpcodeFormat_Mask) == 0);
+				instructionData.Encoding |= formatEncoding;
 				instructionData.Opcode = instructionData.Opcode.WithMainByte(@byte);
 				AdvanceTo(State.PostOpcode);
 			}

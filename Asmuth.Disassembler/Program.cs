@@ -52,38 +52,55 @@ namespace Asmuth.Disassembler
 				Contract.Assert(optionalHeader.NumberOfRvaAndSizes == IMAGE_NUMBEROF_DIRECTORY_ENTRIES);
 
 				// Sections
-				var sections = new IMAGE_SECTION_HEADER[fileHeader.NumberOfSections];
+				var sectionHeaders = new IMAGE_SECTION_HEADER[fileHeader.NumberOfSections];
+				var firstSectionHeaderPosition = ntHeaderPosition + IMAGE_NT_HEADERS.OptionalHeaderOffset + fileHeader.SizeOfOptionalHeader;
 				for (int i = 0; i < fileHeader.NumberOfSections; ++i)
 				{
-					var sectionPosition = ntHeaderPosition + fileHeader.SizeOfOptionalHeader + Marshal.SizeOf(typeof(IMAGE_SECTION_HEADER)) * i;
-					fileViewAccessor.Read(sectionPosition, out sections[i]);
+					var sectionHeaderPosition = firstSectionHeaderPosition + Marshal.SizeOf(typeof(IMAGE_SECTION_HEADER)) * i;
+					fileViewAccessor.Read(sectionHeaderPosition, out sectionHeaders[i]);
 				}
 
-				// Entry point
-				long codePosition = optionalHeader.AddressOfEntryPoint;
+				// Disassemble executable sections
 				var instructionDecoder = new InstructionDecoder(instructionDictionary, InstructionDecodingMode.IA32_Default32);
-				while (true)
+				foreach (var sectionHeader in sectionHeaders)
 				{
-					Console.Write($"{codePosition:X8}\t");
+					if ((sectionHeader.Characteristics & IMAGE_SCN_CNT_CODE) == 0) continue;
+
+					var sectionBaseAddress = optionalHeader.ImageBase + sectionHeader.VirtualAddress;
+					Console.Write($"{sectionBaseAddress:X8}");
+					if (sectionHeader.Name.Char0 != 0)
+						Console.Write($" <{sectionHeader.Name}>");
+					Console.WriteLine(":");
+
+					long codeOffset = 0;
 					while (true)
 					{
-						var @byte = fileViewAccessor.ReadByte(codePosition);
-						if (instructionDecoder.State != InstructionDecodingState.Initial)
-							Console.Write(' ');
-						Console.Write($"{@byte:X2}");
-						codePosition++;
-						if (!instructionDecoder.Feed(@byte)) break;
+						Console.Write($"{sectionBaseAddress + codeOffset:X}".PadLeft(8));
+						Console.Write(":       ");
+						while (true)
+						{
+							var @byte = fileViewAccessor.ReadByte(sectionHeader.PointerToRawData + codeOffset);
+							if (instructionDecoder.State != InstructionDecodingState.Initial)
+								Console.Write(' ');
+							Console.Write($"{@byte:X2}");
+							codeOffset++;
+							if (!instructionDecoder.Feed(@byte)) break;
+						}
+
+						while (Console.CursorLeft < 40) Console.Write(' ');
+
+						var instruction = instructionDecoder.GetInstruction();
+						instructionDecoder.Reset();
+
+						bool explicitLegacyPrefix;
+						var opcode = instruction.GetOpcode(out explicitLegacyPrefix);
+						var instructionDefinition = instructionDictionary.Find(opcode, explicitLegacyPrefix);
+						Console.Write('\t');
+						Console.WriteLine(instructionDefinition.Mnemonic.ToLowerInvariant());
+
+						if (instruction.MainByte == KnownOpcodes.RetNear || instruction.MainByte == KnownOpcodes.RetNearAndPop)
+							break;
 					}
-
-					var instruction = instructionDecoder.GetInstruction();
-					instructionDecoder.Reset();
-
-					var instructionDefinition = instructionDictionary.Find(instruction.OpcodeLookupKey);
-					Console.Write('\t');
-					Console.WriteLine(instructionDefinition.Mnemonic);
-
-					if (instruction.MainByte == KnownOpcodes.RetNear || instruction.MainByte == KnownOpcodes.RetNearAndPop)
-						break;
 				}
 			}
 		}

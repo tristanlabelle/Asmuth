@@ -272,11 +272,38 @@ namespace Asmuth.Disassembler
 			public IMAGE_OPTIONAL_HEADER_DATA_DIRECTORY DataDirectory;
 		}
 
+		[StructLayout(LayoutKind.Explicit, Size = 8)]
+		public struct IMAGE_SECTION_HEADER_NAME
+		{
+			[FieldOffset(0)] public byte Char0;
+			[FieldOffset(1)] public byte Char1;
+			[FieldOffset(2)] public byte Char2;
+			[FieldOffset(3)] public byte Char3;
+			[FieldOffset(4)] public byte Char4;
+			[FieldOffset(5)] public byte Char5;
+			[FieldOffset(6)] public byte Char6;
+			[FieldOffset(7)] public byte Char7;
+			[FieldOffset(0)] public ulong Packed;
+
+			public override string ToString()
+			{
+				char[] chars = new char[8];
+				int length = 0;
+				while (length < 8)
+				{
+					chars[length] = unchecked((char)(byte)(Packed >> (length * 8)));
+					if (chars[length] == 0) break;
+					++length;
+				}
+				return new string(chars, 0, length);
+			}
+		}
+
 		[StructLayout(LayoutKind.Explicit)]
 		public struct IMAGE_SECTION_HEADER
 		{
 			[FieldOffset(0)]
-			public ulong Name;
+			public IMAGE_SECTION_HEADER_NAME Name;
 			[FieldOffset(8)]
 			public DWORD PhysicalAddress;
 			[FieldOffset(8)]
@@ -297,22 +324,6 @@ namespace Asmuth.Disassembler
 			public WORD NumberOfLinenumbers;
 			[FieldOffset(36)]
 			public DWORD Characteristics;
-
-			public string NameString
-			{
-				get
-				{
-					char[] chars = new char[8];
-					int length = 0;
-					while (length < 8)
-					{
-						chars[length] = unchecked((char)(byte)(Name >> (length * 8)));
-						if (chars[length] == 0) break;
-						++length;
-					}
-					return new string(chars, 0, length);
-				}
-			}
 		}
 	}
 }

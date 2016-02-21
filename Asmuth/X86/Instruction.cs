@@ -136,6 +136,18 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Methods
+		public Opcode GetOpcode(out bool explicitLegacyPrefix)
+		{
+			explicitLegacyPrefix = xex.SimdPrefix.HasValue;
+			return default(Opcode)
+				.WithSimdPrefix(xex.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix)
+				.WithRexW(xex.OperandSize64)
+				.WithVectorSize(xex.VectorSize)
+				.WithMap(OpcodeMap)
+				.WithMainByte(MainByte)
+				.WithExtraByte((byte)modRM);
+		}
+
 		public bool HasSimdPrefix(SimdPrefix prefix)
 		{
 			if (xex.SimdPrefix.HasValue) return xex.SimdPrefix == prefix;
