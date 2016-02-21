@@ -58,7 +58,7 @@ namespace Asmuth.X86
 			(ushort)Flags.Sign, // Less ?
 			(ushort)Flags.Sign, // Greater or equal ?
 			(ushort)(Flags.Zero | Flags.Sign | Flags.Overflow), // Less or equal
-			(ushort)(Flags.Zero | Flags.Sign | Flags.Overflow), // Greater
+			(ushort)(Flags.Zero | Flags.Sign | Flags.Overflow) // Greater
 		};
 
 		private const ushort unsignedComparisonMask

@@ -63,6 +63,7 @@ namespace Asmuth.X86
 		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
 		public Xex Xex => xex;
 		public OpcodeMap OpcodeMap => xex.OpcodeMap;
+		public Opcode OpcodeLookupKey => OpcodeEnum.MakeLookupKey(OpcodeMap, MainByte);
 		public byte MainByte => mainByte;
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;
 

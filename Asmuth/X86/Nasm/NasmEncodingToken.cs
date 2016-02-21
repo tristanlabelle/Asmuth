@@ -183,5 +183,8 @@ namespace Asmuth.X86.Nasm
 		Misc_Vsiby,
 		[NasmName("vsibz")]
 		Misc_Vsibz,
+
+		[NasmName("resb")]
+		Misc_Resb // The RESB pseudo-instruction
 	}
 }

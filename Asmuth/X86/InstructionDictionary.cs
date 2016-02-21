@@ -5,9 +5,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Raw
+namespace Asmuth.X86
 {
-	public sealed class InstructionDictionary
+	public sealed class InstructionDictionary : IInstructionDecoderLookup
 	{
 		private readonly MultiDictionary<string, InstructionDefinition> byMnemonic
 			= new MultiDictionary<string, InstructionDefinition>();
@@ -28,6 +28,38 @@ namespace Asmuth.X86.Raw
 				if (candidate.IsMatch(opcode))
 					return candidate;
 			return null;
+		}
+
+		bool IInstructionDecoderLookup.TryLookup(
+			InstructionDecodingMode mode, ImmutableLegacyPrefixList legacyPrefixes,
+			Xex xex, byte opcode, out bool hasModRM, out int immediateSizeInBytes)
+		{
+			var lookupKey = OpcodeEnum.MakeLookupKey(xex.OpcodeMap, opcode);
+			foreach (var instruction in byOpcodeKey[lookupKey])
+			{
+				var encoding = instruction.Encoding;
+
+				// Ensure we match the opcode
+				if ((opcode & encoding.GetOpcodeMainByteFixedMask()) != instruction.Opcode.GetMainByte())
+					continue;
+
+				// Ensure we match the RexW requirements
+				if ((encoding & InstructionEncoding.RexW_Mask) == InstructionEncoding.RexW_Fixed
+					&& xex.OperandSize64 != ((instruction.Opcode & Opcode.RexW) != 0))
+				{
+					continue;
+				}
+
+				var operandSize = mode.GetEffectiveOperandSize(legacyPrefixes, xex);
+				var addressSize = mode.GetEffectiveAddressSize(legacyPrefixes);
+				hasModRM = encoding.HasModRM();
+				immediateSizeInBytes = encoding.GetImmediatesSizeInBytes(operandSize, addressSize);
+				return true;
+			}
+
+			hasModRM = false;
+			immediateSizeInBytes = 0;
+			return false;
 		}
 	}
 }

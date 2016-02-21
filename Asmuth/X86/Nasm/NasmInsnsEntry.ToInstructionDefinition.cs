@@ -11,6 +11,8 @@ namespace Asmuth.X86.Nasm
 	{
 		public InstructionDefinition ToInstructionDefinition()
 		{
+			if (IsPseudo) throw new InvalidOperationException();
+
 			return new InstructionDefinitionConverter().Convert(this);
 		}
 
@@ -149,7 +151,7 @@ namespace Asmuth.X86.Nasm
 
 							Contract.Assert(state == State.PostModRM);
 							instructionData.Opcode = instructionData.Opcode.WithExtraByte(token.Byte);
-							AddImmediate(ImmediateType.OpcodeExtension);
+							AddImmediate(ImmediateSize.Fixed8); // Opcode extension byte
 							break;
 
 						case NasmEncodingTokenType.Byte_PlusRegister:
@@ -169,9 +171,9 @@ namespace Asmuth.X86.Nasm
 							throw new FormatException();
 
 						case NasmEncodingTokenType.Byte_PlusConditionCode:
-							Contract.Assert((token.Byte & 0xF) == 0);
+							// TODO: figure out what this means: [i:	71+c jlen e9 rel]
 							Contract.Assert(state < State.PostOpcode);
-							SetOpcode(InstructionEncoding.OpcodeFormat_EmbeddedConditionCode, token.Byte);
+							SetOpcode(InstructionEncoding.OpcodeFormat_EmbeddedConditionCode, (byte)(token.Byte & 0xF0));
 							continue;
 
 						case NasmEncodingTokenType.ModRM: SetModRM(InstructionEncoding.ModRM_Any); break;
@@ -181,29 +183,50 @@ namespace Asmuth.X86.Nasm
 						case NasmEncodingTokenType.Immediate_Byte:
 						case NasmEncodingTokenType.Immediate_Byte_Signed:
 						case NasmEncodingTokenType.Immediate_Byte_Unsigned:
-							AddImmediate(ImmediateType.Imm8);
+						case NasmEncodingTokenType.Immediate_RelativeOffset8:
+						case NasmEncodingTokenType.Immediate_Is4:
+							AddImmediate(ImmediateSize.Fixed8);
 							break;
 
-						case NasmEncodingTokenType.Immediate_RelativeOffset8: AddImmediate(ImmediateType.RelativeCodeOffset8); break;
-						case NasmEncodingTokenType.Immediate_Is4: AddImmediate(ImmediateType.OpcodeExtension); break;
-						case NasmEncodingTokenType.Immediate_Word: AddImmediate(ImmediateType.Imm16); break;
-						case NasmEncodingTokenType.Immediate_Dword: AddImmediate(ImmediateType.Imm32); break;
-						case NasmEncodingTokenType.Immediate_Dword_Signed: AddImmediate(ImmediateType.Imm32); break;
-						case NasmEncodingTokenType.Immediate_WordOrDword: AddImmediate(ImmediateType.Imm16Or32); break;
-						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword: AddImmediate(ImmediateType.Imm16Or32Or64); break;
-						case NasmEncodingTokenType.Immediate_Qword: AddImmediate(ImmediateType.Imm64); break;
+						case NasmEncodingTokenType.Immediate_Word:
+						case NasmEncodingTokenType.Immediate_Segment: // TODO: Make sure this happens in the right order
+							AddImmediate(ImmediateSize.Fixed16);
+							break;
+
+						case NasmEncodingTokenType.Immediate_Dword:
+						case NasmEncodingTokenType.Immediate_Dword_Signed:
+							AddImmediate(ImmediateSize.Fixed32);
+							break;
+
+						case NasmEncodingTokenType.Immediate_WordOrDword: AddImmediate(ImmediateSize.Operand16Or32); break;
+
+						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword: AddImmediate(ImmediateSize.Operand16Or32Or64); break;
+						case NasmEncodingTokenType.Immediate_Qword: AddImmediate(ImmediateSize.Fixed64); break;
 
 						case NasmEncodingTokenType.Immediate_RelativeOffset:
-							Contract.Assert(operandSize != 0);
 							switch (operandSize)
 							{
-								case NasmEncodingTokenType.OperandSize_NoOverride: AddImmediate(ImmediateType.RelativeCodeOffset16Or32); break;
-								case NasmEncodingTokenType.OperandSize_Fixed16: AddImmediate(ImmediateType.RelativeCodeOffset16); break;
-								case NasmEncodingTokenType.OperandSize_Fixed32: AddImmediate(ImmediateType.RelativeCodeOffset32); break;
-								case NasmEncodingTokenType.AddressSize_Fixed64: throw new NotImplementedException();
-								case NasmEncodingTokenType.OperandSize_Fixed64_RexExtensionsOnly: AddImmediate(ImmediateType.RelativeCodeOffset64); break;
+								case default(NasmEncodingTokenType):
+								case NasmEncodingTokenType.OperandSize_NoOverride:
+									AddImmediate(ImmediateSize.Address16Or32);
+									break;
+
+								case NasmEncodingTokenType.OperandSize_Fixed16: AddImmediate(ImmediateSize.Fixed16); break;
+								case NasmEncodingTokenType.OperandSize_Fixed32: AddImmediate(ImmediateSize.Fixed32); break;
+
+								case NasmEncodingTokenType.AddressSize_Fixed64:
+								case NasmEncodingTokenType.OperandSize_Fixed64_RexExtensionsOnly:
+									AddImmediate(ImmediateSize.Fixed64);
+									break;
+
 								default: throw new UnreachableException();
 							}
+							break;
+
+						// Jump, it's not clear what additional info these provides so skip
+						case NasmEncodingTokenType.Jump_8:
+						case NasmEncodingTokenType.Jump_Conditional8:
+						case NasmEncodingTokenType.Jump_Length:
 							break;
 
 						// Misc
@@ -217,6 +240,7 @@ namespace Asmuth.X86.Nasm
 
 						case NasmEncodingTokenType.Misc_NoHigh8Register:
 						case NasmEncodingTokenType.Misc_AssembleWaitPrefix: // Implicit WAIT prefix when assembling instruction
+						case NasmEncodingTokenType.Misc_Resb:
 							break;
 
 						default:
@@ -265,17 +289,15 @@ namespace Asmuth.X86.Nasm
 				AdvanceTo(State.PostModRM);
 			}
 
-			private void AddImmediate(ImmediateType type)
+			private void AddImmediate(ImmediateSize size)
 			{
 				Contract.Requires(state >= State.PostOpcode);
-				Contract.Requires((type & ImmediateType.Type_Mask) != ImmediateType.Type_None);
 
 				int immediateCount = instructionData.Encoding.GetImmediateCount();
 				Contract.Requires(immediateCount < 2);
-				if (immediateCount == 0)
-					instructionData.Encoding |= instructionData.Encoding.WithFirstImmediateType(type);
-				else
-					instructionData.Encoding |= instructionData.Encoding.WithSecondImmediateType(type);
+				instructionData.Encoding = (immediateCount == 0)
+					? instructionData.Encoding.WithFirstImmediateSize(size)
+					: instructionData.Encoding.WithSecondImmediateSize(size);
 
 				AdvanceTo(State.Immediates);
 			}

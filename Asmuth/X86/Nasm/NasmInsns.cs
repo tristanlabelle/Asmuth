@@ -16,7 +16,7 @@ namespace Asmuth.X86.Nasm
 	public static class NasmInsns
 	{
 		private static readonly Regex instructionLineColumnRegex = new Regex(
-			@"(\[[^\]]*\]|\S.*?)(?=\s*(\t|\Z))", RegexOptions.CultureInvariant);
+			@"(\[[^\]]*\]|\S.*?)(?=(\s|\Z))", RegexOptions.CultureInvariant);
 
 		private static readonly Regex codeStringColumnRegex = new Regex(
 			@"\A\[
@@ -24,9 +24,15 @@ namespace Asmuth.X86.Nasm
 					(?<operand_fields>[a-z-+]+):
 					((?<evex_tuple_type>[a-z0-9]+):)?
 				)?
-				\s*\t\s*
+				\s*
 				(?<encoding>[^\]\r\n\t]+?)
 			\s*\]\Z", RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant);
+
+		public static ICollection<string> PseudoInstructionMnemonics = new[]
+		{
+			"DB", "DW", "DD", "DQ", "DT", "DO", "DY", "DZ",
+			"RESB", "RESW", "RESD", "RESQ", "REST", "RESO", "RESY", "RESZ",
+		};
 
 		public static IEnumerable<NasmInsnsEntry> Read(TextReader textReader)
 		{
@@ -76,7 +82,7 @@ namespace Asmuth.X86.Nasm
 
 			// Mnemonic
 			var mnemonicColumn = columnMatches[0].Value;
-			if (!Regex.IsMatch(mnemonicColumn, @"\A[A-Z_0-9]+\Z", RegexOptions.CultureInvariant))
+			if (!Regex.IsMatch(mnemonicColumn, @"\A[A-Z_0-9]+(cc)?\Z", RegexOptions.CultureInvariant))
 				throw new FormatException("Invalid mnemonic column format.");
 			entryBuilder.Mnemonic = mnemonicColumn;
 
@@ -285,9 +291,15 @@ namespace Asmuth.X86.Nasm
 
 		private static void ParseOperands(NasmInsnsEntry.Builder entryBuilder, string fieldsString, string valuesString)
 		{
+			if (valuesString == "void" || valuesString == "ignore")
+			{
+				Contract.Assert(fieldsString.Length == 0);
+				return;
+			}
+
 			if (fieldsString.Length == 0)
 			{
-				Contract.Assert(valuesString == "void" || valuesString == "ignore");
+				// This only happens for pseudo-instructions
 				return;
 			}
 

@@ -201,33 +201,26 @@ namespace Asmuth.X86
 				default: throw new UnreachableException();
 			}
 
-			switch (encoding.GetFirstImmediateType())
-			{
-				case ImmediateType.None: break;
-				case ImmediateType.Imm8: str.Append(" ib"); break;
-				case ImmediateType.Imm16: str.Append(" iw"); break;
-				case ImmediateType.Imm32: str.Append(" id"); break;
-				case ImmediateType.Imm64: str.Append(" iq"); break;
-				case ImmediateType.Imm16Or32: str.Append(" iwd"); break;
-				case ImmediateType.Imm32Or64: str.Append(" idq"); break;
-				case ImmediateType.Imm16Or32Or64: str.Append(" iwdq"); break;
-
-				case ImmediateType.RelativeCodeOffset8: str.Append(" rel8"); break;
-				case ImmediateType.RelativeCodeOffset16: str.Append(" rel16"); break;
-				case ImmediateType.RelativeCodeOffset32: str.Append(" rel32"); break;
-				case ImmediateType.RelativeCodeOffset64: str.Append(" rel64"); break;
-				case ImmediateType.RelativeCodeOffset16Or32: str.Append(" rel"); break;
-
-				case ImmediateType.OpcodeExtension:
-					str.AppendFormat(CultureInfo.InvariantCulture, " {0:X2}", opcode.GetExtraByte());
-					break;
-
-				default:
-					throw new NotImplementedException();
-			}
-			// TODO: Append immediates
+			AppendImmediate(str, encoding.GetFirstImmediateSize());
+			AppendImmediate(str, encoding.GetSecondImmediateSize());
 
 			return str.ToString();
+		}
+
+		private static void AppendImmediate(StringBuilder str, ImmediateSize size)
+		{
+			switch (size)
+			{
+				case ImmediateSize.Zero: break;
+				case ImmediateSize.Fixed8: str.Append(" ib"); break;
+				case ImmediateSize.Fixed16: str.Append(" iw"); break;
+				case ImmediateSize.Fixed32: str.Append(" id"); break;
+				case ImmediateSize.Fixed64: str.Append(" iq"); break;
+				case ImmediateSize.Operand16Or32: str.Append(" iwd"); break;
+				case ImmediateSize.Operand16Or32Or64: str.Append(" iwdq"); break;
+				case ImmediateSize.Address16Or32: str.Append(" rel"); break;
+				default: throw new ArgumentException(nameof(size));
+			}
 		}
 		#endregion
 	}

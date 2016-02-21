@@ -57,7 +57,7 @@ namespace Asmuth
 				if (!dictionary.items.TryGetValue(key, out values))
 				{
 					values = dictionary.valueCollectionFactory();
-					Contract.Assert(value is IReadOnlyCollection<TValue>);
+					Contract.Assert(values is IReadOnlyCollection<TValue>);
 					dictionary.items.Add(key, values);
 				}
 				values.Add(value);

@@ -107,6 +107,10 @@ namespace Asmuth.X86
 			=> (byte)Bits.MaskAndShiftRight((uint)opcode, (uint)Opcode.ExtraByte_Mask, (int)Opcode.ExtraByte_Shift);
 		#endregion
 
+		[Pure]
+		public static Opcode MakeLookupKey(OpcodeMap map, byte mainByte)
+			=> default(Opcode).WithMap(map).WithMainByte((byte)(mainByte & 0xF0));
+
 		#region With***
 		[Pure]
 		public static Opcode WithSimdPrefix(this Opcode opcode, SimdPrefix simdPrefix)

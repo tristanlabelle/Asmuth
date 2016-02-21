@@ -33,11 +33,11 @@ namespace Asmuth.X86
 		public static int InBits(this OperandSize? size) => InBytes(size) * Bits.PerByte;
 
 		[Pure]
-		public static OperandSize OverrideWordDword(this OperandSize size, bool @override)
+		public static OperandSize OverrideWordDword(this OperandSize size, bool @override = true)
 		{
 			if (size == OperandSize.Word) return @override ? OperandSize.Dword : OperandSize.Word;
 			if (size == OperandSize.Dword) return @override ? OperandSize.Word : OperandSize.Dword;
-			throw new ArgumentOutOfRangeException(nameof(size));
+			return size;
 		}
 	}
 }

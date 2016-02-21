@@ -37,7 +37,7 @@ namespace Asmuth.X86.Nasm
 		public NasmEVexTupleType EVexTupleType => evexTupleType;
 		public IReadOnlyCollection<NasmInstructionFlag> Flags => (IReadOnlyCollection<NasmInstructionFlag>)flags;
 		public bool IsAssembleOnly => flags.Contains(NasmInstructionFlag.ND);
-		public bool IsPseudo => encodingTokens.Count == 0;
+		public bool IsPseudo => encodingTokens.Count == 0 || (encodingTokens.Count == 1 && encodingTokens[0].Type == NasmEncodingTokenType.Misc_Resb);
 		#endregion
 
 		#region Methods

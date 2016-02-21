@@ -196,15 +196,12 @@ namespace Asmuth.X86
 			switch (vexEncoding & VexOpcodeEncoding.ImmediateType_Mask)
 			{
 				case VexOpcodeEncoding.ImmediateType_None:
-					encoding |= InstructionEncoding.FirstImmediateType_None;
+					encoding = encoding.WithImmediateSizes(ImmediateSize.Zero);
 					break;
 
 				case VexOpcodeEncoding.ImmediateType_Byte:
-					encoding = encoding.WithFirstImmediateType(ImmediateType.Imm8);
-					break;
-
 				case VexOpcodeEncoding.ImmediateType_Is4:
-					encoding = encoding.WithFirstImmediateType(ImmediateType.OpcodeExtension);
+					encoding = encoding.WithImmediateSizes(ImmediateSize.Fixed8);
 					break;
 
 				default: throw new ArgumentException();

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -21,9 +22,35 @@ namespace Asmuth.X86
 
 	public static class InstructionDecodingModeEnum
 	{
+		#region OperandSize
+		[Pure]
 		public static OperandSize GetDefaultOperandSize(this InstructionDecodingMode mode)
 			=> (mode <= InstructionDecodingMode.IA32_Default16) ? OperandSize.Word : OperandSize.Dword;
 
+		[Pure]
+		public static OperandSize GetEffectiveOperandSize(this InstructionDecodingMode decodingMode,
+			ImmutableLegacyPrefixList legacyPrefixes, Xex xex)
+		{
+			return GetEffectiveOperandSize(decodingMode,
+				@override: legacyPrefixes.Contains(LegacyPrefix.OperandSizeOverride),
+				rexW: xex.OperandSize64);
+		}
+
+		[Pure]
+		public static OperandSize GetEffectiveOperandSize(this InstructionDecodingMode decodingMode, bool @override, bool rexW)
+		{
+			if (rexW)
+			{
+				if (decodingMode != InstructionDecodingMode.SixtyFourBit) throw new ArgumentException();
+				return OperandSize.Qword;
+			}
+
+			return GetDefaultOperandSize(decodingMode).OverrideWordDword(@override);
+		} 
+		#endregion
+
+		#region AddressSize
+		[Pure]
 		public static AddressSize GetDefaultAddressSize(this InstructionDecodingMode mode)
 		{
 			switch (mode)
@@ -36,7 +63,13 @@ namespace Asmuth.X86
 			}
 		}
 
+		[Pure]
+		public static AddressSize GetEffectiveAddressSize(this InstructionDecodingMode mode, ImmutableLegacyPrefixList legacyPrefixes)
+			=> GetEffectiveAddressSize(mode, @override: legacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride));
+
+		[Pure]
 		public static AddressSize GetEffectiveAddressSize(this InstructionDecodingMode mode, bool @override)
-			=> GetDefaultAddressSize(mode).GetEffective(@override);
+			=> GetDefaultAddressSize(mode).GetEffective(@override); 
+		#endregion
 	}
 }
