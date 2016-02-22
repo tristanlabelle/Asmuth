@@ -60,9 +60,9 @@ namespace Asmuth.X86
 
 			// Mod = 0
 			if (addressSize == AddressSize._16)
-				return GetRM(modRM) == 5 ? 2 : 0;
+				return GetRM(modRM) == 6 ? 2 : 0;
 
-			if (GetRM(modRM) == 6) return 2;
+			if (GetRM(modRM) == 5) return 4;
 
 			// 32-bit mode, mod = 0, RM = 6 (sib byte)
 			return (sib & Sib.Base_Mask) == Sib.Base_Special ? 4 : 0;
