@@ -68,6 +68,28 @@ namespace Asmuth.X86
 				}
 			}
 		}
+
+		public bool HasOperandSizeOverride => Contains(LegacyPrefix.OperandSizeOverride);
+		public bool HasAddressSizeOverride => Contains(LegacyPrefix.AddressSizeOverride);
+
+		public SegmentRegister? SegmentOverride
+		{
+			get
+			{
+				var prefix = GetPrefixFromGroup(InstructionFields.LegacySegmentOverride);
+				if (!prefix.HasValue) return null;
+				switch (prefix.Value)
+				{
+					case LegacyPrefix.CSSegmentOverride: return SegmentRegister.CS;
+					case LegacyPrefix.DSSegmentOverride: return SegmentRegister.DS;
+					case LegacyPrefix.ESSegmentOverride: return SegmentRegister.ES;
+					case LegacyPrefix.FSSegmentOverride: return SegmentRegister.FS;
+					case LegacyPrefix.GSSegmentOverride: return SegmentRegister.GS;
+					case LegacyPrefix.SSSegmentOverride: return SegmentRegister.SS;
+					default: throw new UnreachableException();
+				}
+			}
+		}
 		#endregion
 
 		public LegacyPrefix this[int index]
@@ -82,6 +104,14 @@ namespace Asmuth.X86
 			for (int i = 0; i < Count; ++i)
 				groups |= this[i].GetFieldOrNone();
 			return groups;
+		}
+		
+		public LegacyPrefix? GetPrefixFromGroup(InstructionFields group)
+		{
+			for (int i = 0; i < Count; ++i)
+				if (this[i].GetFieldOrNone() == group)
+					return this[i];
+			return null;
 		}
 
 		public void CopyTo(LegacyPrefix[] array, int arrayIndex)
@@ -198,6 +228,9 @@ namespace Asmuth.X86
 		public int Count => list.Count;
 		public bool IsEmpty => list.IsEmpty;
 		public SimdPrefix? PotentialSimdPrefix => list.PotentialSimdPrefix;
+		public bool HasOperandSizeOverride => list.HasOperandSizeOverride;
+		public bool HasAddressSizeOverride => list.HasAddressSizeOverride;
+		public SegmentRegister? SegmentOverride => list.SegmentOverride;
 
 		public LegacyPrefix this[int index]
 		{
@@ -205,10 +238,12 @@ namespace Asmuth.X86
 			set { list = list.SetAt(index, value); }
 		}
 
+		public LegacyPrefix? GetPrefixFromGroup(InstructionFields group) => list.GetPrefixFromGroup(group);
 		public bool Contains(LegacyPrefix prefix) => list.Contains(prefix);
 		public int IndexOf(LegacyPrefix prefix) => list.IndexOf(prefix);
 		public void CopyTo(LegacyPrefix[] array, int arrayIndex) => list.CopyTo(array, arrayIndex);
 		public void Add(LegacyPrefix prefix) => list = list.Add(prefix);
+
 		public void RemoveAt(int index) => list = list.RemoveAt(index);
 		public void Clear() => list = list.Clear();
 

@@ -14,8 +14,13 @@ namespace Asmuth.X86
 		[Flags]
 		private enum Flags : byte
 		{
-			HasModRM = 1 << 0,
-			EffectiveAddressSize16 = 1 << 1, // For sib byte and size of displacement
+			DefaultAddressSize_Shift = 0,
+			DefaultAddressSize_16 = 0 << (int)DefaultAddressSize_Shift,
+			DefaultAddressSize_32 = 1 << (int)DefaultAddressSize_Shift,
+			DefaultAddressSize_64 = 2 << (int)DefaultAddressSize_Shift,
+			DefaultAddressSize_Mask = 3 << (int)DefaultAddressSize_Shift,
+
+			HasModRM = 1 << 2,
 
 			ImmediateSizeInBytes_Shift = 4,
 			ImmediateSizeInBytes_Mask = 0xF << ImmediateSizeInBytes_Shift
@@ -50,16 +55,16 @@ namespace Asmuth.X86
 			immediate = builder.Immediate; // Truncate to size
 
 			flags = 0;
+			flags |= (Flags)((int)builder.DefaultAddressSize << (int)Flags.DefaultAddressSize_Shift);
 			if (builder.ModRM.HasValue) flags |= Flags.HasModRM;
-			bool hasAddressSizeOverride = legacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride);
-			bool effectiveAddressSize16 = builder.DefaultAddressSize.GetEffective(hasAddressSizeOverride) == AddressSize._16;
-			if (effectiveAddressSize16) flags |= Flags.EffectiveAddressSize16;
 			flags |= (Flags)(builder.ImmediateSizeInBytes << (int)Flags.ImmediateSizeInBytes_Shift);
 		}
 		#endregion
 
 		#region Properties
-		public bool HasEffectiveAddressSizeOf16 => (flags & Flags.EffectiveAddressSize16) == Flags.EffectiveAddressSize16;
+		public AddressSize DefaultAddressSize => (AddressSize)Bits.MaskAndShiftRight(
+			(uint)flags, (uint)Flags.DefaultAddressSize_Mask, (int)Flags.DefaultAddressSize_Shift);
+		public AddressSize EffectiveAddressSize => DefaultAddressSize.GetEffective(legacyPrefixes.HasAddressSizeOverride);
 		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
 		public Xex Xex => xex;
 		public OpcodeMap OpcodeMap => xex.OpcodeMap;
@@ -72,8 +77,7 @@ namespace Asmuth.X86
 			get
 			{
 				if ((flags & Flags.HasModRM) == 0) return null;
-				var addressSize = HasEffectiveAddressSizeOf16 ? AddressSize._16 : AddressSize._32;
-				if (!modRM.ImpliesSib(addressSize)) return null;
+				if (!modRM.ImpliesSib(EffectiveAddressSize)) return null;
 				return sib;
 			}
 		}
@@ -83,8 +87,7 @@ namespace Asmuth.X86
 			get
 			{
 				if ((flags & Flags.HasModRM) == 0) return 0;
-				var addressSize = HasEffectiveAddressSizeOf16 ? AddressSize._16 : AddressSize._32;
-				return modRM.GetDisplacementSizeInBytes(sib, addressSize);
+				return modRM.GetDisplacementSizeInBytes(sib, EffectiveAddressSize);
 			}
 		}
 
@@ -101,7 +104,7 @@ namespace Asmuth.X86
 				if ((flags & Flags.HasModRM) != 0)
 				{
 					size++;
-					var addressSize = HasEffectiveAddressSizeOf16 ? AddressSize._16 : AddressSize._32;
+					var addressSize = EffectiveAddressSize;
 					if (modRM.ImpliesSib(addressSize)) size++;
 					size += modRM.GetDisplacementSizeInBytes(sib, addressSize);
 				}
@@ -122,7 +125,7 @@ namespace Asmuth.X86
 				if ((flags & Flags.HasModRM) != 0)
 				{
 					fields |= InstructionFields.ModRM;
-					var addressSize = HasEffectiveAddressSizeOf16 ? AddressSize._16 : AddressSize._32;
+					var addressSize = EffectiveAddressSize;
 					if (modRM.ImpliesSib(addressSize)) fields |= InstructionFields.Sib;
 					if (modRM.GetDisplacementSizeInBytes(sib, addressSize) > 0)
 						fields |= InstructionFields.Displacement;
@@ -146,6 +149,12 @@ namespace Asmuth.X86
 				.WithMap(OpcodeMap)
 				.WithMainByte(MainByte)
 				.WithExtraByte((byte)modRM);
+		}
+
+		public EffectiveAddress GetRMEffectiveAddress()
+		{
+			Contract.Requires(ModRM.HasValue);
+			return EffectiveAddress.FromEncoding(DefaultAddressSize, legacyPrefixes, modRM, sib, displacement);
 		}
 
 		public bool HasSimdPrefix(SimdPrefix prefix)

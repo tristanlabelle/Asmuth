@@ -96,7 +96,23 @@ namespace Asmuth.Disassembler
 						var opcode = instruction.GetOpcode(out explicitLegacyPrefix);
 						var instructionDefinition = instructionDictionary.Find(opcode, explicitLegacyPrefix);
 						Console.Write('\t');
-						Console.WriteLine(instructionDefinition.Mnemonic.ToLowerInvariant());
+						Console.Write(instructionDefinition.Mnemonic.ToLowerInvariant());
+
+						foreach (var operandDefinition in instructionDefinition.Operands)
+						{
+							Console.Write(' ');
+							if (operandDefinition.Field == OperandFields.BaseReg)
+							{
+								Console.Write(instruction.GetRMEffectiveAddress()
+									.ToString(OperandSize.Dword, instruction.Xex.Type == XexType.RexAndEscapes));
+							}
+							else
+							{
+								Console.Write('?');
+							}
+						}
+
+						Console.WriteLine();
 
 						if (instruction.MainByte == KnownOpcodes.RetNear || instruction.MainByte == KnownOpcodes.RetNearAndPop)
 							break;
