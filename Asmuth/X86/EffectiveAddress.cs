@@ -52,7 +52,7 @@ namespace Asmuth.X86
 			Segment_G = 5 << (int)Segment_Shift,
 			Segment_Mask = 7 << (int)Segment_Shift,
 
-			// Ignored with direct addressing
+			// Base or direct register
 			BaseReg_Shift = Segment_Shift + 3,
 			BaseReg_Rip = 0x11 << (int)BaseReg_Shift,
 			BaseReg_None = 0x12 << (int)BaseReg_Shift,
@@ -102,26 +102,26 @@ namespace Asmuth.X86
 			this.displacement = 0;
 		}
 
-		public static EffectiveAddress Direct(AddressSize size, byte register)
+		public static EffectiveAddress Direct(byte register)
 		{
 			Contract.Requires(register < 16);
-			var flags = BaseFlags(size);
+			var flags = Flags.AddressSize_Undefined;
 			flags |= (Flags)(register << (int)Flags.DirectReg_Shift);
-			return new EffectiveAddress(BaseFlags(size));
+			return new EffectiveAddress(flags);
 		}
 
-		public static EffectiveAddress Direct(AddressSize size, GprCode gprCode) => Direct(size, (byte)gprCode);
+		public static EffectiveAddress Direct(GprCode gprCode) => Direct((byte)gprCode);
 
 		public static EffectiveAddress Absolute(AddressSize size, int address)
 		{
 			Contract.Requires(size > X86.AddressSize._16 || (short)address == address);
-			return new EffectiveAddress(BaseFlags(size), address);
+			return new EffectiveAddress(BaseFlags(size) | Flags.BaseReg_None | Flags.IndexReg_None, address);
 		}
 
 		public static EffectiveAddress Absolute(AddressSize size, SegmentRegister segment, int address)
 		{
 			Contract.Requires(size > X86.AddressSize._16 || (short)address == address);
-			return new EffectiveAddress(BaseFlags(size, segment), address);
+			return new EffectiveAddress(BaseFlags(size, segment) | Flags.BaseReg_None | Flags.IndexReg_None, address);
 		}
 
 		public static EffectiveAddress Indirect(
@@ -166,7 +166,7 @@ namespace Asmuth.X86
 
 			var flags = BaseFlags(addressSize, segment.Value);
 			flags |= (Flags)((int)@base << (int)Flags.BaseReg_Shift);
-			flags |= (Flags)((int)index << (int)Flags.IndexReg_Shift);
+			flags |= (Flags)((int)(index ?? GprCode.Esp) << (int)Flags.IndexReg_Shift);
 			if (scale == 2) flags |= Flags.Scale_2x;
 			else if (scale == 4) flags |= Flags.Scale_4x;
 			else if (scale == 8) flags |= Flags.Scale_8x;
@@ -218,11 +218,12 @@ namespace Asmuth.X86
 
 		public static EffectiveAddress FromEncoding(
 			AddressSize defaultAddressSize, bool addressSizeOverride,
-			SegmentRegister? segment, ModRM modRM, Sib sib, int displacement)
+			SegmentRegister? segment, ModRM modRM, Sib? sib = null, int displacement = 0)
 		{
-			var addressSize = defaultAddressSize.GetEffective(addressSizeOverride);
 			if ((modRM & ModRM.Mod_Mask) == ModRM.Mod_Direct)
-				return Direct(addressSize, modRM.GetRM());
+				return Direct(modRM.GetRM());
+
+			var addressSize = defaultAddressSize.GetEffective(addressSizeOverride);
 
 			// Mod in { 0, 1, 2 }
 			if (addressSize == X86.AddressSize._16)
@@ -251,25 +252,33 @@ namespace Asmuth.X86
 				Contract.Assert(displacementSize != 1 || unchecked((sbyte)displacement) == displacement);
 
 				var baseReg = (GprCode)modRM.GetRM();
-				if (baseReg == GprCode.Esp)
+				if (baseReg != GprCode.Esp)
 					return Indirect(addressSize, segment, baseReg, displacement);
 
 				// Sib byte
+				if (!sib.HasValue) throw new ArgumentException();
 				throw new NotImplementedException();
 			}
 		}
 
 		public static EffectiveAddress FromEncoding(
 			AddressSize defaultAddressSize, ImmutableLegacyPrefixList legacyPrefixes,
-			ModRM modRM, Sib sib, int displacement)
+			ModRM modRM, Sib? sib = null, int displacement = 0)
 		{
 			return FromEncoding(defaultAddressSize, legacyPrefixes.HasAddressSizeOverride,
 				legacyPrefixes.SegmentOverride, modRM, sib, displacement);
 		}
 
 		public static EffectiveAddress FromEncoding(
+			AddressSize defaultAddressSize, ModRM modRM, Sib? sib = null, int displacement = 0)
+		{
+			return FromEncoding(defaultAddressSize, ImmutableLegacyPrefixList.Empty,
+				modRM, sib, displacement);
+		}
+
+		public static EffectiveAddress FromEncoding(
 			InstructionDecodingMode decodingMode, bool addressSizeOverride,
-			SegmentRegister? segment, ModRM modRM, Sib sib, int displacement)
+			SegmentRegister? segment, ModRM modRM, Sib? sib = null, int displacement = 0)
 		{
 			return FromEncoding(decodingMode.GetDefaultAddressSize(), addressSizeOverride,
 				segment, modRM, sib, displacement);
@@ -277,22 +286,31 @@ namespace Asmuth.X86
 
 		public static EffectiveAddress FromEncoding(
 			InstructionDecodingMode decodingMode, ImmutableLegacyPrefixList legacyPrefixes,
-			ModRM modRM, Sib sib, int displacement)
+			ModRM modRM, Sib? sib = null, int displacement = 0)
 		{
 			return FromEncoding(decodingMode, legacyPrefixes.HasAddressSizeOverride,
 				legacyPrefixes.SegmentOverride, modRM, sib, displacement);
+		}
+
+		public static EffectiveAddress FromEncoding(
+			InstructionDecodingMode decodingMode, ModRM modRM, Sib? sib = null, int displacement = 0)
+		{
+			return FromEncoding(decodingMode, modRM, sib, displacement);
 		}
 		#endregion
 
 		#region Properties
 		public bool IsDirect => (flags & Flags.AddressSize_Mask) == Flags.AddressSize_Undefined;
-		public bool IsIndirect => (flags & Flags.AddressSize_Mask) != Flags.AddressSize_Undefined;
+		public bool IsInMemory => !IsDirect;
+		public bool IsAbsolute => IsInMemory
+			&& (flags & Flags.BaseReg_Mask) == Flags.BaseReg_None
+			&& (flags & Flags.IndexReg_Mask) == Flags.IndexReg_None;
 
 		public byte? DirectReg
 		{
 			get
 			{
-				if (IsDirect) return null;
+				if (!IsDirect) return null;
 				return (byte)GetFlagsField(Flags.DirectReg_Mask, Flags.DirectReg_Shift);
 			}
 		}
@@ -304,7 +322,9 @@ namespace Asmuth.X86
 			get
 			{
 				if (IsDirect) return null;
-				return (AddressSize)GetFlagsField(Flags.AddressSize_Mask, Flags.AddressSize_Shift);
+				var field = GetFlagsField(Flags.AddressSize_Mask, Flags.AddressSize_Shift);
+				// Shift since 0 = undefined
+				return (AddressSize)(field - 1);
 			}
 		}
 
@@ -347,13 +367,22 @@ namespace Asmuth.X86
 			}
 		}
 
-		public Gpr? Index
+		public GprCode? Index
 		{
 			get
 			{
 				if (IsDirect || (flags & Flags.IndexReg_Mask) == Flags.IndexReg_None) return null;
-				var code = (GprCode)GetFlagsField(Flags.IndexReg_Mask, Flags.IndexReg_None);
-				return Gpr.FromCode(code, AddressSize.Value.ToOperandSize(), hasRex: false); // hasRex irrelevant for operand size >= word
+				return (GprCode)GetFlagsField(Flags.IndexReg_Mask, Flags.IndexReg_Shift);
+			}
+		}
+
+		public Gpr? IndexAsGpr
+		{
+			get
+			{
+				var code = Index;
+				if (code == null) return null;
+				return Gpr.FromCode(code.Value, AddressSize.Value.ToOperandSize(), hasRex: false); // hasRex irrelevant for operand size >= word
 			}
 		}
 
@@ -361,7 +390,7 @@ namespace Asmuth.X86
 		{
 			get
 			{
-				if (IsDirect || (flags & Flags.IndexReg_Mask) == Flags.IndexReg_None) return 0;
+				if ((flags & Flags.IndexReg_Mask) == Flags.IndexReg_None) return 0;
 				return 1 << GetFlagsField(Flags.Scale_Mask, Flags.Scale_Shift);
 			}
 		}
@@ -420,11 +449,11 @@ namespace Asmuth.X86
 					firstTerm = false;
 				}
 
-				var index = Index;
+				var index = IndexAsGpr;
 				if (index.HasValue)
 				{
 					if (!firstTerm) str.Append('+');
-					str.Append(Index.Value.Name);
+					str.Append(IndexAsGpr.Value.Name);
 					if (Scale > 1)
 					{
 						str.Append('*');
