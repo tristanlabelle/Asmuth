@@ -14,8 +14,11 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Direct()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(
-				AddressSize._32, ModRMEnum.FromComponents(mod: 3, reg: 0, rm: (byte)GprCode.DX));
+			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+			{
+				ModRM = ModRMEnum.FromComponents(mod: 3, reg: 0, rm: GprCode.DX)
+			});
+
 			Assert.IsTrue(effectiveAddress.IsDirect);
 			Assert.IsFalse(effectiveAddress.AddressSize.HasValue);
 			Assert.AreEqual(GprCode.DX, effectiveAddress.DirectGpr);
@@ -26,8 +29,11 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Indirect()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(
-				AddressSize._32, ModRMEnum.FromComponents(mod: 0, reg: 0, rm: (byte)GprCode.DX));
+			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+			{
+				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: GprCode.DX)
+			});
+			
 			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
 			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
@@ -38,8 +44,11 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Indirect16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(
-				AddressSize._16, ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 7));
+			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._16, new EffectiveAddress.Encoding
+			{
+				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 7)
+			});
+			
 			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
 			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
@@ -50,8 +59,11 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Indexed16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(
-				AddressSize._16, ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 0));
+			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._16, new EffectiveAddress.Encoding
+			{
+				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: (byte)0)
+			});
+
 			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
 			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
@@ -62,9 +74,12 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Absolute16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(
-				AddressSize._16, ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 6),
-				sib: null, displacement: short.MaxValue);
+			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._16, new EffectiveAddress.Encoding
+			{
+				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 6),
+				Displacement = short.MaxValue
+			});
+			
 			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
 			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
@@ -76,9 +91,12 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Absolute32()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(
-				AddressSize._32, ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 5),
-				sib: null, displacement: int.MaxValue);
+			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+			{
+				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 5),
+				Displacement = int.MaxValue
+			});
+			
 			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
 			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
@@ -90,9 +108,12 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_IndirectWithDisplacement8()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(
-				AddressSize._32, ModRMEnum.FromComponents(mod: 1, reg: 0, rm: (byte)GprCode.DX),
-				sib: null, displacement: sbyte.MaxValue);
+			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+			{
+				ModRM = ModRMEnum.FromComponents(mod: 1, reg: 0, rm: GprCode.D),
+				Displacement = sbyte.MaxValue
+			});
+			
 			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
 			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
@@ -104,9 +125,12 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_IndirectWithDisplacement16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(
-				AddressSize._16, ModRMEnum.FromComponents(mod: 2, reg: 0, rm: 7),
-				sib: null, displacement: short.MaxValue);
+			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._16, new EffectiveAddress.Encoding
+			{
+				ModRM = ModRMEnum.FromComponents(mod: 2, reg: 0, rm: 7),
+				Displacement = short.MaxValue
+			});
+			
 			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
 			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
@@ -118,9 +142,12 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_IndirectWithDisplacement32()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(
-				AddressSize._32, ModRMEnum.FromComponents(mod: 2, reg: 0, rm: (byte)GprCode.DX),
-				sib: null, displacement: int.MaxValue);
+			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+			{
+				ModRM = ModRMEnum.FromComponents(mod: 2, reg: 0, rm: GprCode.D),
+				Displacement = int.MaxValue
+			});
+			
 			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
 			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);

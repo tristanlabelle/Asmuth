@@ -47,8 +47,23 @@ namespace Asmuth.X86
 			=> (byte)((uint)(sib & Sib.Base_Mask) << (int)Sib.Base_Shift);
 
 		[Pure]
+		public static GprCode? GetBaseReg(this Sib sib, ModRM modRM)
+		{
+			if ((sib & Sib.Base_Mask) == Sib.Base_Special && modRM.GetMod() == 0)
+				return null;
+			return (GprCode)GetBase(sib);
+		}
+
+		[Pure]
 		public static byte GetIndex(this Sib sib)
 			=> (byte)((uint)(sib & Sib.Index_Mask) << (int)Sib.Index_Shift);
+
+		[Pure]
+		public static GprCode? GetIndexReg(this Sib sib)
+		{
+			if ((sib & Sib.Index_Mask) == Sib.Index_Zero) return null;
+			return (GprCode)GetIndex(sib);
+		}
 
 		[Pure]
 		public static byte GetScaleCode(this Sib sib)

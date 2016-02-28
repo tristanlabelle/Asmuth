@@ -154,7 +154,8 @@ namespace Asmuth.X86
 		public EffectiveAddress GetRMEffectiveAddress()
 		{
 			Contract.Requires(ModRM.HasValue);
-			return EffectiveAddress.FromEncoding(DefaultAddressSize, legacyPrefixes, modRM, sib, displacement);
+			var encoding = new EffectiveAddress.Encoding(legacyPrefixes, xex, modRM, Sib, displacement);
+			return EffectiveAddress.FromEncoding(DefaultAddressSize, encoding);
 		}
 
 		public bool HasSimdPrefix(SimdPrefix prefix)

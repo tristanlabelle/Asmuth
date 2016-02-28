@@ -11,6 +11,8 @@ namespace Asmuth.X86
 {
 	public enum GprCode : byte
 	{
+		A = 0, C, D, B,
+
 		AL = 0, CL, DL, BL, SplOrAH, BplOrCH, SilOrDH, DilOrBH,
 		R8b, R9b, R10b, R11b, R12b, R13b, R14b, R15b,
 

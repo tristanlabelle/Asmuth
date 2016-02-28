@@ -35,12 +35,20 @@ namespace Asmuth.X86
 		}
 
 		[Pure]
+		public static ModRM FromComponents(byte mod, GprCode reg, GprCode rm)
+			=> FromComponents(mod, (byte)reg, (byte)rm);
+
+		[Pure]
 		public static byte GetRM(this ModRM modRM)
 			=> (byte)((byte)(modRM & ModRM.RM_Mask) >> (byte)ModRM.RM_Shift);
 
 		[Pure]
 		public static byte GetReg(this ModRM modRM)
 			=> (byte)((byte)(modRM & ModRM.Reg_Mask) >> (byte)ModRM.Reg_Shift);
+
+		[Pure]
+		public static GprCode GetRegGpr(this ModRM modRM)
+			=> (GprCode)GetReg(modRM);
 
 		[Pure]
 		public static byte GetMod(this ModRM modRM)
