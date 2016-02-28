@@ -359,7 +359,12 @@ namespace Asmuth.X86.Nasm
 			#region ConvertOperands
 			private void ConvertOperands(NasmInsnsEntry entry, ICollection<OperandDefinition> operands)
 			{
-				// TODO: Convert operands
+				foreach (var nasmOperand in entry.Operands)
+				{
+					// TODO: Convert operand encoding
+					var operand = new OperandDefinition(nasmOperand.Field, default(OperandEncoding), AccessType.ReadWrite);
+					operands.Add(operand);
+				}
 			}
 			#endregion
 		}
