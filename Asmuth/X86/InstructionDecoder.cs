@@ -198,11 +198,13 @@ namespace Asmuth.X86
 
 				case InstructionDecodingState.ExpectDisplacement:
 				{
-					accumulator = (uint)@byte << (substate * 8);
+					accumulator |= (uint)@byte << (substate * 8);
 					substate++;
 					var displacementSize = builder.ModRM.Value.GetDisplacementSizeInBytes(
 						builder.Sib.GetValueOrDefault(), GetEffectiveAddressSize());
 					if (substate < displacementSize) return true; // More bytes to come
+
+					fields |= InstructionFields.Displacement;
 
 					// Sign-extend
 					if (displacementSize == 1)
@@ -222,6 +224,7 @@ namespace Asmuth.X86
 					if (substate < builder.ImmediateSizeInBytes)
 						return true; // More bytes to come
 
+					fields |= InstructionFields.Immediate1;
 					return AdvanceTo(InstructionDecodingState.Completed);
 				}
 
@@ -268,7 +271,7 @@ namespace Asmuth.X86
 		private AddressSize GetEffectiveAddressSize()
 		{
 			Contract.Requires(state > InstructionDecodingState.ExpectPrefixOrOpcode);
-			return mode.GetEffectiveAddressSize(@override: builder.LegacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride));
+			return mode.GetEffectiveAddressSize(@override: builder.LegacyPrefixes.HasAddressSizeOverride);
 		}
 
 		private int GetDisplacementSizeInBytes()

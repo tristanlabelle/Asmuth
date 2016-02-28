@@ -43,6 +43,10 @@ namespace Asmuth.X86
 	public static class SibEnum
 	{
 		[Pure]
+		public static string ToDebugString(this Sib sib)
+			=> $"ss = {GetSS(sib)}, index = {GetIndex(sib)}, base = {GetBase(sib)}";
+
+		[Pure]
 		public static byte GetBase(this Sib sib)
 			=> (byte)((uint)(sib & Sib.Base_Mask) << (int)Sib.Base_Shift);
 
@@ -66,11 +70,11 @@ namespace Asmuth.X86
 		}
 
 		[Pure]
-		public static byte GetScaleCode(this Sib sib)
+		public static byte GetSS(this Sib sib)
 			=> (byte)((uint)(sib & Sib.Scale_Mask) << (int)Sib.Scale_Shift);
 
 		[Pure]
-		public static byte GetScaleValue(this Sib sib)
-			=> (byte)(1 << GetScaleCode(sib));
+		public static byte GetScale(this Sib sib)
+			=> (byte)(1 << GetSS(sib));
 	}
 }

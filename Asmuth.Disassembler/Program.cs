@@ -98,18 +98,35 @@ namespace Asmuth.Disassembler
 						Console.Write('\t');
 						Console.Write(instructionDefinition.Mnemonic.ToLowerInvariant());
 
+						bool firstOperand = true;
 						foreach (var operandDefinition in instructionDefinition.Operands)
 						{
-							Console.Write(' ');
+							Console.Write(firstOperand ? " " : ", ");
 							if (operandDefinition.Field == OperandFields.BaseReg)
 							{
 								Console.Write(instruction.GetRMEffectiveAddress()
-									.ToString(OperandSize.Dword, instruction.Xex.Type == XexType.RexAndEscapes));
+									.ToString(OperandSize.Dword, instruction.Xex.Type == XexType.RexAndEscapes)
+									.ToLowerInvariant());
+							}
+							else if (operandDefinition.Field == OperandFields.ModReg)
+							{
+								var reg = instruction.ModRM?.GetReg() ?? (instruction.MainByte & 0x7);
+								if (instruction.Xex.ModRegExtension) reg |= 0x8;
+								Console.Write(new Gpr(reg, GprPart.Dword).Name.ToLowerInvariant());
+							}
+							else if (operandDefinition.Field == OperandFields.Immediate)
+							{
+								if (instruction.Immediate <= (byte)sbyte.MaxValue)
+									Console.Write(instruction.Immediate);
+								else
+									Console.Write("0x{0:X}", instruction.Immediate);
 							}
 							else
 							{
 								Console.Write('?');
 							}
+
+							firstOperand = false;
 						}
 
 						Console.WriteLine();

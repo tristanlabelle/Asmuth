@@ -307,10 +307,10 @@ namespace Asmuth.X86
 						: Absolute(addressSize, encoding.Displacement);
 				}
 
-				int displacementSize = encoding.ModRM.GetMod();
-				if (displacementSize == 2) displacementSize = 4;
+				int displacementSize = encoding.ModRM.GetDisplacementSizeInBytes(encoding.Sib.GetValueOrDefault(), addressSize);
 				Contract.Assert(displacementSize != 0 || encoding.Displacement == 0);
 				Contract.Assert(displacementSize != 1 || unchecked((sbyte)encoding.Displacement) == encoding.Displacement);
+				Contract.Assert(displacementSize != 2);
 
 				GprCode? baseReg = (GprCode)encoding.ModRM.GetRM();
 				if (baseReg != GprCode.Esp)
@@ -321,7 +321,7 @@ namespace Asmuth.X86
 
 				baseReg = encoding.Sib.Value.GetBaseReg(encoding.ModRM);
 				var index = encoding.Sib.Value.GetIndexReg();
-				int scale = encoding.Sib.Value.GetScaleValue();
+				int scale = encoding.Sib.Value.GetScale();
 				return Indirect(addressSize, encoding.Segment, baseReg, index, (byte)scale, encoding.Displacement);
 			}
 		}
@@ -369,12 +369,16 @@ namespace Asmuth.X86
 			}
 		}
 
-		public bool IsDefaultSegment
+		public SegmentRegister? SegmentOverride
 		{
 			get
 			{
-				var @base = Base;
-				return @base != AddressBaseRegister.BP && @base != AddressBaseRegister.SP;
+				if (IsDirect) return null;
+				var segment = (SegmentRegister)GetFlagsField(Flags.Segment_Mask, Flags.Segment_Shift);
+				var @base = (AddressBaseRegister)GetFlagsField(Flags.BaseReg_Mask, Flags.BaseReg_Shift);
+				bool isDefault = (@base == AddressBaseRegister.SP || @base == AddressBaseRegister.BP)
+					? (segment == SegmentRegister.SS) : (segment == SegmentRegister.DS);
+				return isDefault ? (SegmentRegister?)null : segment;
 			}
 		}
 
@@ -503,9 +507,10 @@ namespace Asmuth.X86
 			}
 			else
 			{
-				if (!IsDefaultSegment)
+				var segmentOverride = SegmentOverride;
+				if (segmentOverride.HasValue)
 				{
-					str.Append(Segment.Value);
+					str.Append(segmentOverride.Value);
 					str.Append(":");
 				}
 
@@ -536,7 +541,7 @@ namespace Asmuth.X86
 				if (displacement != 0 || firstTerm)
 				{
 					if (displacement >= 0 && !firstTerm) str.Append('+');
-					str.AppendFormat(CultureInfo.InvariantCulture, "D", Displacement);
+					str.AppendFormat(CultureInfo.InvariantCulture, "{0:D}", Displacement);
 				}
 
 				str.Append(']');

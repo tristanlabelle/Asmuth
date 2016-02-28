@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
@@ -11,12 +12,29 @@ namespace Asmuth.X86
 	public enum ModRM : byte
 	{
 		RM_Shift = 0,
+		RM_0 = 0 << RM_Shift,
+		RM_1 = 1 << RM_Shift,
+		RM_2 = 2 << RM_Shift,
+		RM_3 = 3 << RM_Shift,
+		RM_4 = 4 << RM_Shift,
+		RM_5 = 5 << RM_Shift,
+		RM_6 = 6 << RM_Shift,
+		RM_7 = 7 << RM_Shift,
 		RM_Mask = 7 << RM_Shift,
 
 		Reg_Shift = 3,
+		Reg_0 = 0 << Reg_Shift,
+		Reg_1 = 1 << Reg_Shift,
+		Reg_2 = 2 << Reg_Shift,
+		Reg_3 = 3 << Reg_Shift,
+		Reg_4 = 4 << Reg_Shift,
+		Reg_5 = 5 << Reg_Shift,
+		Reg_6 = 6 << Reg_Shift,
+		Reg_7 = 7 << Reg_Shift,
 		Reg_Mask = 7 << Reg_Shift,
 
 		Mod_Shift = 6,
+		Mod_Indirect = 0 << Mod_Shift,
 		Mod_IndirectByteDisplacement = 1 << Mod_Shift,
 		Mod_IndirectLongDisplacement = 2 << Mod_Shift,
 		Mod_Direct = 3 << Mod_Shift,
@@ -25,6 +43,10 @@ namespace Asmuth.X86
 
 	public static class ModRMEnum
 	{
+		[Pure]
+		public static string ToDebugString(this ModRM modRM)
+			=> $"mod = {GetMod(modRM)}, reg = {GetReg(modRM)}, rm = {GetRM(modRM)}";
+
 		[Pure]
 		public static ModRM FromComponents(byte mod, byte reg, byte rm)
 		{

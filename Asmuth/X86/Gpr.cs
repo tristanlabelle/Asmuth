@@ -115,6 +115,8 @@ namespace Asmuth.X86
 			value = unchecked((byte)(index | ((int)part << 4)));
 		}
 
+		public Gpr(GprCode code, GprPart part) : this((int)code, part) { }
+
 		public int Index => value & 0xF;
 		public GprPart Part => (GprPart)(value >> 4);
 		public OperandSize Size => Part.GetSize();
@@ -162,6 +164,9 @@ namespace Asmuth.X86
 		public static bool Equals(Gpr first, Gpr second) => first.Equals(second);
 		public static bool operator ==(Gpr lhs, Gpr rhs) => Equals(lhs, rhs);
 		public static bool operator !=(Gpr lhs, Gpr rhs) => Equals(lhs, rhs);
+
+		public static string GetName(GprCode code, GprPart part)
+			=> new Gpr(code, part).Name;
 
 		public static Gpr FromCode(GprCode code, OperandSize size, bool hasRex)
 		{
