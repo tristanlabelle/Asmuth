@@ -24,6 +24,7 @@ namespace Asmuth.Debugger
 	using LPTHREAD_START_ROUTINE = IntPtr;
 	using PVOID = IntPtr;
 	using SIZE_T = UIntPtr;
+	using UINT = UInt32;
 	using ULONG_PTR = UIntPtr;
 	using WORD = UInt16;
 
@@ -422,8 +423,22 @@ namespace Asmuth.Debugger
 		public static extern BOOL ReadProcessMemory(HANDLE hProcess, LPCVOID lpBaseAddress, LPVOID lpBuffer, SIZE_T nSize, out SIZE_T lpNumberOfBytesRead);
 
 		[DllImport(DllName, SetLastError = true)]
+		public static extern DWORD ResumeThread(HANDLE hThread);
+
+		[DllImport(DllName, SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
 		public static extern BOOL SetThreadContext(HANDLE hThread, LPCONTEXT lpContext);
+
+		[DllImport(DllName, SetLastError = true)]
+		public static extern DWORD SuspendThread(HANDLE hThread);
+
+		[DllImport(DllName, SetLastError = true)]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		public static extern BOOL TerminateProcess(HANDLE hProcess, UINT uExitCode);
+
+		[DllImport(DllName, SetLastError = true)]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		public static extern BOOL TerminateThread(HANDLE hThread, DWORD dwExitCode);
 
 		[DllImport(DllName, SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]

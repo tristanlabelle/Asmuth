@@ -9,10 +9,7 @@ namespace Asmuth.Debugger
 {
 	public class DebugEventArgs : EventArgs
 	{
-		/// <summary>
-		/// If set to <c>true</c>, the process' execution will remain paused after this event is handled.
-		/// </summary>
-		public bool Break { get; set; }
+		public DebugEventResponse Response { get; set; }
 	}
 
 	public sealed class DebugStringOutputEventArgs : DebugEventArgs

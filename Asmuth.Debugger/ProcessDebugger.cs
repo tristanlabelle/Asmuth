@@ -14,21 +14,39 @@ namespace Asmuth.Debugger
 	using static NativeMethods;
 	using static Kernel32;
 
-	public sealed class ProcessDebugger
+	public sealed partial class ProcessDebugger
 	{
-		private readonly Debugger debugger;
-		private readonly CREATE_PROCESS_DEBUG_INFO debugInfo;
+		private readonly bool initialBreak;
+		private readonly EventListener eventListener;
+		private readonly TaskCompletionSource<ProcessDebugger> attachTaskCompletionSource
+			= new TaskCompletionSource<ProcessDebugger>();
+		private IProcessDebuggerService processDebuggerService;
+
 		private readonly ConcurrentDictionary<int, ThreadDebugger> threadsByID = new ConcurrentDictionary<int, ThreadDebugger>();
 		private readonly ConcurrentDictionary<ulong, ProcessModule> modulesByBaseAddress = new ConcurrentDictionary<ulong, ProcessModule>();
 		private readonly Synchronized<TaskCompletionSource<ThreadDebugger>> synchronizedBreakTaskCompletionSource
 			= new Synchronized<TaskCompletionSource<ThreadDebugger>>();
 
 		// Called on worker thread
-		internal ProcessDebugger(Debugger debugger, CREATE_PROCESS_DEBUG_INFO debugInfo)
+		private ProcessDebugger(bool initialBreak)
 		{
-			Contract.Requires(debugger != null);
-			this.debugger = debugger;
-			this.debugInfo = debugInfo;
+			this.initialBreak = initialBreak;
+			this.eventListener = new EventListener(this);
+		}
+
+		private ProcessDebugger(IProcessDebuggerService service)
+		{
+			Contract.Requires(service != null);
+			this.eventListener = new EventListener(this);
+			this.processDebuggerService = service;
+		}
+
+		public static Task<ProcessDebugger> AttachAsync(int id, bool initialBreak = true)
+		{
+			var debuggerService = new Win32DebuggerService();
+			var process = new ProcessDebugger(initialBreak);
+			debuggerService.AttachToProcess(id, process.eventListener);
+			return process.attachTaskCompletionSource.Task;
 		}
 
 		// Called back from worker thread
@@ -39,13 +57,15 @@ namespace Asmuth.Debugger
 		public event EventHandler<ExceptionDebugEventArgs> ExceptionRaised;
 		public event EventHandler<DebugStringOutputEventArgs> StringOutputted;
 
-		internal IntPtr Handle => debugInfo.hProcess;
+		private CREATE_PROCESS_DEBUG_INFO DebugInfo => processDebuggerService.ProcessDebugInfo;
+		private IntPtr Handle => DebugInfo.hProcess;
 
 		public string ImagePath
 		{
 			get
 			{
-				if (debugInfo.hFile != IntPtr.Zero) return GetFinalPathNameByHandle(debugInfo.hFile, 0);
+				var hFile = DebugInfo.hFile;
+				if (hFile != IntPtr.Zero) return GetFinalPathNameByHandle(hFile, 0);
 				// Fallback to GetProcessImageFileName
 				throw new NotImplementedException();
 			}
@@ -70,11 +90,7 @@ namespace Asmuth.Debugger
 				if (synchronizedBreakTaskCompletionSource.Value == null)
 				{
 					synchronizedBreakTaskCompletionSource.Value = new TaskCompletionSource<ThreadDebugger>();
-					debugger.EnqueueWorkerThreadRequest(() =>
-					{
-						if (!DebugBreakProcess(Handle))
-							TryCompleteBreakTask(null, GetLastWin32Exception());
-					});
+					processDebuggerService.RequestBreak();
 				}
 
 				return synchronizedBreakTaskCompletionSource.Value.Task;
@@ -110,101 +126,25 @@ namespace Asmuth.Debugger
 		// May be called on either thread
 		internal void Dispose()
 		{
-			CloseHandle(debugInfo.hFile);
-			CloseHandle(debugInfo.hProcess);
-			CloseHandle(debugInfo.hThread);
+			processDebuggerService.Dispose();
 		}
 
 		// Called on worker thread
-		private void RaiseEvent<TArgs>(EventHandler<TArgs> handler, TArgs args, out bool @break)
+		private DebugEventResponse RaiseEvent<TArgs>(EventHandler<TArgs> handler, TArgs args)
 			where TArgs : DebugEventArgs
 		{
 			if (handler == null)
 			{
-				@break = false;
+				return DebugEventResponse.ContinueUnhandled;
 			}
 			else
 			{
 				handler(this, args);
-				@break = args.Break;
+				return args.Response;
 			}
 		}
 
-		#region Callbacks from worker thread
-		internal void OnThreadCreated(int id, CREATE_THREAD_DEBUG_INFO debugInfo, out bool @break)
-		{
-			var thread = new ThreadDebugger(this, debugInfo);
-			threadsByID.TryAdd(id, thread);
-			RaiseEvent(ThreadCreated, new ThreadDebugEventArgs(thread), out @break);
-		}
-
-		internal void OnThreadExited(uint id, uint exitCode, out bool @break)
-		{
-			var thread = FindThread(unchecked((int)id));
-			thread.OnExited(exitCode);
-			RaiseEvent(ThreadExited, new ThreadDebugEventArgs(thread), out @break);
-		}
-		
-		internal void OnModuleLoaded(LOAD_DLL_DEBUG_INFO debugInfo, out bool @break)
-		{
-			var module = new ProcessModule(debugInfo);
-			modulesByBaseAddress.TryAdd(module.BaseAddress, module);
-			RaiseEvent(ModuleLoaded, new ModuleDebugEventArgs(module), out @break);
-		}
-		
-		internal void OnModuleUnloaded(ulong baseAddress, out bool @break)
-		{
-			ProcessModule module;
-			if (modulesByBaseAddress.TryRemove(baseAddress, out module))
-			{
-				RaiseEvent(ModuleUnloaded, new ModuleDebugEventArgs(module), out @break);
-			}
-			else
-			{
-				Contract.Assert(false, "Mismatched unload dll message.");
-				@break = false;
-			}
-		}
-		
-		internal void OnException(uint id, ExceptionRecord record, out bool @break)
-		{
-			var thread = FindThread(unchecked((int)id));
-			if (thread == null)
-			{
-				Contract.Assert(false, "Received exception from unknown thread.");
-				@break = false;
-				return;
-			}
-
-			thread.OnBroken();
-			
-			if (record.Code == EXCEPTION_BREAKPOINT && TryCompleteBreakTask(thread))
-			{
-				@break = true;
-			}
-			else
-			{
-				var eventArgs = new ExceptionDebugEventArgs(thread, record);
-				RaiseEvent(ExceptionRaised, eventArgs, out @break);
-			}
-
-			if (@break) thread.OnContinued();
-		}
-		
-		internal void OnOutputString(string str, out bool @break)
-		{
-			var handler = StringOutputted;
-			if (handler == null)
-			{
-				@break = false;
-			}
-			else
-			{
-				RaiseEvent(handler, new DebugStringOutputEventArgs(str), out @break);
-			}
-		}
-		#endregion
-
+		// Called on worker thread
 		private bool TryCompleteBreakTask(ThreadDebugger thread, Exception exception = null)
 		{
 			TaskCompletionSource<ThreadDebugger> breakTaskCompletionSource = null;

@@ -20,10 +20,8 @@ namespace Asmuth.Debugger
 
 		private static async Task Run()
 		{
-			var debugger = new Debugger();
-
 			var notepadProcess = Process.Start(@"C:\Windows\SysWow64\notepad.exe");
-			var notepadDebugger = await debugger.AttachToProcessAsync(notepadProcess, @break: false);
+			var notepadDebugger = await ProcessDebugger.AttachAsync(notepadProcess.Id, initialBreak: false);
 			var brokenThread = await notepadDebugger.BreakAsync();
 
 			var context = brokenThread.GetContext(CONTEXT_FULL);

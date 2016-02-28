@@ -68,7 +68,7 @@ namespace Asmuth.Debugger
 			isRunning = true;
 		}
 
-		internal void OnExited(uint exitCode)
+		internal void OnExited(int exitCode)
 		{
 			isRunning = false;
 			this.exitCode = (object)exitCode;
