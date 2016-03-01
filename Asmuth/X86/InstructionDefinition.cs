@@ -47,10 +47,8 @@ namespace Asmuth.X86
 		#region Methods
 		public bool IsMatch(Opcode opcode)
 		{
-			// The caller cannot distinguish between legacy and SIMD prefixes
 			Opcode fixedMask = Encoding.GetOpcodeFixedMask();
-			return (opcode & fixedMask) == (this.Opcode & fixedMask)
-				|| (opcode.WithSimdPrefix(SimdPrefix.None) & fixedMask) == (this.Opcode & fixedMask);
+			return (opcode & fixedMask) == (this.Opcode & fixedMask);
 		}
 
 		public string GetEncodingString() => GetEncodingString(Opcode, Encoding);

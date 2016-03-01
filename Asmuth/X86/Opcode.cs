@@ -22,7 +22,7 @@ namespace Asmuth.X86
 		XexType_EVex = 3 << (int)XexType_Shift,
 		XexType_Mask = 3 << (int)XexType_Shift,
 
-		// SIMD Prefix
+		// SIMD Prefix (should be 'none' with the default opcode map)
 		SimdPrefix_Shift = 2,
 		SimdPrefix_None = 0 << (int)SimdPrefix_Shift,
 		SimdPrefix_66 = 1 << (int)SimdPrefix_Shift,
@@ -75,8 +75,8 @@ namespace Asmuth.X86
 
 		// When doing lookups, we can only consider parts of the opcode
 		// that unambiguously identify an operation.
-		// We have to ignore: simd prefixes, primary nibble, xex flags, extra bytes
-		LookupKey_Mask = Map_Mask | MainByte_High4Mask,
+		// We have to ignore: primary nibble, xex flags, extra bytes
+		LookupKey_Mask = SimdPrefix_Mask | Map_Mask | MainByte_High4Mask,
 	}
 
 	public enum SimdPrefix : byte
@@ -108,8 +108,14 @@ namespace Asmuth.X86
 		#endregion
 
 		[Pure]
-		public static Opcode MakeLookupKey(OpcodeMap map, byte mainByte)
-			=> default(Opcode).WithMap(map).WithMainByte((byte)(mainByte & 0xF0));
+		public static Opcode MakeLookupKey(SimdPrefix simdPrefix, OpcodeMap map, byte mainByte)
+		{
+			Contract.Requires(simdPrefix == SimdPrefix.None || map != OpcodeMap.Default);
+			return default(Opcode)
+				.WithSimdPrefix(simdPrefix)
+				.WithMap(map)
+				.WithMainByte(mainByte) & Opcode.LookupKey_Mask;
+		}
 
 		#region With***
 		[Pure]

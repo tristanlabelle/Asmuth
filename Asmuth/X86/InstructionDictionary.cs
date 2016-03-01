@@ -21,13 +21,13 @@ namespace Asmuth.X86
 			byOpcodeKey.Add(instruction.Opcode & Opcode.LookupKey_Mask, instruction);
 		}
 
-		public InstructionDefinition Find(Opcode opcode, bool explicitSimdPrefix)
+		public InstructionDefinition Find(Opcode opcode)
 		{
 			var key = opcode & Opcode.LookupKey_Mask;
 			foreach (var candidate in byOpcodeKey[key])
 				if (candidate.IsMatch(opcode))
 					return candidate;
-			return explicitSimdPrefix ? null : Find(opcode.WithSimdPrefix(SimdPrefix.None), explicitSimdPrefix: true);
+			return null;
 		}
 
 		private static int GetOperandSizeMatchLevel(InstructionEncoding encoding, OperandSize size)
@@ -56,17 +56,10 @@ namespace Asmuth.X86
 			InstructionDefinition bestMatch = null;
 			int bestOperandSizeMatchLevel = -1;
 
-			var lookupKey = OpcodeEnum.MakeLookupKey(xex.OpcodeMap, opcode);
+			var lookupKey = OpcodeEnum.MakeLookupKey(legacyPrefixes.GetSimdPrefix(xex.OpcodeMap), xex.OpcodeMap, opcode);
 			foreach (var instruction in byOpcodeKey[lookupKey])
 			{
 				var encoding = instruction.Encoding;
-
-				// Ensure we (loosely) match the SIMD prefix
-				var simdPrefix = instruction.Opcode.GetSimdPrefix();
-				if (xex.SimdPrefix.HasValue && xex.SimdPrefix.Value != simdPrefix)
-					continue;
-				if (simdPrefix != SimdPrefix.None && legacyPrefixes.PotentialSimdPrefix != simdPrefix)
-					continue;
 
 				// Ensure we match the RexW requirements
 				if ((encoding & InstructionEncoding.RexW_Mask) == InstructionEncoding.RexW_Fixed

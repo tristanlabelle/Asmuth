@@ -91,10 +91,9 @@ namespace Asmuth.Disassembler
 
 						var instruction = instructionDecoder.GetInstruction();
 						instructionDecoder.Reset();
-
-						bool explicitLegacyPrefix;
-						var opcode = instruction.GetOpcode(out explicitLegacyPrefix);
-						var instructionDefinition = instructionDictionary.Find(opcode, explicitLegacyPrefix);
+						
+						var opcode = instruction.GetOpcode();
+						var instructionDefinition = instructionDictionary.Find(opcode);
 						Console.Write('\t');
 						Console.Write(instructionDefinition.Mnemonic.ToLowerInvariant());
 

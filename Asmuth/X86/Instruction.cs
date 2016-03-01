@@ -68,9 +68,22 @@ namespace Asmuth.X86
 		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
 		public Xex Xex => xex;
 		public OpcodeMap OpcodeMap => xex.OpcodeMap;
-		public Opcode OpcodeLookupKey => OpcodeEnum.MakeLookupKey(OpcodeMap, MainByte);
+		public Opcode OpcodeLookupKey => OpcodeEnum.MakeLookupKey(SimdPrefix, OpcodeMap, MainByte);
 		public byte MainByte => mainByte;
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;
+
+		public SimdPrefix SimdPrefix
+		{
+			get
+			{
+				if (xex.OpcodeMap == OpcodeMap.Default)
+				{
+					Contract.Assert(!xex.SimdPrefix.HasValue || xex.SimdPrefix == SimdPrefix.None);
+					return SimdPrefix.None;
+				}
+				return xex.SimdPrefix ?? legacyPrefixes.GetSimdPrefix(xex.OpcodeMap);
+			}
+		}
 
 		public Sib? Sib
 		{
@@ -139,11 +152,10 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Methods
-		public Opcode GetOpcode(out bool explicitLegacyPrefix)
+		public Opcode GetOpcode()
 		{
-			explicitLegacyPrefix = xex.SimdPrefix.HasValue;
 			return default(Opcode)
-				.WithSimdPrefix(xex.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix)
+				.WithSimdPrefix(SimdPrefix)
 				.WithRexW(xex.OperandSize64)
 				.WithVectorSize(xex.VectorSize)
 				.WithMap(OpcodeMap)
@@ -156,12 +168,6 @@ namespace Asmuth.X86
 			Contract.Requires(ModRM.HasValue);
 			var encoding = new EffectiveAddress.Encoding(legacyPrefixes, xex, modRM, Sib, displacement);
 			return EffectiveAddress.FromEncoding(DefaultAddressSize, encoding);
-		}
-
-		public bool HasSimdPrefix(SimdPrefix prefix)
-		{
-			if (xex.SimdPrefix.HasValue) return xex.SimdPrefix == prefix;
-			return legacyPrefixes.PotentialSimdPrefix == prefix;
 		}
 		#endregion
 	}

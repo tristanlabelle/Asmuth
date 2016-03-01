@@ -53,22 +53,6 @@ namespace Asmuth.X86
 		#region Properties
 		public int Count => (int)(storage >> 24);
 		public bool IsEmpty => Count == 0;
-		
-		public SimdPrefix PotentialSimdPrefix
-		{
-			get
-			{
-				if (IsEmpty) return SimdPrefix.None;
-				switch (this[Count - 1])
-				{
-					case LegacyPrefix.OperandSizeOverride: return SimdPrefix._66;
-					case LegacyPrefix.RepeatNotEqual: return SimdPrefix._F2;
-					case LegacyPrefix.RepeatEqual: return SimdPrefix._F3;
-					default: return SimdPrefix.None;
-				}
-			}
-		}
-
 		public bool HasOperandSizeOverride => Contains(LegacyPrefix.OperandSizeOverride);
 		public bool HasAddressSizeOverride => Contains(LegacyPrefix.AddressSizeOverride);
 
@@ -96,6 +80,18 @@ namespace Asmuth.X86
 			=> lookup[(storage & 0xFFFFFF) / multiples[index] % lookup.Length];
 
 		#region Methods
+		public SimdPrefix GetSimdPrefix(OpcodeMap map)
+		{
+			if (IsEmpty || map == OpcodeMap.Default) return SimdPrefix.None;
+			switch (this[Count - 1])
+			{
+				case LegacyPrefix.OperandSizeOverride: return SimdPrefix._66;
+				case LegacyPrefix.RepeatNotEqual: return SimdPrefix._F2;
+				case LegacyPrefix.RepeatEqual: return SimdPrefix._F3;
+				default: return SimdPrefix.None;
+			}
+		}
+
 		public bool Contains(LegacyPrefix item) => IndexOf(item) >= 0;
 
 		public InstructionFields GetGroups()
@@ -227,7 +223,6 @@ namespace Asmuth.X86
 
 		public int Count => list.Count;
 		public bool IsEmpty => list.IsEmpty;
-		public SimdPrefix? PotentialSimdPrefix => list.PotentialSimdPrefix;
 		public bool HasOperandSizeOverride => list.HasOperandSizeOverride;
 		public bool HasAddressSizeOverride => list.HasAddressSizeOverride;
 		public SegmentRegister? SegmentOverride => list.SegmentOverride;
@@ -238,6 +233,7 @@ namespace Asmuth.X86
 			set { list = list.SetAt(index, value); }
 		}
 
+		public SimdPrefix GetSimdPrefix(OpcodeMap map) => list.GetSimdPrefix(map);
 		public LegacyPrefix? GetPrefixFromGroup(InstructionFields group) => list.GetPrefixFromGroup(group);
 		public bool Contains(LegacyPrefix prefix) => list.Contains(prefix);
 		public int IndexOf(LegacyPrefix prefix) => list.IndexOf(prefix);

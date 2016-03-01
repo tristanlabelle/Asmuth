@@ -22,7 +22,7 @@ namespace Asmuth.X86
 		Sib = 1 << 8,
 		Displacement = 1 << 9,
 		Immediate1 = 1 << 10,
-		Immediate2 = 1 << 11
+		Immediate2 = 1 << 11 // C8 iw ib = ENTER imm16, imm8
 	}
 
 	public static class InstructionFieldsEnum
