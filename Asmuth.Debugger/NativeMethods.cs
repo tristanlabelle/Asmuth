@@ -448,7 +448,7 @@ namespace Asmuth.Debugger
 		[return: MarshalAs(UnmanagedType.Bool)]
 		public static extern BOOL WriteProcessMemory(HANDLE hProcess, LPVOID lpBaseAddress, LPVOID lpBuffer, SIZE_T nSize, out SIZE_T lpNumberOfBytesWritten);
 
-		public static string GetFinalPathNameByHandle(IntPtr handle, DWORD dwFlags)
+		public static string GetFinalPathNameByHandle(HANDLE handle, DWORD dwFlags)
 		{
 			var pathLength = GetFinalPathNameByHandle(handle, null, 0, dwFlags);
 			NativeMethods.CheckWin32(pathLength > 0);

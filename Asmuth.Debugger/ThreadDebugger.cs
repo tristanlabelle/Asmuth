@@ -13,20 +13,18 @@ namespace Asmuth.Debugger
 	public sealed class ThreadDebugger
 	{
 		private readonly ProcessDebugger process;
-		private readonly CREATE_THREAD_DEBUG_INFO debugInfo;
+		private readonly int id;
 		private volatile bool isRunning = true;
-		private volatile object exitCode;
 
 		// Called on worker thread
-		internal ThreadDebugger(ProcessDebugger process, CREATE_THREAD_DEBUG_INFO debugInfo)
+		internal ThreadDebugger(ProcessDebugger process, int id)
 		{
 			Contract.Requires(process != null);
-			Contract.Requires(debugInfo.hThread != IntPtr.Zero);
 			this.process = process;
-			this.debugInfo = debugInfo;
+			this.id = id;
 		}
 		
-		public int ID => unchecked((int)GetThreadId(debugInfo.hThread));
+		public int ID => id;
 		public ProcessDebugger Process => process;
 		public bool IsRunning => isRunning;
 
@@ -46,16 +44,9 @@ namespace Asmuth.Debugger
 		{
 			var context = new CONTEXT_X86();
 			context.ContextFlags = flags;
-			CheckWin32(GetThreadContext(debugInfo.hThread, ref context));
-			return context;
+			throw new NotImplementedException();
 		}
-
-		// Called on either thread
-		internal void Dispose()
-		{
-			CloseHandle(debugInfo.hThread);
-		}
-
+		
 		// Called on worker thread
 		internal void OnBroken()
 		{
@@ -66,12 +57,6 @@ namespace Asmuth.Debugger
 		internal void OnContinued()
 		{
 			isRunning = true;
-		}
-
-		internal void OnExited(int exitCode)
-		{
-			isRunning = false;
-			this.exitCode = (object)exitCode;
 		}
 	}
 }

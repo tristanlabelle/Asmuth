@@ -1,30 +1,34 @@
-﻿using System;
+﻿using Microsoft.Win32.SafeHandles;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Asmuth.Debugger
 {
-	using System.Diagnostics.Contracts;
-	using static Kernel32;
-
 	public sealed class ProcessModule
 	{
-		private readonly LOAD_DLL_DEBUG_INFO debugInfo;
+		private readonly ulong baseAddress;
+		private readonly SafeFileHandle handle;
+		private readonly string imagePath;
 
-		internal ProcessModule(LOAD_DLL_DEBUG_INFO debugInfo)
+		internal ProcessModule(ulong baseAddress, SafeFileHandle handle)
 		{
-			Contract.Assert(debugInfo.hFile != IntPtr.Zero);
-			this.debugInfo = debugInfo;
+			Contract.Assert(baseAddress > 0);
+			this.baseAddress = baseAddress;
+			this.handle = handle;
+
+			if (!handle.IsInvalid)
+				this.imagePath = Kernel32.GetFinalPathNameByHandle(handle.DangerousGetHandle(), 0);
 		}
 
-		public string FilePath => GetFinalPathNameByHandle(debugInfo.hFile, 0);
-		public ulong BaseAddress => unchecked((ulong)debugInfo.lpBaseOfDll);
+		public ulong BaseAddress => baseAddress;
+		public SafeFileHandle Handle => handle;
+		public string ImagePath => imagePath;
 
-		internal void Dispose()
-		{
-			CloseHandle(debugInfo.hFile);
-		}
+		public override string ToString() => Path.GetFileNameWithoutExtension(ImagePath);
 	}
 }

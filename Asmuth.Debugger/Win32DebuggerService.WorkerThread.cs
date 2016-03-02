@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace Asmuth.Debugger
 {
+	using System.Diagnostics.Contracts;
 	using static Kernel32;
 	using static NativeMethods;
 
@@ -53,15 +54,17 @@ namespace Asmuth.Debugger
 						break;
 
 					case CREATE_PROCESS_DEBUG_EVENT:
+						if (debugEvent.dwProcessId != rootProcessID)
+							throw new NotImplementedException("Attaching to child processes.");
 						response = processAttachment.OnAttachSucceeded(threadID, debugEvent.CreateProcessInfo);
 						break;
 
 					case CREATE_THREAD_DEBUG_EVENT:
-						response = listener.OnThreadCreated(threadID, debugEvent.CreateThread);
+						response = processAttachment.OnThreadCreated(threadID, debugEvent.CreateThread);
 						break;
 
 					case EXIT_THREAD_DEBUG_EVENT:
-						response = listener.OnThreadExited(threadID, unchecked((int)debugEvent.ExitThread.dwExitCode));
+						response = processAttachment.OnThreadExited(threadID, debugEvent.ExitThread);
 						break;
 
 					case LOAD_DLL_DEBUG_EVENT:
@@ -79,7 +82,7 @@ namespace Asmuth.Debugger
 						break;
 
 					case UNLOAD_DLL_DEBUG_EVENT:
-						response = listener.OnModuleUnloaded(threadID, (ulong)debugEvent.UnloadDll.lpBaseOfDll);
+						response = listener.OnModuleUnloaded(threadID, unchecked((ulong)debugEvent.UnloadDll.lpBaseOfDll));
 						break;
 
 					default:

@@ -1,5 +1,7 @@
-﻿using System;
+﻿using Microsoft.Win32.SafeHandles;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
@@ -7,9 +9,6 @@ using System.Threading.Tasks;
 
 namespace Asmuth.Debugger
 {
-	using Microsoft.Win32.SafeHandles;
-	using static Kernel32;
-
 	partial class ProcessDebugger
 	{
 		internal sealed class EventListener : IDebugEventListener
@@ -51,7 +50,7 @@ namespace Asmuth.Debugger
 
 				thread.OnBroken();
 
-				if (record.Code == EXCEPTION_BREAKPOINT && owner.TryCompleteBreakTask(thread))
+				if (record.Code == Kernel32.EXCEPTION_BREAKPOINT && owner.TryCompleteBreakTask(thread))
 				{
 					return DebugEventResponse.Break;
 				}
@@ -64,17 +63,12 @@ namespace Asmuth.Debugger
 					return response;
 				}
 			}
-
-			public DebugEventResponse OnModuleLoaded(int threadID, LOAD_DLL_DEBUG_INFO info)
-			{
-				var module = new ProcessModule(info);
-				owner.modulesByBaseAddress.TryAdd(module.BaseAddress, module);
-				return owner.RaiseEvent(owner.ModuleLoaded, new ModuleDebugEventArgs(module));
-			}
-
+			
 			public DebugEventResponse OnModuleLoaded(int threadID, ulong baseAddres, SafeFileHandle handle)
 			{
-				throw new NotImplementedException();
+				var module = new ProcessModule(baseAddres, handle);
+				owner.modulesByBaseAddress.TryAdd(module.BaseAddress, module);
+				return owner.RaiseEvent(owner.ModuleLoaded, new ModuleDebugEventArgs(module));
 			}
 
 			public DebugEventResponse OnModuleUnloaded(int threadID, ulong baseAddress)
@@ -96,11 +90,6 @@ namespace Asmuth.Debugger
 				throw new NotImplementedException();
 			}
 
-			public DebugEventResponse OnProcessExited(int threadID, EXIT_PROCESS_DEBUG_INFO info)
-			{
-				throw new NotImplementedException();
-			}
-
 			public DebugEventResponse OnStringOutputted(int threadID, string str)
 			{
 				var handler = owner.StringOutputted;
@@ -110,18 +99,20 @@ namespace Asmuth.Debugger
 					return owner.RaiseEvent(handler, new DebugStringOutputEventArgs(str));
 			}
 
-			public DebugEventResponse OnThreadCreated(int threadID, CREATE_THREAD_DEBUG_INFO info)
+			public DebugEventResponse OnThreadCreated(int threadID, ulong entryPoint)
 			{
-				var thread = new ThreadDebugger(owner, info);
-				owner.threadsByID.TryAdd(threadID, thread);
-				return owner.RaiseEvent(owner.ThreadCreated, new ThreadDebugEventArgs(thread));
+				var thread = new ThreadDebugger(owner, threadID);
+				bool added = owner.threadsByID.TryAdd(threadID, thread);
+				Contract.Assert(added);
+				return owner.RaiseEvent(owner.ThreadCreated, new ThreadCreatedDebugEventArgs(thread, entryPoint));
 			}
 
 			public DebugEventResponse OnThreadExited(int threadID, int exitCode)
 			{
-				var thread = owner.FindThread(threadID);
-				thread.OnExited(exitCode);
-				return owner.RaiseEvent(owner.ThreadExited, new ThreadDebugEventArgs(thread));
+				ThreadDebugger thread;
+				bool removed = owner.threadsByID.TryRemove(threadID, out thread);
+				Contract.Assert(removed);
+				return owner.RaiseEvent(owner.ThreadExited, new ThreadExitedDebugEventArgs(thread, exitCode));
 			}
 		}
 	}

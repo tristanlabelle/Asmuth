@@ -40,7 +40,7 @@ namespace Asmuth.Debugger
 		DebugEventResponse OnModuleUnloaded(int threadID, ulong baseAddress);
 		DebugEventResponse OnProcessExited(int threadID, int exitCode);
 		DebugEventResponse OnStringOutputted(int threadID, string str);
-		DebugEventResponse OnThreadCreated(int threadID, CREATE_THREAD_DEBUG_INFO info);
+		DebugEventResponse OnThreadCreated(int threadID, ulong entryPoint);
 		DebugEventResponse OnThreadExited(int threadID, int exitCode);
 	}
 }

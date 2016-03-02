@@ -50,8 +50,8 @@ namespace Asmuth.Debugger
 		}
 
 		// Called back from worker thread
-		public event EventHandler<ThreadDebugEventArgs> ThreadCreated;
-		public event EventHandler<ThreadDebugEventArgs> ThreadExited;
+		public event EventHandler<ThreadCreatedDebugEventArgs> ThreadCreated;
+		public event EventHandler<ThreadExitedDebugEventArgs> ThreadExited;
 		public event EventHandler<ModuleDebugEventArgs> ModuleLoaded;
 		public event EventHandler<ModuleDebugEventArgs> ModuleUnloaded;
 		public event EventHandler<ExceptionDebugEventArgs> ExceptionRaised;

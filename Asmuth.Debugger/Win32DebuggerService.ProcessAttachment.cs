@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace Asmuth.Debugger
 {
+	using System.Collections.Concurrent;
 	using static Kernel32;
 	using static NativeMethods;
 
@@ -15,6 +16,8 @@ namespace Asmuth.Debugger
 		private sealed class ProcessAttachment : IProcessDebuggerService
 		{
 			private readonly IDebugEventListener listener;
+			private readonly ConcurrentDictionary<int, IntPtr> threadIDsToHandles
+				= new ConcurrentDictionary<int, IntPtr>();
 			private CREATE_PROCESS_DEBUG_INFO debugInfo;
 
 			public ProcessAttachment(IDebugEventListener listener)
@@ -35,14 +38,18 @@ namespace Asmuth.Debugger
 				throw new NotImplementedException();
 			}
 
-			public void RequestSuspendThread(int threadID)
+			public void RequestSuspendThread(int id)
 			{
-				throw new NotImplementedException();
+				IntPtr handle;
+				if (threadIDsToHandles.TryGetValue(id, out handle))
+					CheckWin32(SuspendThread(handle) < uint.MaxValue);
 			}
 
 			public void RequestResumeThread(int id)
 			{
-				throw new NotImplementedException();
+				IntPtr handle;
+				if (threadIDsToHandles.TryGetValue(id, out handle))
+					CheckWin32(ResumeThread(handle) < uint.MaxValue);
 			}
 
 			public void RequestTerminate(int exitCode)
@@ -52,7 +59,9 @@ namespace Asmuth.Debugger
 
 			public void RequestTerminateThread(int id, int exitCode)
 			{
-				throw new NotImplementedException();
+				IntPtr handle;
+				if (threadIDsToHandles.TryGetValue(id, out handle))
+					CheckWin32(TerminateThread(handle, unchecked((uint)exitCode)));
 			}
 
 			public void ReadMemory(ulong address, int count, IntPtr buffer)
@@ -70,6 +79,22 @@ namespace Asmuth.Debugger
 				var processID = GetProcessId(debugInfo.hProcess);
 				CheckWin32(DebugActiveProcessStop(processID));
 				// TODO: will the worker thread get a callback?
+			}
+
+			internal DebugEventResponse OnThreadCreated(int threadID, CREATE_THREAD_DEBUG_INFO debugInfo)
+			{
+				bool added = threadIDsToHandles.TryAdd(threadID, debugInfo.hThread);
+				Contract.Assert(added);
+				return listener.OnThreadCreated(threadID, unchecked((ulong)debugInfo.lpStartAddress));
+			}
+
+			internal DebugEventResponse OnThreadExited(int threadID, EXIT_THREAD_DEBUG_INFO debugInfo)
+			{
+				IntPtr handle;
+				bool removed = threadIDsToHandles.TryRemove(threadID, out handle);
+				Contract.Assert(removed);
+
+				return listener.OnThreadExited(threadID, unchecked((int)debugInfo.dwExitCode));
 			}
 
 			internal DebugEventResponse OnAttachSucceeded(int threadID, CREATE_PROCESS_DEBUG_INFO debugInfo)

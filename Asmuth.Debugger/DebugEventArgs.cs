@@ -14,28 +14,39 @@ namespace Asmuth.Debugger
 
 	public sealed class DebugStringOutputEventArgs : DebugEventArgs
 	{
-		private readonly string str;
+		public string String { get; }
 
 		public DebugStringOutputEventArgs(string str)
 		{
 			Contract.Requires(str != null);
-			this.str = str;
+			this.String = str;
 		}
-
-		public string String => str;
 	}
 
-	public sealed class ThreadDebugEventArgs : DebugEventArgs
+	public sealed class ThreadCreatedDebugEventArgs : DebugEventArgs
 	{
-		private readonly ThreadDebugger thread;
+		public ThreadDebugger Thread { get; }
+		public ulong EntryPoint { get; }
 
-		public ThreadDebugEventArgs(ThreadDebugger thread)
+		public ThreadCreatedDebugEventArgs(ThreadDebugger thread, ulong entryPoint)
 		{
 			Contract.Requires(thread != null);
-			this.thread = thread;
+			this.Thread = thread;
+			this.EntryPoint = entryPoint;
 		}
+	}
 
-		public ThreadDebugger Thread => thread;
+	public sealed class ThreadExitedDebugEventArgs : DebugEventArgs
+	{
+		public ThreadDebugger Thread { get; }
+		public int ExitCode { get; }
+
+		public ThreadExitedDebugEventArgs(ThreadDebugger thread, int exitCode)
+		{
+			Contract.Requires(thread != null);
+			this.Thread = thread;
+			this.ExitCode = exitCode;
+		}
 	}
 
 	public sealed class ModuleDebugEventArgs : DebugEventArgs
