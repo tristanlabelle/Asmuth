@@ -107,9 +107,9 @@ namespace Asmuth.X86
 						if (mode == InstructionDecodingMode._8086)
 							return AdvanceToError(InstructionDecodingError.VexIn8086Mode);
 
-						// Hack: We accumulate the xex bytes, but start with the type in the MSB
-						accumulator = @byte | ((uint)@byte << 24);
 						int remainingBytes = xexType.GetMinSizeInBytes() - 1;
+						// Hack: We accumulate the xex bytes, but make sure we end up with the type in the most significant byte
+						accumulator = @byte | ((uint)xexType << (24 - remainingBytes * 8));
 						return AdvanceTo(InstructionDecodingState.ExpectXexByte, substate: (byte)remainingBytes);
 					}
 
@@ -134,7 +134,9 @@ namespace Asmuth.X86
 					--substate;
 					if (substate > 0) return true; // More bytes to read
 
-					switch (builder.Xex.Type)
+					// Thanks to our hack, we always have the type in the most significant byte now
+					var xexType = (XexType)(accumulator >> 24);
+					switch (xexType)
 					{
 						case XexType.Vex2: builder.Xex = new Xex((Vex2)accumulator); break;
 						case XexType.Vex3: builder.Xex = new Xex((Vex3)accumulator); break;
@@ -176,7 +178,7 @@ namespace Asmuth.X86
 					bool hasModRM;
 					int immediateSizeInBytes;
 					if (!lookup.TryLookup(mode, builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, out hasModRM, out immediateSizeInBytes))
-						AdvanceToError(InstructionDecodingError.UnknownOpcode);
+						return AdvanceToError(InstructionDecodingError.UnknownOpcode);
 					builder.ImmediateSizeInBytes = immediateSizeInBytes;
 						
 					return hasModRM ? AdvanceTo(InstructionDecodingState.ExpectModRM) : AdvanceToImmediateOrEnd();
@@ -288,7 +290,7 @@ namespace Asmuth.X86
 		{
 			Contract.Requires(newState > State);
 			this.state = newState;
-			this.substate = 0;
+			this.substate = substate;
 			return newState != InstructionDecodingState.Completed && newState != InstructionDecodingState.Error;
 		}
 

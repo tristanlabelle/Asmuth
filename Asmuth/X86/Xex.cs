@@ -183,6 +183,7 @@ namespace Asmuth.X86
 
 	public static class XexEnums
 	{
+		#region XexType
 		[Pure]
 		public static bool AllowsEscapes(this XexType xexType) => xexType <= XexType.RexAndEscapes;
 
@@ -238,15 +239,34 @@ namespace Asmuth.X86
 				default:
 					throw new ArgumentException(nameof(map));
 			}
-		}
+		} 
+		#endregion
+
+		#region Vex2
+		[Pure]
+		public static byte GetFirstByte(this Vex2 vex) => (byte)Vex2.FirstByte;
+
+		[Pure]
+		public static byte GetSecondByte(this Vex2 vex) => unchecked((byte)vex);
 
 		[Pure]
 		public static SimdPrefix GetSimdPrefix(this Vex2 vex)
 			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.SimdPrefix_Mask, (int)Vex2.SimdPrefix_Shift);
-		
+
 		[Pure]
 		public static byte GetNonDestructiveReg(this Vex2 vex)
 			=> (byte)Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.NonDestructiveReg_Mask, (int)Vex2.NonDestructiveReg_Shift);
+		#endregion
+
+		#region Vex3
+		[Pure]
+		public static byte GetFirstByte(this Vex3 vex) => (byte)Vex3.FirstByte;
+
+		[Pure]
+		public static byte GetSecondByte(this Vex3 vex) => unchecked((byte)((uint)vex >> 8));
+
+		[Pure]
+		public static byte GetThirdByte(this Vex3 vex) => unchecked((byte)vex);
 
 		[Pure]
 		public static SimdPrefix GetSimdPrefix(this Vex3 vex)
@@ -258,7 +278,8 @@ namespace Asmuth.X86
 
 		[Pure]
 		public static byte GetNonDestructiveReg(this Vex3 vex)
-			=> (byte)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3.NonDestructiveReg_Mask, (int)Vex3.NonDestructiveReg_Shift);
+			=> (byte)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3.NonDestructiveReg_Mask, (int)Vex3.NonDestructiveReg_Shift); 
+		#endregion
 	}
 
 	[StructLayout(LayoutKind.Sequential, Size = 4)]
@@ -324,7 +345,13 @@ namespace Asmuth.X86
 
 		public Xex(Vex3 vex3)
 		{
-			throw new NotImplementedException();
+			flags = BaseFlags(XexType.Vex3, vex3.GetSimdPrefix(), vex3.GetOpcodeMap());
+			flags |= (Flags)((uint)vex3.GetNonDestructiveReg() << (int)Flags.NonDestructiveReg_Shift);
+			if ((vex3 & Vex3.ModRegExtension) != 0) flags |= Flags.ModRegExtension;
+			if ((vex3 & Vex3.BaseRegExtension) != 0) flags |= Flags.BaseRegExtension;
+			if ((vex3 & Vex3.IndexRegExtension) != 0) flags |= Flags.IndexRegExtension;
+			if ((vex3 & Vex3.OperandSize64) != 0) flags |= Flags.OperandSize64;
+			if ((vex3 & Vex3.VectorSize256) != 0) flags |= Flags.VectorSize_256;
 		}
 
 		public Xex(Xop xop)

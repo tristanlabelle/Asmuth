@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Asmuth.X86
 {
@@ -50,6 +51,14 @@ namespace Asmuth.X86
 					immediateSizeInBytes = operandSize.InBytes();
 					return true;
 				}
+				else if (xex.OpcodeMap == OpcodeMap.Escape0F
+					&& (xex.SimdPrefix ?? legacyPrefixes.GetSimdPrefix(xex.OpcodeMap)) == SimdPrefix._66
+					&& opcode == 0x58)
+				{
+					hasModRM = true;
+					immediateSizeInBytes = 0;
+					return true;
+				}
 				else
 				{
 					hasModRM = false;
@@ -60,15 +69,16 @@ namespace Asmuth.X86
 		}
 
 		[TestMethod]
-		public void TestDecodeNop()
+		public void TestNop()
 		{
 			var instruction = DecodeSingle32(0x90);
+			Assert.AreEqual(XexType.Escapes, instruction.Xex.Type);
 			Assert.AreEqual(0x90, instruction.MainByte);
 			Assert.AreEqual(InstructionFields.Opcode, instruction.Fields);
 		}
 
 		[TestMethod]
-		public void TestDecodeNopVariations()
+		public void TestNopVariations()
 		{
 			var nops = new byte[]
 			{
@@ -123,7 +133,44 @@ namespace Asmuth.X86
 			}
 		}
 
-		public static Instruction[] Decode(InstructionDecodingMode mode, params byte[] bytes)
+		[TestMethod]
+		public void TestVex2Nop()
+		{
+			var vex = Vex2.Reserved_Value;
+			var instruction = DecodeSingle32(vex.GetFirstByte(), vex.GetSecondByte(), 0x90);
+			Assert.AreEqual(XexType.Vex2, instruction.Xex.Type);
+			Assert.AreEqual(0x90, instruction.MainByte);
+			Assert.AreEqual(InstructionFields.Xex | InstructionFields.Opcode, instruction.Fields);
+		}
+
+		[TestMethod]
+		public void TestAddpd()
+		{
+			// 66 0F 58 /r - ADDPD xmm1, xmm2/m128
+			var modRM = ModRMEnum.FromComponents(3, 1, 2);
+			var instruction = DecodeSingle32(0x66, 0x0F, 0x58, (byte)modRM);
+			Assert.AreEqual(SimdPrefix._66, instruction.SimdPrefix);
+			Assert.AreEqual(XexType.Escapes, instruction.Xex.Type);
+			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
+			Assert.AreEqual(0x58, instruction.MainByte);
+			Assert.AreEqual(modRM, instruction.ModRM);
+		}
+
+		[TestMethod]
+		public void TestVaddpd()
+		{
+			// VEX.NDS.128.66.0F.WIG 58 /r - VADDPD xmm1, xmm2, xmm3/m128
+			var modRM = ModRMEnum.FromComponents(3, 1, 2);
+			var vex = Vex3.Reserved_Value | Vex3.SimdPrefix_66 | Vex3.OpcodeMap_0F;
+			var instruction = DecodeSingle32(vex.GetFirstByte(), vex.GetSecondByte(), vex.GetThirdByte(), 0x58, (byte)modRM);
+			Assert.AreEqual(XexType.Vex3, instruction.Xex.Type);
+			Assert.AreEqual(SimdPrefix._66, instruction.SimdPrefix);
+			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
+			Assert.AreEqual(0x58, instruction.MainByte);
+			Assert.AreEqual(modRM, instruction.ModRM);
+		}
+
+		private static Instruction[] Decode(InstructionDecodingMode mode, params byte[] bytes)
 		{
 			var decoder = new InstructionDecoder(InstructionLookup.Instance, mode);
 			var instructions = new List<Instruction>();
@@ -139,17 +186,17 @@ namespace Asmuth.X86
 			return instructions.ToArray();
 		}
 
-		public static Instruction[] Decode32(params byte[] bytes)
+		private static Instruction[] Decode32(params byte[] bytes)
 			=> Decode(InstructionDecodingMode.IA32_Default32, bytes);
 
-		public static Instruction DecodeSingle(InstructionDecodingMode mode, params byte[] bytes)
+		private static Instruction DecodeSingle(InstructionDecodingMode mode, params byte[] bytes)
 		{
 			var instructions = Decode(mode, bytes);
 			Assert.AreEqual(1, instructions.Length);
 			return instructions[0];
 		}
 
-		public static Instruction DecodeSingle32(params byte[] bytes)
+		private static Instruction DecodeSingle32(params byte[] bytes)
 			=> DecodeSingle(InstructionDecodingMode.IA32_Default32, bytes);
 	}
 }
