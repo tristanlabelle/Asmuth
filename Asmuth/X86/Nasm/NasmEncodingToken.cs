@@ -71,6 +71,7 @@ namespace Asmuth.X86.Nasm
 		Category_ModRM = 7 << Category_Shift,
 		Category_Jump = 8 << Category_Shift,
 		Category_Immediate = 9 << Category_Shift,
+		Category_VectorSib = 10 << Category_Shift,
 		Category_Misc = 15 << Category_Shift,
 		Category_Mask = 0xF0,
 
@@ -86,11 +87,11 @@ namespace Asmuth.X86.Nasm
 		AddressSize_NoOverride,
 
 		[NasmName("o16")]
-		OperandSize_Fixed16 = Category_OperandSize,
+		OperandSize_16 = Category_OperandSize,
 		[NasmName("o32")]
-		OperandSize_Fixed32,
+		OperandSize_32,
 		[NasmName("o64")]
-		OperandSize_Fixed64,
+		OperandSize_64,
 		[NasmName("o64nw")]
 		OperandSize_Fixed64_RexExtensionsOnly,
 		[NasmName("odf")]
@@ -119,10 +120,14 @@ namespace Asmuth.X86.Nasm
 
 		[NasmName("norexb")]
 		Rex_NoB = Category_Rex,
+		[NasmName("norexx")]
+		Rex_NoX,
+		[NasmName("norexr")]
+		Rex_NoR,
 		[NasmName("norexw")]
 		Rex_NoW,
 		[NasmName("rex.l")]
-		Rex_LockAsRexR,	// See AMD APM, MOV CRn
+		Rex_LockAsRexR, // See AMD APM, MOV CRn
 
 		Byte = Category_Byte, // "42", value is the byte itself
 		Byte_PlusRegister, // "40+r", value is the base byte (0b11111000)
@@ -130,7 +135,7 @@ namespace Asmuth.X86.Nasm
 
 		[NasmName("/r")]
 		ModRM = Category_ModRM,
-		ModRM_FixedReg,	// "/4", value is the digit that follows the slash (value of the reg field)
+		ModRM_FixedReg, // "/4", value is the digit that follows the slash (value of the reg field)
 
 		[NasmName("jmp8")]
 		Jump_8 = Category_Jump,
@@ -167,23 +172,22 @@ namespace Asmuth.X86.Nasm
 		Immediate_RelativeOffset8,
 
 		[NasmName("vm32x")]
-		Misc_VM32x = Category_Misc,
+		VectorSib_XmmDwordIndices = Category_VectorSib,
 		[NasmName("vm64x")]
-		Misc_VM64x,
+		VectorSib_XmmQwordIndices,
 		[NasmName("vm32y")]
-		Misc_VM32y,
+		VectorSib_YmmDwordIndices,
 		[NasmName("vm64y")]
-		Misc_VM64y,
+		VectorSib_YmmQwordIndices,
+		[NasmName("vsiby")]
+		VectorSib_ZmmDwordIndices,
+		[NasmName("vsibz")]
+		VectorSib_ZmmQwordIndices,
 
 		[NasmName("wait")]
-		Misc_AssembleWaitPrefix,
+		Misc_AssembleWaitPrefix = Category_Misc,
 		[NasmName("nohi")]
 		Misc_NoHigh8Register,
-		[NasmName("vsiby")]
-		Misc_Vsiby,
-		[NasmName("vsibz")]
-		Misc_Vsibz,
-
 		[NasmName("resb")]
 		Misc_Resb // The RESB pseudo-instruction
 	}

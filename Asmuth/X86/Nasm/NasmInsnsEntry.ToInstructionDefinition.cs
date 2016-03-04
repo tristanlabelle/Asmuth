@@ -14,10 +14,19 @@ namespace Asmuth.X86.Nasm
 		{
 			if (IsPseudo) throw new InvalidOperationException();
 
-			return new InstructionDefinitionConverter().Convert(this);
+			var data = new InstructionDefinition.Data();
+			data.Mnemonic = mnemonic;
+
+			EncodingParser.Parse(encodingTokens, vexEncoding, out data.Opcode, out data.Encoding);
+
+			var operandDefs = new OperandDefinition[operands.Count];
+			for (int i = 0; i < operands.Count; ++i)
+				operandDefs[i] = operands[i].ToOperandDefinition();
+
+			return new InstructionDefinition(ref data, operandDefs);
 		}
 
-		private struct InstructionDefinitionConverter
+		private struct EncodingParser
 		{
 			private enum State
 			{
@@ -31,35 +40,35 @@ namespace Asmuth.X86.Nasm
 				Immediates
 			}
 
-			private InstructionDefinition.Data instructionData;
+			private Opcode opcode;
+			private InstructionEncoding encoding;
 			private State state;
 
-			public InstructionDefinition Convert(NasmInsnsEntry entry)
+			public static void Parse(IEnumerable<NasmEncodingToken> tokens, VexOpcodeEncoding vexEncoding,
+				out Opcode opcode, out InstructionEncoding encoding)
 			{
-				Contract.Requires(entry != null);
-				
-				instructionData.Mnemonic = entry.Mnemonic;
-				ConvertEncodingTokens(entry);
-				var operands = new List<OperandDefinition>();
-				ConvertOperands(entry, operands);
+				Contract.Requires(tokens != null);
 
-				return new InstructionDefinition(ref instructionData, operands);
+				var parser = new EncodingParser();
+				parser.Parse(tokens, vexEncoding);
+				opcode = parser.opcode;
+				encoding = parser.encoding;
 			}
 
 			#region ConvertEncodingTokens
-			private void ConvertEncodingTokens(NasmInsnsEntry entry)
+			private void Parse(IEnumerable<NasmEncodingToken> tokens, VexOpcodeEncoding vexEncoding)
 			{
 				state = State.Prefixes;
 
 				bool hasVex = false;
 				NasmEncodingTokenType addressSize = 0;
-				foreach (var token in entry.EncodingTokens)
+				foreach (var token in tokens)
 				{
 					switch (token.Type)
 					{
 						case NasmEncodingTokenType.Vex:
 							Contract.Assert(!hasVex);
-							SetVex(entry.VexEncoding);
+							SetVex(vexEncoding);
 							hasVex = true;
 							break;
 
@@ -72,22 +81,22 @@ namespace Asmuth.X86.Nasm
 							addressSize = token.Type;
 							break;
 
-						case NasmEncodingTokenType.OperandSize_Fixed16:
+						case NasmEncodingTokenType.OperandSize_16:
 							SetOperandSize(InstructionEncoding.OperandSize_Fixed16);
 							break;
 
-						case NasmEncodingTokenType.OperandSize_Fixed32:
+						case NasmEncodingTokenType.OperandSize_32:
 							SetOperandSize(InstructionEncoding.OperandSize_Fixed32);
 							break;
 
-						case NasmEncodingTokenType.OperandSize_Fixed64:
+						case NasmEncodingTokenType.OperandSize_64:
 							SetOperandSize(InstructionEncoding.OperandSize_Fixed64);
 							break;
 							
 						case NasmEncodingTokenType.OperandSize_Fixed64_RexExtensionsOnly:
 							{
 								InstructionEncoding newOperandSize;
-								switch (instructionData.Encoding & InstructionEncoding.OperandSize_Mask)
+								switch (encoding & InstructionEncoding.OperandSize_Mask)
 								{
 									case 0:
 										newOperandSize = InstructionEncoding.OperandSize_16Or32Or64;
@@ -104,7 +113,7 @@ namespace Asmuth.X86.Nasm
 									default: throw new InvalidDataException();
 								}
 
-								instructionData.Encoding &= ~InstructionEncoding.OperandSize_Mask;
+								encoding &= ~InstructionEncoding.OperandSize_Mask;
 								SetOperandSize(newOperandSize);
 							}
 							break;
@@ -154,18 +163,18 @@ namespace Asmuth.X86.Nasm
 							{
 								if (!hasVex)
 								{
-									if ((instructionData.Opcode & Opcode.Map_Mask) == Opcode.Map_Default
+									if ((opcode & Opcode.Map_Mask) == Opcode.Map_Default
 										&& token.Byte == 0x0F)
 									{
-										instructionData.Opcode = instructionData.Opcode.WithMap(OpcodeMap.Escape0F);
+										opcode = opcode.WithMap(OpcodeMap.Escape0F);
 										AdvanceTo(State.Map0F);
 										continue;
 									}
 
-									if ((instructionData.Opcode & Opcode.Map_Mask) == Opcode.Map_0F
+									if ((opcode & Opcode.Map_Mask) == Opcode.Map_0F
 										&& (token.Byte == 0x38 || token.Byte == 0x3A))
 									{
-										instructionData.Opcode = instructionData.Opcode.WithMap(
+										opcode = opcode.WithMap(
 											token.Byte == 0x38 ? OpcodeMap.Escape0F38 : OpcodeMap.Escape0F3A);
 										AdvanceTo(State.PostMap);
 										continue;
@@ -183,7 +192,7 @@ namespace Asmuth.X86.Nasm
 							}
 
 							Contract.Assert(state == State.PostModRM);
-							instructionData.Opcode = instructionData.Opcode.WithExtraByte(token.Byte);
+							opcode = opcode.WithExtraByte(token.Byte);
 							AddImmediate(ImmediateSize.Fixed8); // Opcode extension byte
 							break;
 
@@ -249,7 +258,7 @@ namespace Asmuth.X86.Nasm
 							break;
 
 						case NasmEncodingTokenType.Immediate_RelativeOffset:
-							switch (instructionData.Encoding & InstructionEncoding.OperandSize_Mask)
+							switch (encoding & InstructionEncoding.OperandSize_Mask)
 							{
 								case InstructionEncoding.OperandSize_Ignored: AddImmediate(ImmediateSize.Operand16Or32); break;
 								case InstructionEncoding.OperandSize_Fixed16: AddImmediate(ImmediateSize.Fixed16); break;
@@ -268,13 +277,13 @@ namespace Asmuth.X86.Nasm
 							break;
 
 						// Misc
-						case NasmEncodingTokenType.Misc_VM32x:
-						case NasmEncodingTokenType.Misc_VM64x:
-						case NasmEncodingTokenType.Misc_VM32y:
-						case NasmEncodingTokenType.Misc_VM64y:
-						case NasmEncodingTokenType.Misc_Vsiby:
-						case NasmEncodingTokenType.Misc_Vsibz:
-							break; // TODO: do something with those VM(32|64)[xy]?
+						case NasmEncodingTokenType.VectorSib_XmmDwordIndices:
+						case NasmEncodingTokenType.VectorSib_XmmQwordIndices:
+						case NasmEncodingTokenType.VectorSib_YmmDwordIndices:
+						case NasmEncodingTokenType.VectorSib_YmmQwordIndices:
+						case NasmEncodingTokenType.VectorSib_ZmmDwordIndices:
+						case NasmEncodingTokenType.VectorSib_ZmmQwordIndices:
+							break; // doesn't impact encoding
 
 						case NasmEncodingTokenType.Misc_NoHigh8Register:
 						case NasmEncodingTokenType.Misc_AssembleWaitPrefix: // Implicit WAIT prefix when assembling instruction
@@ -290,49 +299,50 @@ namespace Asmuth.X86.Nasm
 			private void SetOperandSize(InstructionEncoding encoding)
 			{
 				Contract.Assert(state <= State.PostSimdPrefix);
-				Contract.Assert((instructionData.Encoding & InstructionEncoding.OperandSize_Mask) == 0);
-				instructionData.Encoding |= encoding;
+				Contract.Assert((this.encoding & InstructionEncoding.OperandSize_Mask) == 0);
+				this.encoding |= encoding;
 			}
 
 			private void SetVex(VexOpcodeEncoding vexEncoding)
 			{
-				Contract.Requires((instructionData.Opcode & Opcode.XexType_Mask) == Opcode.XexType_LegacyOrRex);
-				Contract.Requires((instructionData.Opcode & Opcode.SimdPrefix_Mask) == Opcode.SimdPrefix_None);
+				Contract.Requires((opcode & Opcode.XexType_Mask) == Opcode.XexType_LegacyOrRex);
+				Contract.Requires((opcode & Opcode.SimdPrefix_Mask) == Opcode.SimdPrefix_None);
 
-				Opcode opcode;
-				InstructionEncoding encoding;
-				vexEncoding.ToOpcodeEncoding(out opcode, out encoding);
+				Opcode opcodeFromVex;
+				InstructionEncoding encodingFromVex;
+				vexEncoding.ToOpcodeEncoding(out opcodeFromVex, out encodingFromVex);
 
 				// TODO: Make sure these or's are safe
-				instructionData.Opcode |= opcode;
-				instructionData.Encoding |= encoding;
+				opcode |= opcodeFromVex;
+				encoding |= encodingFromVex;
 
 				AdvanceTo(State.PostMap);
 			}
 
 			private void SetSimdPrefix(SimdPrefix prefix)
 			{
-				Contract.Requires(instructionData.Opcode.GetSimdPrefix() == SimdPrefix.None);
-				instructionData.Opcode = instructionData.Opcode.WithSimdPrefix(prefix);
+				Contract.Requires(opcode.GetSimdPrefix() == SimdPrefix.None);
+				opcode = opcode.WithSimdPrefix(prefix);
 				AdvanceTo(State.PostSimdPrefix);
 			}
 
-			private void SetOpcode(InstructionEncoding formatEncoding, byte @byte)
+			private void SetOpcode(InstructionEncoding encoding, byte @byte)
 			{
-				Contract.Requires((formatEncoding & ~InstructionEncoding.OpcodeFormat_Mask) == 0);
-				Contract.Assert((instructionData.Encoding & InstructionEncoding.OpcodeFormat_Mask) == 0);
-				instructionData.Encoding |= formatEncoding;
-				instructionData.Opcode = instructionData.Opcode.WithMainByte(@byte);
+				Contract.Requires((encoding & ~InstructionEncoding.OpcodeFormat_Mask) == 0);
+				Contract.Assert((this.encoding & InstructionEncoding.OpcodeFormat_Mask) == 0);
+				this.encoding |= encoding;
+				opcode = opcode.WithMainByte(@byte);
 				AdvanceTo(State.PostOpcode);
 			}
 
-			private void SetModRM(InstructionEncoding format, byte @byte = 0)
+			private void SetModRM(InstructionEncoding encoding, byte @byte = 0)
 			{
 				Contract.Requires(state == State.PostOpcode);
-				Contract.Requires((instructionData.Encoding & InstructionEncoding.ModRM_Mask) == InstructionEncoding.ModRM_None);
-				instructionData.Encoding = instructionData.Encoding.WithModRM(format);
-				if (format != InstructionEncoding.ModRM_None && format != InstructionEncoding.ModRM_Any)
-					instructionData.Opcode = instructionData.Opcode.WithExtraByte(@byte);
+				Contract.Requires((encoding & ~InstructionEncoding.ModRM_Mask) == 0);
+				Contract.Requires((this.encoding & InstructionEncoding.ModRM_Mask) == InstructionEncoding.ModRM_None);
+				this.encoding = this.encoding.WithModRM(encoding);
+				if (encoding != InstructionEncoding.ModRM_None && encoding != InstructionEncoding.ModRM_Any)
+					opcode = opcode.WithExtraByte(@byte);
 				AdvanceTo(State.PostModRM);
 			}
 
@@ -340,11 +350,11 @@ namespace Asmuth.X86.Nasm
 			{
 				Contract.Requires(state >= State.PostOpcode);
 
-				int immediateCount = instructionData.Encoding.GetImmediateCount();
+				int immediateCount = encoding.GetImmediateCount();
 				Contract.Requires(immediateCount < 2);
-				instructionData.Encoding = (immediateCount == 0)
-					? instructionData.Encoding.WithFirstImmediateSize(size)
-					: instructionData.Encoding.WithSecondImmediateSize(size);
+				encoding = (immediateCount == 0)
+					? encoding.WithFirstImmediateSize(size)
+					: encoding.WithSecondImmediateSize(size);
 
 				AdvanceTo(State.Immediates);
 			}
@@ -353,18 +363,6 @@ namespace Asmuth.X86.Nasm
 			{
 				Contract.Requires(newState >= state);
 				state = newState;
-			}
-			#endregion
-
-			#region ConvertOperands
-			private void ConvertOperands(NasmInsnsEntry entry, ICollection<OperandDefinition> operands)
-			{
-				foreach (var nasmOperand in entry.Operands)
-				{
-					// TODO: Convert operand encoding
-					var operand = new OperandDefinition(nasmOperand.Field, default(OperandEncoding), AccessType.ReadWrite);
-					operands.Add(operand);
-				}
 			}
 			#endregion
 		}

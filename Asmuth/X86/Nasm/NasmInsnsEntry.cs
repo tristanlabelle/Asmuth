@@ -12,7 +12,6 @@ namespace Asmuth.X86.Nasm
 	/// <summary>
 	/// An entry in NASM's insns.dat file.
 	/// </summary>
-	[StructLayout(LayoutKind.Auto)]
 	public sealed partial class NasmInsnsEntry
 	{
 		#region Fields

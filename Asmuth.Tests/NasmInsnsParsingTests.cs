@@ -50,7 +50,7 @@ namespace Asmuth.X86.Nasm
 
 			CollectionAssert.AreEqual(new[]
 			{
-				NasmEncodingTokenType.OperandSize_Fixed32,
+				NasmEncodingTokenType.OperandSize_32,
 				new NasmEncodingToken(NasmEncodingTokenType.Byte_PlusRegister, 0x50)
 			}, entry.EncodingTokens.ToArray());
 		}

@@ -8,13 +8,18 @@ namespace Asmuth.X86.Nasm
 {
 	public struct NasmOperand : IEquatable<NasmOperand>
 	{
-		public readonly OperandFields Field;
-		public readonly NasmOperandType Type;
+		public OperandFields Field { get; }
+		public NasmOperandType Type { get; }
 
 		public NasmOperand(OperandFields field, NasmOperandType type)
 		{
 			this.Field = field;
 			this.Type = type;
+		}
+
+		public OperandDefinition ToOperandDefinition()
+		{
+			return new OperandDefinition(Field, 0, AccessType.ReadWrite);
 		}
 
 		public bool Equals(NasmOperand other) => Type == other.Type && Field == other.Field;

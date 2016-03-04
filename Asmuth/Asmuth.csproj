@@ -68,6 +68,7 @@
     <Compile Include="X86\InstructionDefinition.Merge.cs" />
     <Compile Include="X86\InstructionDictionary.cs" />
     <Compile Include="X86\KnownOpcodes.cs" />
+    <Compile Include="X86\Nasm\NasmInsnsEntry.IsMatch.cs" />
     <Compile Include="X86\OperandSize.cs" />
     <Compile Include="X86\OperandType.cs" />
     <Compile Include="X86\InstructionDecoder.cs" />
