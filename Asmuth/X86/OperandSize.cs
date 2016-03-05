@@ -21,6 +21,18 @@ namespace Asmuth.X86
 	public static class OperandSizeEnum
 	{
 		[Pure]
+		public static AddressSize ToAddressSize(this OperandSize size)
+		{
+			switch (size)
+			{
+				case OperandSize.Word: return AddressSize._16;
+				case OperandSize.Dword: return AddressSize._32;
+				case OperandSize.Qword: return AddressSize._64;
+				default: throw new ArgumentOutOfRangeException(nameof(size));
+			}
+		}
+
+		[Pure]
 		public static int InBytes(this OperandSize size) => 1 << (int)size;
 
 		[Pure]

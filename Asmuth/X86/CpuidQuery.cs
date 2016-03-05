@@ -14,7 +14,7 @@ namespace Asmuth.X86
 		private readonly uint function;
 		private readonly byte inputEcx;
 		private readonly byte outputRegisterAndHasInputEcxFlag;
-		private readonly byte firstBit;
+		private readonly byte bitShift;
 		private readonly byte bitCount;
 		#endregion
 
@@ -49,7 +49,7 @@ namespace Asmuth.X86
 			this.function = function;
 			this.inputEcx = 0;
 			this.outputRegisterAndHasInputEcxFlag = (byte)outputGpr;
-			this.firstBit = 0;
+			this.bitShift = 0;
 			this.bitCount = 32;
 		}
 
@@ -66,6 +66,7 @@ namespace Asmuth.X86
 		public byte? InputEcx => HasInputEcx ? inputEcx : (byte?)null;
 		public GprCode OutputGpr => (GprCode)(outputRegisterAndHasInputEcxFlag & 0x7F);
 		public bool IsBit => bitCount == 1;
+		public uint OutputMask => ((1U << bitCount) - 1) << bitShift;
 		private bool HasInputEcx => (outputRegisterAndHasInputEcxFlag & 0x80) == 0x80;
 		#endregion
 
@@ -75,7 +76,7 @@ namespace Asmuth.X86
 			return function == other.function
 				&& inputEcx == other.inputEcx
 				&& outputRegisterAndHasInputEcxFlag == other.outputRegisterAndHasInputEcxFlag
-				&& firstBit == other.firstBit
+				&& bitShift == other.bitShift
 				&& bitCount == other.bitCount;
 		}
 
@@ -89,7 +90,7 @@ namespace Asmuth.X86
 			return unchecked((int)function)
 				^ unchecked((int)inputEcx << 24)
 				^ ((int)outputRegisterAndHasInputEcxFlag << 16)
-				^ ((int)firstBit << 8)
+				^ ((int)bitShift << 8)
 				^ ((int)bitCount << 0);
 		}
 
@@ -112,13 +113,13 @@ namespace Asmuth.X86
 				str.Append('[');
 				if (bitCount == 1)
 				{
-					str.AppendFormat(CultureInfo.InvariantCulture, "D", firstBit);
+					str.AppendFormat(CultureInfo.InvariantCulture, "D", bitShift);
 				}
 				else
 				{
-					str.AppendFormat(CultureInfo.InvariantCulture, "D", firstBit + bitCount);
+					str.AppendFormat(CultureInfo.InvariantCulture, "D", bitShift + bitCount);
 					str.Append(':');
-					str.AppendFormat(CultureInfo.InvariantCulture, "D", firstBit);
+					str.AppendFormat(CultureInfo.InvariantCulture, "D", bitShift);
 				}
 				str.Append(']');
 			}

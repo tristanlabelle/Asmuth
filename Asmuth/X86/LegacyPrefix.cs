@@ -48,6 +48,21 @@ namespace Asmuth.X86
 	public static class LegacyPrefixEnum
 	{
 		[Pure]
+		public static LegacyPrefix GetSegmentOverride(SegmentRegister segment)
+		{
+			switch (segment)
+			{
+				case SegmentRegister.CS: return LegacyPrefix.CSSegmentOverride;
+				case SegmentRegister.DS: return LegacyPrefix.DSSegmentOverride;
+				case SegmentRegister.ES: return LegacyPrefix.ESSegmentOverride;
+				case SegmentRegister.FS: return LegacyPrefix.FSSegmentOverride;
+				case SegmentRegister.GS: return LegacyPrefix.GSSegmentOverride;
+				case SegmentRegister.SS: return LegacyPrefix.SSSegmentOverride;
+				default: throw new ArgumentOutOfRangeException(nameof(segment));
+			}
+		}
+
+		[Pure]
 		public static LegacyPrefix? TryFromEncodingByte(byte value)
 		{
 			switch (value)

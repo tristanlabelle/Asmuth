@@ -71,6 +71,7 @@ namespace Asmuth.X86
 		public Opcode OpcodeLookupKey => OpcodeEnum.MakeLookupKey(SimdPrefix, OpcodeMap, MainByte);
 		public byte MainByte => mainByte;
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;
+		public bool HasMemoryRM => ModRM.HasValue && ModRM.Value.IsMemoryRM();
 
 		public SimdPrefix SimdPrefix
 		{

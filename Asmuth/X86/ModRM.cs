@@ -77,6 +77,10 @@ namespace Asmuth.X86
 			=> (byte)((byte)(modRM & ModRM.Mod_Mask) >> (byte)ModRM.Mod_Shift);
 
 		[Pure]
+		public static bool IsMemoryRM(this ModRM modRM)
+			=> (modRM & ModRM.Mod_Mask) != ModRM.Mod_Direct;
+
+		[Pure]
 		public static int GetDisplacementSizeInBytes(this ModRM modRM, Sib sib, AddressSize addressSize)
 		{
 			switch (modRM & ModRM.Mod_Mask)

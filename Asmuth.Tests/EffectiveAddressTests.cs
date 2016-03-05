@@ -14,16 +14,13 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Direct()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+			ExceptionAssert.Throws<ArgumentException>(() =>
 			{
-				ModRM = ModRMEnum.FromComponents(mod: 3, reg: 0, rm: GprCode.DX)
+				EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+				{
+					ModRM = ModRMEnum.FromComponents(mod: 3, reg: 0, rm: GprCode.DX)
+				});
 			});
-
-			Assert.IsTrue(effectiveAddress.IsDirect);
-			Assert.IsFalse(effectiveAddress.AddressSize.HasValue);
-			Assert.AreEqual(GprCode.DX, effectiveAddress.DirectGpr);
-			Assert.IsFalse(effectiveAddress.Base.HasValue);
-			Assert.IsFalse(effectiveAddress.IndexAsGpr.HasValue);
 		}
 
 		[TestMethod]
@@ -34,9 +31,7 @@ namespace Asmuth.X86
 				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: GprCode.DX)
 			});
 			
-			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
-			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
 			Assert.AreEqual(AddressBaseRegister.D, effectiveAddress.Base);
 			Assert.IsFalse(effectiveAddress.IndexAsGpr.HasValue);
 		}
@@ -49,11 +44,9 @@ namespace Asmuth.X86
 				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 7)
 			});
 			
-			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
-			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
 			Assert.AreEqual(AddressBaseRegister.B, effectiveAddress.Base);
-			Assert.IsFalse(effectiveAddress.Index.HasValue);
+			Assert.IsFalse(effectiveAddress.IndexAsGprCode.HasValue);
 		}
 
 		[TestMethod]
@@ -63,12 +56,10 @@ namespace Asmuth.X86
 			{
 				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: (byte)0)
 			});
-
-			Assert.IsTrue(effectiveAddress.IsInMemory);
+			
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
-			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
 			Assert.AreEqual(AddressBaseRegister.B, effectiveAddress.Base);
-			Assert.AreEqual(GprCode.SI, effectiveAddress.Index);
+			Assert.AreEqual(GprCode.SI, effectiveAddress.IndexAsGprCode);
 		}
 
 		[TestMethod]
@@ -80,11 +71,9 @@ namespace Asmuth.X86
 				Displacement = short.MaxValue
 			});
 			
-			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
-			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
 			Assert.IsFalse(effectiveAddress.Base.HasValue);
-			Assert.IsFalse(effectiveAddress.Index.HasValue);
+			Assert.IsFalse(effectiveAddress.IndexAsGprCode.HasValue);
 			Assert.AreEqual(short.MaxValue, effectiveAddress.Displacement);
 		}
 
@@ -97,11 +86,9 @@ namespace Asmuth.X86
 				Displacement = int.MaxValue
 			});
 			
-			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
-			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
 			Assert.IsFalse(effectiveAddress.Base.HasValue);
-			Assert.IsFalse(effectiveAddress.Index.HasValue);
+			Assert.IsFalse(effectiveAddress.IndexAsGprCode.HasValue);
 			Assert.AreEqual(int.MaxValue, effectiveAddress.Displacement);
 		}
 
@@ -114,11 +101,9 @@ namespace Asmuth.X86
 				Displacement = sbyte.MaxValue
 			});
 			
-			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
-			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
 			Assert.AreEqual(AddressBaseRegister.D, effectiveAddress.Base);
-			Assert.IsFalse(effectiveAddress.Index.HasValue);
+			Assert.IsFalse(effectiveAddress.IndexAsGprCode.HasValue);
 			Assert.AreEqual(sbyte.MaxValue, effectiveAddress.Displacement);
 		}
 
@@ -131,11 +116,9 @@ namespace Asmuth.X86
 				Displacement = short.MaxValue
 			});
 			
-			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
-			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
 			Assert.AreEqual(AddressBaseRegister.B, effectiveAddress.Base);
-			Assert.IsFalse(effectiveAddress.Index.HasValue);
+			Assert.IsFalse(effectiveAddress.IndexAsGprCode.HasValue);
 			Assert.AreEqual(short.MaxValue, effectiveAddress.Displacement);
 		}
 
@@ -148,11 +131,9 @@ namespace Asmuth.X86
 				Displacement = int.MaxValue
 			});
 			
-			Assert.IsTrue(effectiveAddress.IsInMemory);
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
-			Assert.IsFalse(effectiveAddress.DirectGpr.HasValue);
 			Assert.AreEqual(AddressBaseRegister.D, effectiveAddress.Base);
-			Assert.IsFalse(effectiveAddress.Index.HasValue);
+			Assert.IsFalse(effectiveAddress.IndexAsGprCode.HasValue);
 			Assert.AreEqual(int.MaxValue, effectiveAddress.Displacement);
 		}
 	}

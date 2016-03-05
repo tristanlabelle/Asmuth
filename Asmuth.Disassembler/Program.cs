@@ -104,9 +104,16 @@ namespace Asmuth.Disassembler
 							Console.Write(firstOperand ? " " : ", ");
 							if (operandDefinition.Field == OperandField.BaseReg)
 							{
-								Console.Write(instruction.GetRMEffectiveAddress()
-									.ToString(OperandSize.Dword, instruction.Xex.Type == XexType.RexAndEscapes)
-									.ToLowerInvariant());
+								if (instruction.HasMemoryRM)
+								{
+									Console.Write(instruction.GetRMEffectiveAddress()
+										.ToString().ToLowerInvariant());
+								}
+								else
+								{
+									var regCode = instruction.ModRM.Value.GetRM();
+									Console.Write(Gpr.GetName((GprCode)regCode, GprPart.Dword).ToLowerInvariant());
+								}
 							}
 							else if (operandDefinition.Field == OperandField.ModReg)
 							{
