@@ -17,28 +17,15 @@ namespace Asmuth.X86
 	[StructLayout(LayoutKind.Sequential, Size = sizeof(uint))]
 	public struct ImmutableLegacyPrefixList : IList<LegacyPrefix>, IReadOnlyList<LegacyPrefix>
 	{
-		private static readonly LegacyPrefix[] lookup =
-		{
-			LegacyPrefix.OperandSizeOverride,
-			LegacyPrefix.AddressSizeOverride,
-			LegacyPrefix.Lock,
-			LegacyPrefix.RepeatNonZero,
-			LegacyPrefix.RepeatZero,
-			LegacyPrefix.CSSegmentOverride,
-			LegacyPrefix.SSSegmentOverride,
-			LegacyPrefix.DSSegmentOverride,
-			LegacyPrefix.ESSegmentOverride,
-			LegacyPrefix.FSSegmentOverride,
-			LegacyPrefix.GSSegmentOverride,
-		};
+		private const uint legacyPrefixCount = 11;
 
 		private static readonly uint[] multiples =
 		{
 			1,
-			(uint)lookup.Length,
-			(uint)(lookup.Length * lookup.Length),
-			(uint)(lookup.Length * lookup.Length * lookup.Length),
-			(uint)(lookup.Length * lookup.Length * lookup.Length * lookup.Length),
+			legacyPrefixCount,
+			legacyPrefixCount * legacyPrefixCount,
+			legacyPrefixCount * legacyPrefixCount * legacyPrefixCount,
+			legacyPrefixCount * legacyPrefixCount * legacyPrefixCount * legacyPrefixCount,
 		};
 
 		public static readonly ImmutableLegacyPrefixList Empty;
@@ -55,12 +42,13 @@ namespace Asmuth.X86
 		public bool IsEmpty => Count == 0;
 		public bool HasOperandSizeOverride => Contains(LegacyPrefix.OperandSizeOverride);
 		public bool HasAddressSizeOverride => Contains(LegacyPrefix.AddressSizeOverride);
+		public bool HasLock => Contains(LegacyPrefix.Lock);
 
 		public SegmentRegister? SegmentOverride
 		{
 			get
 			{
-				var prefix = GetPrefixFromGroup(InstructionFields.LegacySegmentOverride);
+				var prefix = GetPrefixFromGroup(LegacyPrefixGroup.SegmentOverride);
 				if (!prefix.HasValue) return null;
 				switch (prefix.Value)
 				{
@@ -77,7 +65,7 @@ namespace Asmuth.X86
 		#endregion
 
 		public LegacyPrefix this[int index]
-			=> lookup[(storage & 0xFFFFFF) / multiples[index] % lookup.Length];
+			=> (LegacyPrefix)((storage & 0xFFFFFF) / multiples[index] % legacyPrefixCount);
 
 		#region Methods
 		public SimdPrefix GetSimdPrefix(OpcodeMap map)
@@ -94,21 +82,21 @@ namespace Asmuth.X86
 
 		public bool Contains(LegacyPrefix item) => IndexOf(item) >= 0;
 
-		public InstructionFields GetGroups()
+		public bool EndsWith(LegacyPrefix item)
 		{
-			var groups = (InstructionFields)0;
-			for (int i = 0; i < Count; ++i)
-				groups |= this[i].GetFieldOrNone();
-			return groups;
+			if (Count == 0) return false;
+			return this[Count - 1] == item;
 		}
 		
-		public LegacyPrefix? GetPrefixFromGroup(InstructionFields group)
+		public LegacyPrefix? GetPrefixFromGroup(LegacyPrefixGroup group)
 		{
 			for (int i = 0; i < Count; ++i)
-				if (this[i].GetFieldOrNone() == group)
+				if (this[i].GetGroup() == group)
 					return this[i];
 			return null;
 		}
+
+		public bool HasPrefixFromGroup(LegacyPrefixGroup group) => GetPrefixFromGroup(group).HasValue;
 
 		public void CopyTo(LegacyPrefix[] array, int arrayIndex)
 		{
@@ -126,15 +114,15 @@ namespace Asmuth.X86
 
 		public ImmutableLegacyPrefixList SetAt(int index, LegacyPrefix item)
 		{
-			var group = item.GetFieldOrNone();
+			var group = item.GetGroup();
 			for (int i = 0; i < Count; ++i)
-				if (i != index && this[i].GetFieldOrNone() == group)
+				if (i != index && this[i].GetGroup() == group)
 					throw new ArgumentException();
 
 			var data = storage & 0xFFFFFF;
 			uint multiple = multiples[index];
-			data = (data / multiple / (uint)lookup.Length * (uint)lookup.Length
-				+ ToIndex(item)) * multiple + data % multiple;
+			data = (data / multiple / legacyPrefixCount * legacyPrefixCount
+				+ (uint)item) * multiple + data % multiple;
 			return new ImmutableLegacyPrefixList((storage & 0xFF000000) | data);
 		}
 
@@ -144,13 +132,11 @@ namespace Asmuth.X86
 		public ImmutableLegacyPrefixList Insert(int index, LegacyPrefix item)
 		{
 			if (index < 0 || index > Count) throw new ArgumentOutOfRangeException(nameof(index));
-			var group = item.GetFieldOrNone();
-			if (group == InstructionFields.None) throw new ArgumentException();
-			if ((GetGroups() & group) != 0) throw new InvalidOperationException();
+			if (HasPrefixFromGroup(item.GetGroup())) throw new InvalidOperationException();
 
 			uint data = storage & 0xFFFFFF;
 			uint multiple = multiples[index];
-			data = (data / multiple * (uint)lookup.Length + ToIndex(item)) * multiple + data % multiple;
+			data = (data / multiple * legacyPrefixCount + (uint)item) * multiple + data % multiple;
 			data |= (storage & 0xFF000000) + 0x01000000;
 			return new ImmutableLegacyPrefixList(data);
 		}
@@ -167,7 +153,7 @@ namespace Asmuth.X86
 
 			uint newStorage = storage & 0xFFFFFF;
 			uint multiple = multiples[index];
-			newStorage = newStorage / multiple / (uint)lookup.Length * multiple + newStorage % multiple;
+			newStorage = newStorage / multiple / legacyPrefixCount * multiple + newStorage % multiple;
 			newStorage |= (storage & 0xFF000000) - 0x01000000;
 			return new ImmutableLegacyPrefixList(newStorage);
 		}
@@ -183,13 +169,6 @@ namespace Asmuth.X86
 			}
 			str.Append(']');
 			return str.ToString();
-		}
-
-		private static uint ToIndex(LegacyPrefix prefix)
-		{
-			int index = Array.IndexOf(lookup, prefix);
-			if (index < 0) throw new ArgumentException(nameof(prefix));
-			return (uint)index;
 		}
 		#endregion
 
@@ -234,7 +213,8 @@ namespace Asmuth.X86
 		}
 
 		public SimdPrefix GetSimdPrefix(OpcodeMap map) => list.GetSimdPrefix(map);
-		public LegacyPrefix? GetPrefixFromGroup(InstructionFields group) => list.GetPrefixFromGroup(group);
+		public LegacyPrefix? GetPrefixFromGroup(LegacyPrefixGroup group) => list.GetPrefixFromGroup(group);
+		public bool HasPrefixFromGroup(LegacyPrefixGroup group) => list.HasPrefixFromGroup(group);
 		public bool Contains(LegacyPrefix prefix) => list.Contains(prefix);
 		public int IndexOf(LegacyPrefix prefix) => list.IndexOf(prefix);
 		public void CopyTo(LegacyPrefix[] array, int arrayIndex) => list.CopyTo(array, arrayIndex);

@@ -101,19 +101,19 @@ namespace Asmuth.Disassembler
 						foreach (var operandDefinition in instructionDefinition.Operands)
 						{
 							Console.Write(firstOperand ? " " : ", ");
-							if (operandDefinition.Field == OperandFields.BaseReg)
+							if (operandDefinition.Field == OperandField.BaseReg)
 							{
 								Console.Write(instruction.GetRMEffectiveAddress()
 									.ToString(OperandSize.Dword, instruction.Xex.Type == XexType.RexAndEscapes)
 									.ToLowerInvariant());
 							}
-							else if (operandDefinition.Field == OperandFields.ModReg)
+							else if (operandDefinition.Field == OperandField.ModReg)
 							{
 								var reg = instruction.ModRM?.GetReg() ?? (instruction.MainByte & 0x7);
 								if (instruction.Xex.ModRegExtension) reg |= 0x8;
 								Console.Write(new Gpr(reg, GprPart.Dword).Name.ToLowerInvariant());
 							}
-							else if (operandDefinition.Field == OperandFields.Immediate)
+							else if (operandDefinition.Field == OperandField.Immediate)
 							{
 								if (instruction.Immediate <= (byte)sbyte.MaxValue)
 									Console.Write(instruction.Immediate);

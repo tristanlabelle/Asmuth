@@ -42,7 +42,6 @@ namespace Asmuth.X86
 		// State data
 		private InstructionDecodingState state;
 		private byte substate;
-		private InstructionFields fields;
 		private uint accumulator;
 		private readonly Instruction.Builder builder = new Instruction.Builder();
 		#endregion
@@ -60,7 +59,6 @@ namespace Asmuth.X86
 		#region Properties
 		public InstructionDecodingMode Mode => mode;
 		public InstructionDecodingState State => state;
-		public InstructionFields Fields => fields;
 
 		public InstructionDecodingError? Error
 		{
@@ -83,14 +81,13 @@ namespace Asmuth.X86
 					state = InstructionDecodingState.ExpectPrefixOrOpcode;
 
 					// Check if we have a legacy prefix
-					var legacyPrefixGroupField = LegacyPrefixEnum.GetFieldOrNone((LegacyPrefix)@byte);
-					if (legacyPrefixGroupField != InstructionFields.None)
+					var legacyPrefix = LegacyPrefixEnum.TryFromEncodingByte(@byte);
+					if (legacyPrefix.HasValue)
 					{
-						if ((fields & legacyPrefixGroupField) == legacyPrefixGroupField)
+						if (builder.LegacyPrefixes.HasPrefixFromGroup(legacyPrefix.Value.GetGroup()))
 							return AdvanceToError(InstructionDecodingError.DuplicateLegacyPrefixGroup);
-
-						fields |= legacyPrefixGroupField;
-						builder.LegacyPrefixes.Add((LegacyPrefix)@byte);
+						
+						builder.LegacyPrefixes.Add(legacyPrefix.Value);
 						return true;
 					}
 
@@ -98,7 +95,6 @@ namespace Asmuth.X86
 					if (mode == InstructionDecodingMode.SixtyFourBit && xexType == XexType.RexAndEscapes)
 					{
 						builder.Xex = new Xex((Rex)@byte);
-						fields |= InstructionFields.Xex;
 						return AdvanceTo(InstructionDecodingState.ExpectOpcode);
 					}
 
@@ -124,7 +120,6 @@ namespace Asmuth.X86
 						builder.Xex = default(Xex);
 						builder.OpcodeByte = (byte)Xop.FirstByte;
 						builder.ModRM = (ModRM)@byte;
-						fields |= InstructionFields.Opcode | InstructionFields.ModRM;
 						state = InstructionDecodingState.ExpectModRM;
 						return AdvanceToSibOrFurther();
 					}
@@ -146,8 +141,7 @@ namespace Asmuth.X86
 					}
 
 					accumulator = 0;
-
-					fields |= InstructionFields.Xex;
+						
 					return AdvanceTo(InstructionDecodingState.ExpectOpcode);
 				}
 
@@ -173,7 +167,6 @@ namespace Asmuth.X86
 					}
 
 					builder.OpcodeByte = @byte;
-					fields |= InstructionFields.Opcode;
 
 					bool hasModRM;
 					int immediateSizeInBytes;
@@ -187,14 +180,12 @@ namespace Asmuth.X86
 				case InstructionDecodingState.ExpectModRM:
 				{
 					builder.ModRM = (ModRM)@byte;
-					fields |= InstructionFields.ModRM;
 					return AdvanceToSibOrFurther();
 				}
 
 				case InstructionDecodingState.ExpectSib:
 				{
 					builder.Sib = (Sib)@byte;
-					fields |= InstructionFields.Sib;
 					return AdvanceToDisplacementOrFurther();
 				}
 
@@ -205,8 +196,6 @@ namespace Asmuth.X86
 					var displacementSize = builder.ModRM.Value.GetDisplacementSizeInBytes(
 						builder.Sib.GetValueOrDefault(), GetEffectiveAddressSize());
 					if (substate < displacementSize) return true; // More bytes to come
-
-					fields |= InstructionFields.Displacement;
 
 					// Sign-extend
 					if (displacementSize == 1)
@@ -225,8 +214,7 @@ namespace Asmuth.X86
 					substate++;
 					if (substate < builder.ImmediateSizeInBytes)
 						return true; // More bytes to come
-
-					fields |= InstructionFields.Immediate1;
+					
 					return AdvanceTo(InstructionDecodingState.Completed);
 				}
 
@@ -258,7 +246,6 @@ namespace Asmuth.X86
 
 			state = InstructionDecodingState.Initial;
 			substate = 0;
-			fields = 0;
 			accumulator = 0;
 			builder.Clear();
 			builder.DefaultAddressSize = mode.GetDefaultAddressSize();
@@ -302,8 +289,7 @@ namespace Asmuth.X86
 		private bool AdvanceToSibOrFurther()
 		{
 			Contract.Requires(State == InstructionDecodingState.ExpectModRM);
-			Contract.Requires(Fields.Has(InstructionFields.ModRM));
-
+			
 			return builder.ModRM.Value.ImpliesSib(GetEffectiveAddressSize())
 				? AdvanceTo(InstructionDecodingState.ExpectSib)
 				: AdvanceToDisplacementOrFurther();

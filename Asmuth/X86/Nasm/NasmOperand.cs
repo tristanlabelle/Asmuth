@@ -8,10 +8,10 @@ namespace Asmuth.X86.Nasm
 {
 	public struct NasmOperand : IEquatable<NasmOperand>
 	{
-		public OperandFields Field { get; }
+		public OperandField? Field { get; }
 		public NasmOperandType Type { get; }
 
-		public NasmOperand(OperandFields field, NasmOperandType type)
+		public NasmOperand(OperandField? field, NasmOperandType type)
 		{
 			this.Field = field;
 			this.Type = type;
@@ -19,12 +19,12 @@ namespace Asmuth.X86.Nasm
 
 		public OperandDefinition ToOperandDefinition()
 		{
-			return new OperandDefinition(Field, 0, AccessType.ReadWrite);
+			throw new NotImplementedException();
 		}
 
 		public bool Equals(NasmOperand other) => Type == other.Type && Field == other.Field;
 		public override bool Equals(object obj) => obj is NasmOperand && Equals((NasmOperand)obj);
-		public override int GetHashCode() => ((int)Field << 16) | (int)Type;
+		public override int GetHashCode() => (((byte?)Field).GetValueOrDefault(66) << 16) | (int)Type;
 
 		public static bool Equals(NasmOperand first, NasmOperand second) => first.Equals(second);
 		public static bool operator ==(NasmOperand lhs, NasmOperand rhs) => Equals(lhs, rhs);

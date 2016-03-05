@@ -9,10 +9,23 @@ namespace Asmuth.X86.Nasm
 {
 	partial class NasmInsnsEntry
 	{
+		private enum NasmEncodingParsingState
+		{
+			Prefixes,
+			PostSimdPrefix,
+			Escape0F,
+			PostEscape,
+			PreOpcode = PostEscape,
+			PostOpcode,
+			PostModRM,
+			Immediates
+		}
+
 		public bool IsMatch(Instruction instruction)
 		{
 			if (IsAssembleOnly || IsPseudo) return false;
-			
+
+			var state = NasmEncodingParsingState.Prefixes;
 			foreach (var token in encodingTokens)
 			{
 				switch (token.Type)
@@ -73,6 +86,55 @@ namespace Asmuth.X86.Nasm
 					case NasmEncodingTokenType.Rex_NoW:
 						if (instruction.Xex.OperandSize64) return false;
 						break;
+					
+					// Byte
+					case NasmEncodingTokenType.Byte:
+						if (state < NasmEncodingParsingState.PostSimdPrefix)
+						{
+							if (token.Byte == 0x66 || token.Byte == 0xF2 || token.Byte == 0xF3)
+							{
+								var legacyPrefix = LegacyPrefixEnum.TryFromEncodingByte(token.Byte).Value;
+								if (!instruction.LegacyPrefixes.EndsWith(legacyPrefix)) return false;
+								state = NasmEncodingParsingState.PostSimdPrefix;
+								continue;
+							}
+						}
+
+						if (state < NasmEncodingParsingState.Escape0F && token.Byte == 0x0F)
+						{
+							if (!instruction.Xex.Type.AllowsEscapes() || instruction.OpcodeMap == OpcodeMap.Default) return false;
+							state = NasmEncodingParsingState.Escape0F;
+							continue;
+						}
+
+						if (state == NasmEncodingParsingState.Escape0F && (token.Byte == 0x38 || token.Byte == 0x3A))
+						{
+							var map = token.Byte == 0x38 ? OpcodeMap.Escape0F38 : OpcodeMap.Escape0F3A;
+							if (instruction.OpcodeMap != map) return false;
+							state = NasmEncodingParsingState.PostEscape;
+							continue;
+						}
+
+						if (state < NasmEncodingParsingState.PostOpcode)
+						{
+							if (instruction.MainByte != token.Byte) return false;
+							state = NasmEncodingParsingState.PostOpcode;
+						}
+
+						throw new NotImplementedException();
+
+					case NasmEncodingTokenType.Byte_PlusConditionCode:
+					case NasmEncodingTokenType.Byte_PlusRegister:
+					{
+						if (state > NasmEncodingParsingState.PostOpcode)
+							throw new NotImplementedException();
+
+						byte mask = token.Type == NasmEncodingTokenType.Byte_PlusConditionCode ? (byte)0xF0 : (byte)0xF8;
+						if ((instruction.MainByte & mask) != token.Byte) return false;
+						state = NasmEncodingParsingState.PostOpcode;
+
+						break;
+					}
 
 					// ModRM
 					case NasmEncodingTokenType.ModRM:

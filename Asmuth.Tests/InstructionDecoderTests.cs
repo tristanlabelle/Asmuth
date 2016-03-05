@@ -45,7 +45,7 @@ namespace Asmuth.X86
 						operandSize = xex.OperandSize64 ? OperandSize.Qword : OperandSize.Dword;
 					else
 						operandSize = mode.GetDefaultOperandSize().OverrideWordDword(
-							legacyPrefixes.Contains(LegacyPrefix.OperandSizeOverride));
+							legacyPrefixes.HasOperandSizeOverride);
 
 					hasModRM = false;
 					immediateSizeInBytes = operandSize.InBytes();
@@ -74,7 +74,6 @@ namespace Asmuth.X86
 			var instruction = DecodeSingle32(0x90);
 			Assert.AreEqual(XexType.Escapes, instruction.Xex.Type);
 			Assert.AreEqual(0x90, instruction.MainByte);
-			Assert.AreEqual(InstructionFields.Opcode, instruction.Fields);
 		}
 
 		[TestMethod]
@@ -140,7 +139,6 @@ namespace Asmuth.X86
 			var instruction = DecodeSingle32(vex.GetFirstByte(), vex.GetSecondByte(), 0x90);
 			Assert.AreEqual(XexType.Vex2, instruction.Xex.Type);
 			Assert.AreEqual(0x90, instruction.MainByte);
-			Assert.AreEqual(InstructionFields.Xex | InstructionFields.Opcode, instruction.Fields);
 		}
 
 		[TestMethod]

@@ -127,28 +127,6 @@ namespace Asmuth.X86
 				return size;
 			}
 		}
-
-		public InstructionFields Fields
-		{
-			get
-			{
-				var fields = LegacyPrefixes.GetGroups() | InstructionFields.Opcode;
-				if (xex.Type != XexType.Escapes) fields |= InstructionFields.Xex;
-
-				if ((flags & Flags.HasModRM) != 0)
-				{
-					fields |= InstructionFields.ModRM;
-					var addressSize = EffectiveAddressSize;
-					if (modRM.ImpliesSib(addressSize)) fields |= InstructionFields.Sib;
-					if (modRM.GetDisplacementSizeInBytes(sib, addressSize) > 0)
-						fields |= InstructionFields.Displacement;
-				}
-
-				if (ImmediateSizeInBytes > 0) fields |= InstructionFields.Immediate1;
-
-				return fields;
-			}
-		}
 		#endregion
 
 		#region Methods

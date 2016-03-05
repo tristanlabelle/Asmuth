@@ -32,7 +32,7 @@ namespace Asmuth.X86
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex)
 		{
 			return GetEffectiveOperandSize(decodingMode,
-				@override: legacyPrefixes.Contains(LegacyPrefix.OperandSizeOverride),
+				@override: legacyPrefixes.HasOperandSizeOverride,
 				rexW: xex.OperandSize64);
 		}
 
@@ -65,7 +65,7 @@ namespace Asmuth.X86
 
 		[Pure]
 		public static AddressSize GetEffectiveAddressSize(this InstructionDecodingMode mode, ImmutableLegacyPrefixList legacyPrefixes)
-			=> GetEffectiveAddressSize(mode, @override: legacyPrefixes.Contains(LegacyPrefix.AddressSizeOverride));
+			=> GetEffectiveAddressSize(mode, @override: legacyPrefixes.HasAddressSizeOverride);
 
 		[Pure]
 		public static AddressSize GetEffectiveAddressSize(this InstructionDecodingMode mode, bool @override)

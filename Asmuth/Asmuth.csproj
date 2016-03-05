@@ -73,14 +73,13 @@
     <Compile Include="X86\OperandType.cs" />
     <Compile Include="X86\InstructionDecoder.cs" />
     <Compile Include="X86\InstructionDefinition.cs" />
-    <Compile Include="X86\InstructionFields.cs" />
     <Compile Include="X86\IInstructionDecoderLookup.cs" />
     <Compile Include="X86\Nasm\NasmEncodingToken.cs" />
     <Compile Include="X86\Nasm\NasmInsnsEntry.ToInstructionDefinition.cs" />
     <Compile Include="X86\Nasm\NasmNameAttribute.cs" />
     <Compile Include="X86\Nasm\NasmOperandFlags.cs" />
     <Compile Include="X86\OperandEncoding.cs" />
-    <Compile Include="X86\OperandFields.cs" />
+    <Compile Include="X86\OperandField.cs" />
     <Compile Include="X86\InterruptVector.cs" />
     <Compile Include="X86\LegacyPrefix.cs" />
     <Compile Include="X86\Instruction.cs" />

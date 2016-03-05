@@ -226,10 +226,10 @@ namespace Asmuth.X86
 	public struct OperandDefinition
 	{
 		public readonly OperandEncoding Encoding;
-		public readonly OperandFields Field;
+		public readonly OperandField Field;
 		public readonly AccessType AccessType;
 
-		public OperandDefinition(OperandFields field, OperandEncoding encoding, AccessType accessType)
+		public OperandDefinition(OperandField field, OperandEncoding encoding, AccessType accessType)
 		{
 			this.Field = field;
 			this.Encoding = encoding;

@@ -48,19 +48,19 @@ namespace Asmuth.X86.Nasm
 			}
 		}
 
-		public static OperandFields? TryParseOperandField(char c)
+		public static OperandField? ParseOperandField(char c)
 		{
 			switch (c)
 			{
-				case '-': return OperandFields.None;
-				case 'r': return OperandFields.ModReg;
-				case 'm': return OperandFields.BaseReg;
-				case 'x': return OperandFields.IndexReg;
-				case 'i': return OperandFields.Immediate;
-				case 'j': return OperandFields.Immediate2;
-				case 'v': return OperandFields.NonDestructiveReg;
-				case 's': return OperandFields.IS4;
-				default: return null;
+				case '-': return null;
+				case 'r': return OperandField.ModReg;
+				case 'm': return OperandField.BaseReg;
+				case 'x': return OperandField.IndexReg;
+				case 'i': return OperandField.Immediate;
+				case 'j': return OperandField.Immediate2;
+				case 'v': return OperandField.NonDestructiveReg;
+				case 's': return OperandField.IS4;
+				default: throw new ArgumentOutOfRangeException(nameof(c));
 			}
 		}
 
@@ -317,7 +317,7 @@ namespace Asmuth.X86.Nasm
 
 			for (int i = 0; i < values.Length; ++i)
 			{
-				var field = TryParseOperandField(fieldsString[i]).Value;
+				var field = ParseOperandField(fieldsString[i]);
 
 				var valueComponents = values[i].Split('|');
 				var typeString = valueComponents[0];
