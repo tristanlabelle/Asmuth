@@ -12,7 +12,7 @@ namespace Asmuth.X86
 	/// </summary>
 	public interface IInstructionDecoderLookup
 	{
-		bool TryLookup(InstructionDecodingMode mode,
+		bool TryLookup(CodeContext mode,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
 			out bool hasModRM, out int immediateSizeInBytes);
 	}

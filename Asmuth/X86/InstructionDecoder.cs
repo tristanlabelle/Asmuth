@@ -37,7 +37,7 @@ namespace Asmuth.X86
 	{
 		#region Fields
 		private readonly IInstructionDecoderLookup lookup;
-		private InstructionDecodingMode mode;
+		private CodeContext mode;
 
 		// State data
 		private InstructionDecodingState state;
@@ -47,7 +47,7 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Constructors
-		public InstructionDecoder(IInstructionDecoderLookup lookup, InstructionDecodingMode mode)
+		public InstructionDecoder(IInstructionDecoderLookup lookup, CodeContext mode)
 		{
 			Contract.Requires(lookup != null);
 
@@ -57,7 +57,7 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Properties
-		public InstructionDecodingMode Mode => mode;
+		public CodeContext Mode => mode;
 		public InstructionDecodingState State => state;
 
 		public InstructionDecodingError? Error
@@ -92,7 +92,7 @@ namespace Asmuth.X86
 					}
 
 					var xexType = XexEnums.GetTypeFromByte(@byte);
-					if (mode == InstructionDecodingMode.SixtyFourBit && xexType == XexType.RexAndEscapes)
+					if (mode == CodeContext.SixtyFourBit && xexType == XexType.RexAndEscapes)
 					{
 						builder.Xex = new Xex((Rex)@byte);
 						return AdvanceTo(InstructionDecodingState.ExpectOpcode);
@@ -100,7 +100,7 @@ namespace Asmuth.X86
 
 					if (xexType >= XexType.Vex2)
 					{
-						if (mode == InstructionDecodingMode._8086)
+						if (mode.IsRealOrVirtual8086())
 							return AdvanceToError(InstructionDecodingError.VexIn8086Mode);
 
 						int remainingBytes = xexType.GetMinSizeInBytes() - 1;
@@ -251,7 +251,7 @@ namespace Asmuth.X86
 			builder.DefaultAddressSize = mode.GetDefaultAddressSize();
 		}
 
-		public void Reset(InstructionDecodingMode mode)
+		public void Reset(CodeContext mode)
 		{
 			this.mode = mode;
 			Reset();

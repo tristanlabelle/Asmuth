@@ -257,11 +257,24 @@ namespace Asmuth.X86.Nasm
 						throw new NotImplementedException($"Nasm token {token}");
 				}
 			}
+
+			foreach (var operand in operands)
+			{
+				if (operand.Field == OperandField.BaseReg)
+				{
+					var optype = operand.Type & NasmOperandType.OpType_Mask;
+					var isReg = !instruction.ModRM.HasValue || (instruction.ModRM.Value & ModRM.Mod_Mask) == ModRM.Mod_Direct;
+					if (optype == NasmOperandType.OpType_Register && !isReg) return false;
+					if (optype == NasmOperandType.OpType_Memory && isReg) return false;
+				}
+			}
 			
 			return state >= NasmEncodingParsingState.PostOpcode
 				&& (expectedXexType == XexType.Escapes ? instruction.Xex.Type.AllowsEscapes() : instruction.Xex.Type == expectedXexType)
 				&& instruction.OpcodeMap == expectedOpcodeMap
-				&& (upToOpcode || instruction.ImmediateSizeInBytes == immediateSize);
+				&& (upToOpcode || 
+					(instruction.ModRM.HasValue == hasModRM
+					&& instruction.ImmediateSizeInBytes == immediateSize));
 		}
 
 		private static OperandSize GetIntegerOperandSize(Instruction instruction)

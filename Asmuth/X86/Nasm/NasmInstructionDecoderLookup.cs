@@ -16,7 +16,7 @@ namespace Asmuth.X86.Nasm
 		}
 
 		public bool TryLookup(
-			InstructionDecodingMode mode, ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
+			CodeContext mode, ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
 			out bool hasModRM, out int immediateSizeInBytes)
 		{
 			hasModRM = false;

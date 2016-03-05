@@ -12,7 +12,7 @@ namespace Asmuth.X86
 		{
 			public static readonly InstructionLookup Instance = new InstructionLookup();
 
-			public bool TryLookup(InstructionDecodingMode mode,
+			public bool TryLookup(CodeContext mode,
 				ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
 				out bool hasModRM, out int immediateSizeInBytes)
 			{
@@ -41,7 +41,7 @@ namespace Asmuth.X86
 				{
 					// Mov r(16|32|64), imm(16|32|64)
 					OperandSize operandSize;
-					if (mode == InstructionDecodingMode.SixtyFourBit)
+					if (mode == CodeContext.SixtyFourBit)
 						operandSize = xex.OperandSize64 ? OperandSize.Qword : OperandSize.Dword;
 					else
 						operandSize = mode.GetDefaultOperandSize().OverrideWordDword(
@@ -71,7 +71,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void TestNop()
 		{
-			var instruction = DecodeSingle32(0x90);
+			var instruction = DecodeSingle_Protected32(0x90);
 			Assert.AreEqual(XexType.Escapes, instruction.Xex.Type);
 			Assert.AreEqual(0x90, instruction.MainByte);
 		}
@@ -93,7 +93,7 @@ namespace Asmuth.X86
 				0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00
 			};
 
-			var instructions = Decode32(nops);
+			var instructions = Decode_Protected32(nops);
 			Assert.AreEqual(9, instructions.Length);
 			
 			for (int i = 0; i < instructions.Length; ++i)
@@ -118,10 +118,10 @@ namespace Asmuth.X86
 		{
 			var instructions = new[]
 			{
-				DecodeSingle(InstructionDecodingMode.IA32_Default32, 0xB0, 0x01), // MOV AL,imm8
-				DecodeSingle(InstructionDecodingMode.IA32_Default16, 0xB8, 0x01, 0x00), // MOV AX,imm16
-				DecodeSingle(InstructionDecodingMode.IA32_Default32, 0xB8, 0x01, 0x00, 0x00, 0x00), // MOV EAX,imm32
-				DecodeSingle(InstructionDecodingMode.SixtyFourBit, 0x48, 0xB8, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00) // MOV RAX,imm64
+				DecodeSingle_IA32e(AddressSize._32, 0xB0, 0x01), // MOV AL,imm8
+				DecodeSingle_IA32e(AddressSize._16, 0xB8, 0x01, 0x00), // MOV AX,imm16
+				DecodeSingle_IA32e(AddressSize._32, 0xB8, 0x01, 0x00, 0x00, 0x00), // MOV EAX,imm32
+				DecodeSingle_IA32e(AddressSize._64, 0x48, 0xB8, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00) // MOV RAX,imm64
 			};
 
 			for (int i = 0; i < instructions.Length; ++i)
@@ -136,7 +136,7 @@ namespace Asmuth.X86
 		public void TestVex2Nop()
 		{
 			var vex = Vex2.Reserved_Value;
-			var instruction = DecodeSingle32(vex.GetFirstByte(), vex.GetSecondByte(), 0x90);
+			var instruction = DecodeSingle_Protected32(vex.GetFirstByte(), vex.GetSecondByte(), 0x90);
 			Assert.AreEqual(XexType.Vex2, instruction.Xex.Type);
 			Assert.AreEqual(0x90, instruction.MainByte);
 		}
@@ -146,7 +146,7 @@ namespace Asmuth.X86
 		{
 			// 66 0F 58 /r - ADDPD xmm1, xmm2/m128
 			var modRM = ModRMEnum.FromComponents(3, 1, 2);
-			var instruction = DecodeSingle32(0x66, 0x0F, 0x58, (byte)modRM);
+			var instruction = DecodeSingle_Protected32(0x66, 0x0F, 0x58, (byte)modRM);
 			Assert.AreEqual(SimdPrefix._66, instruction.SimdPrefix);
 			Assert.AreEqual(XexType.Escapes, instruction.Xex.Type);
 			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
@@ -160,7 +160,7 @@ namespace Asmuth.X86
 			// VEX.NDS.128.66.0F.WIG 58 /r - VADDPD xmm1, xmm2, xmm3/m128
 			var modRM = ModRMEnum.FromComponents(3, 1, 2);
 			var vex = Vex3.Reserved_Value | Vex3.SimdPrefix_66 | Vex3.OpcodeMap_0F;
-			var instruction = DecodeSingle32(vex.GetFirstByte(), vex.GetSecondByte(), vex.GetThirdByte(), 0x58, (byte)modRM);
+			var instruction = DecodeSingle_Protected32(vex.GetFirstByte(), vex.GetSecondByte(), vex.GetThirdByte(), 0x58, (byte)modRM);
 			Assert.AreEqual(XexType.Vex3, instruction.Xex.Type);
 			Assert.AreEqual(SimdPrefix._66, instruction.SimdPrefix);
 			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
@@ -168,9 +168,9 @@ namespace Asmuth.X86
 			Assert.AreEqual(modRM, instruction.ModRM);
 		}
 
-		private static Instruction[] Decode(InstructionDecodingMode mode, params byte[] bytes)
+		private static Instruction[] Decode(CodeContext context, params byte[] bytes)
 		{
-			var decoder = new InstructionDecoder(InstructionLookup.Instance, mode);
+			var decoder = new InstructionDecoder(InstructionLookup.Instance, context);
 			var instructions = new List<Instruction>();
 			for (int i = 0; i < bytes.Length; ++i)
 			{
@@ -184,17 +184,23 @@ namespace Asmuth.X86
 			return instructions.ToArray();
 		}
 
-		private static Instruction[] Decode32(params byte[] bytes)
-			=> Decode(InstructionDecodingMode.IA32_Default32, bytes);
+		private static Instruction[] Decode_IA32e(AddressSize defaultAddressSize, params byte[] bytes)
+			=> Decode(CodeContextEnum.GetIA32e(defaultAddressSize), bytes);
 
-		private static Instruction DecodeSingle(InstructionDecodingMode mode, params byte[] bytes)
+		private static Instruction[] Decode_Protected32(params byte[] bytes)
+			=> Decode(CodeContext.Protected_Default32, bytes);
+
+		private static Instruction DecodeSingle(CodeContext context, params byte[] bytes)
 		{
-			var instructions = Decode(mode, bytes);
+			var instructions = Decode(context, bytes);
 			Assert.AreEqual(1, instructions.Length);
 			return instructions[0];
 		}
 
-		private static Instruction DecodeSingle32(params byte[] bytes)
-			=> DecodeSingle(InstructionDecodingMode.IA32_Default32, bytes);
+		private static Instruction DecodeSingle_IA32e(AddressSize defaultAddressSize, params byte[] bytes)
+			=> DecodeSingle(CodeContextEnum.GetIA32e(defaultAddressSize), bytes);
+
+		private static Instruction DecodeSingle_Protected32(params byte[] bytes)
+			=> DecodeSingle(CodeContext.Protected_Default32, bytes);
 	}
 }

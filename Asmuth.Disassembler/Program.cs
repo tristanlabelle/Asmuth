@@ -62,7 +62,7 @@ namespace Asmuth.Disassembler
 
 				// Disassemble executable sections
 				var instructionDecoderLookup = new NasmInstructionDecoderLookup(nasmInsnsEntries);
-				var instructionDecoder = new InstructionDecoder(instructionDecoderLookup, InstructionDecodingMode.IA32_Default32);
+				var instructionDecoder = new InstructionDecoder(instructionDecoderLookup, CodeContext.Compatibility_Default32);
 				foreach (var sectionHeader in sectionHeaders)
 				{
 					if ((sectionHeader.Characteristics & IMAGE_SCN_CNT_CODE) == 0) continue;
@@ -93,7 +93,8 @@ namespace Asmuth.Disassembler
 						var instruction = instructionDecoder.GetInstruction();
 						instructionDecoder.Reset();
 
-						var nasmInsnsEntry = nasmInsnsEntries.Where(e => e.IsMatch(instruction)).First();
+						var candidateNasmInsnsEntries = nasmInsnsEntries.Where(e => e.IsMatch(instruction)).ToArray();
+						var nasmInsnsEntry = candidateNasmInsnsEntries.Single();
 						Console.Write('\t');
 						Console.Write(nasmInsnsEntry.Mnemonic.ToLowerInvariant());
 

@@ -55,10 +55,12 @@
     <Compile Include="UnreachableException.cs" />
     <Compile Include="Bits.cs" />
     <Compile Include="X86\AddressSize.cs" />
+    <Compile Include="X86\CodeWriter.cs" />
+    <Compile Include="X86\CpuidQuery.Perform.cs" />
     <Compile Include="X86\EffectiveAddress.cs" />
     <Compile Include="X86\ImmediateSize.cs" />
     <Compile Include="X86\Instruction.Builder.cs" />
-    <Compile Include="X86\InstructionDecodingMode.cs" />
+    <Compile Include="X86\CodeContext.cs" />
     <Compile Include="X86\ConditionCode.cs" />
     <Compile Include="X86\CpuidFeatureFlags.cs" />
     <Compile Include="X86\CpuidQuery.cs" />
