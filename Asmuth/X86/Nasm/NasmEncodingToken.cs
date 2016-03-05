@@ -93,12 +93,12 @@ namespace Asmuth.X86.Nasm
 		[NasmName("o64")]
 		OperandSize_64,
 		[NasmName("o64nw")]
-		OperandSize_Fixed64_RexExtensionsOnly,
+		OperandSize_64WithoutW,
 		[NasmName("odf")]
 		OperandSize_NoOverride,
 
 		[NasmName("np")]
-		LegacyPrefix_None = Category_LegacyPrefix,
+		LegacyPrefix_NoSimd = Category_LegacyPrefix,
 		[NasmName("f2i")]
 		LegacyPrefix_F2,
 		[NasmName("f3i")]

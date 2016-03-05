@@ -14,7 +14,7 @@ namespace Asmuth.X86
 			private byte immediateSizeInBytes;
 
 			public AddressSize DefaultAddressSize { get; set; } = AddressSize._32;
-			public LegacyPrefixList LegacyPrefixes { get; } = new LegacyPrefixList();
+			public ImmutableLegacyPrefixList LegacyPrefixes { get; set; }
 			public Xex Xex { get; set; }
 			public byte OpcodeByte { get; set; }
 			public ModRM? ModRM { get; set; }

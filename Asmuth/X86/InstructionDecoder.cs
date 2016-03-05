@@ -84,7 +84,7 @@ namespace Asmuth.X86
 					var legacyPrefix = LegacyPrefixEnum.TryFromEncodingByte(@byte);
 					if (legacyPrefix.HasValue)
 					{
-						if (builder.LegacyPrefixes.HasPrefixFromGroup(legacyPrefix.Value.GetGroup()))
+						if (builder.LegacyPrefixes.ContainsFromGroup(legacyPrefix.Value.GetGroup()))
 							return AdvanceToError(InstructionDecodingError.DuplicateLegacyPrefixGroup);
 						
 						builder.LegacyPrefixes.Add(legacyPrefix.Value);

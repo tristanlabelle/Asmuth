@@ -1,9 +1,11 @@
 ﻿using Asmuth.X86;
 using Asmuth.X86.Nasm;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.IO.MemoryMappedFiles;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -15,13 +17,11 @@ namespace Asmuth.Disassembler
 	{
 		static void Main(string[] args)
 		{
-			var instructionDictionary = new InstructionDictionary();
+			var nasmInsnsEntries = new List<NasmInsnsEntry>();
 			foreach (var line in File.ReadAllLines("insns.dat", Encoding.ASCII))
 			{
 				if (NasmInsns.IsIgnoredLine(line)) continue;
-				var entry = NasmInsns.ParseLine(line);
-				if (entry.IsPseudo) continue;
-				instructionDictionary.Add(entry.ToInstructionDefinition());
+				nasmInsnsEntries.Add(NasmInsns.ParseLine(line));
 			}
 
 			var filePath = Path.GetFullPath(args[0]);
@@ -61,7 +61,8 @@ namespace Asmuth.Disassembler
 				}
 
 				// Disassemble executable sections
-				var instructionDecoder = new InstructionDecoder(instructionDictionary, InstructionDecodingMode.IA32_Default32);
+				var instructionDecoderLookup = new NasmInstructionDecoderLookup(nasmInsnsEntries);
+				var instructionDecoder = new InstructionDecoder(instructionDecoderLookup, InstructionDecodingMode.IA32_Default32);
 				foreach (var sectionHeader in sectionHeaders)
 				{
 					if ((sectionHeader.Characteristics & IMAGE_SCN_CNT_CODE) == 0) continue;
@@ -91,14 +92,13 @@ namespace Asmuth.Disassembler
 
 						var instruction = instructionDecoder.GetInstruction();
 						instructionDecoder.Reset();
-						
-						var opcode = instruction.GetOpcode();
-						var instructionDefinition = instructionDictionary.Find(opcode);
+
+						var nasmInsnsEntry = nasmInsnsEntries.Where(e => e.IsMatch(instruction)).First();
 						Console.Write('\t');
-						Console.Write(instructionDefinition.Mnemonic.ToLowerInvariant());
+						Console.Write(nasmInsnsEntry.Mnemonic.ToLowerInvariant());
 
 						bool firstOperand = true;
-						foreach (var operandDefinition in instructionDefinition.Operands)
+						foreach (var operandDefinition in nasmInsnsEntry.Operands)
 						{
 							Console.Write(firstOperand ? " " : ", ");
 							if (operandDefinition.Field == OperandField.BaseReg)

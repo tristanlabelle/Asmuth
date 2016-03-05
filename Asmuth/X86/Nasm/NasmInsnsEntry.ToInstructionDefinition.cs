@@ -93,7 +93,7 @@ namespace Asmuth.X86.Nasm
 							SetOperandSize(InstructionEncoding.OperandSize_Fixed64);
 							break;
 							
-						case NasmEncodingTokenType.OperandSize_Fixed64_RexExtensionsOnly:
+						case NasmEncodingTokenType.OperandSize_64WithoutW:
 							{
 								InstructionEncoding newOperandSize;
 								switch (encoding & InstructionEncoding.OperandSize_Mask)
@@ -133,7 +133,7 @@ namespace Asmuth.X86.Nasm
 							SetSimdPrefix(SimdPrefix._F3);
 							continue;
 
-						case NasmEncodingTokenType.LegacyPrefix_None:
+						case NasmEncodingTokenType.LegacyPrefix_NoSimd:
 						case NasmEncodingTokenType.LegacyPrefix_NoF3:
 						case NasmEncodingTokenType.LegacyPrefix_HleAlways:
 						case NasmEncodingTokenType.LegacyPrefix_HleWithLock:

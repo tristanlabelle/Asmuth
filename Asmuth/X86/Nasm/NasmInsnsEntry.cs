@@ -54,7 +54,10 @@ namespace Asmuth.X86.Nasm
 			return str.ToString();
 		}
 
-		public override string ToString() => Mnemonic;
+		public override string ToString()
+		{
+			return Mnemonic + ": " + GetEncodingString();
+		}
 		#endregion
 
 		#region Builder Class

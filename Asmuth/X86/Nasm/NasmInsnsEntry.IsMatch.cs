@@ -21,10 +21,36 @@ namespace Asmuth.X86.Nasm
 			Immediates
 		}
 
+		public bool Match(
+			AddressSize defaultAddressSize, ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
+			out bool hasModRM, out int immediateSize)
+		{
+			var partialInstruction = new Instruction.Builder
+			{
+				DefaultAddressSize = defaultAddressSize,
+				LegacyPrefixes = legacyPrefixes,
+				Xex = xex,
+				OpcodeByte = opcode
+			}.Build();
+
+			return Match(partialInstruction, upToOpcode: true, hasModRM: out hasModRM, immediateSize: out immediateSize);
+		}
+
 		public bool IsMatch(Instruction instruction)
 		{
+			bool hasModRM;
+			int immediateSize;
+			return Match(instruction, upToOpcode: false, hasModRM: out hasModRM, immediateSize: out immediateSize);
+		}
+
+		private bool Match(Instruction instruction, bool upToOpcode, out bool hasModRM, out int immediateSize)
+		{
+			hasModRM = false;
+			immediateSize = 0;
 			if (IsAssembleOnly || IsPseudo) return false;
 
+			var expectedXexType = XexType.Escapes;
+			var expectedOpcodeMap = OpcodeMap.Default;
 			var state = NasmEncodingParsingState.Prefixes;
 			foreach (var token in encodingTokens)
 			{
@@ -60,6 +86,15 @@ namespace Asmuth.X86.Nasm
 						if (GetIntegerOperandSize(instruction) != OperandSize.Qword) return false;
 						break;
 
+					case NasmEncodingTokenType.OperandSize_NoOverride:
+						if (instruction.LegacyPrefixes.HasOperandSizeOverride) return false;
+						break;
+
+					case NasmEncodingTokenType.OperandSize_64WithoutW:
+						if (instruction.DefaultAddressSize != AddressSize._64
+							|| instruction.LegacyPrefixes.HasOperandSizeOverride) return false;
+						break;
+
 					// Legacy prefixes
 					case NasmEncodingTokenType.LegacyPrefix_F2:
 						if (!instruction.LegacyPrefixes.Contains(LegacyPrefix.RepeatNotEqual)) return false;
@@ -73,10 +108,30 @@ namespace Asmuth.X86.Nasm
 						if (instruction.LegacyPrefixes.Contains(LegacyPrefix.RepeatEqual)) return false;
 						break;
 
-					case NasmEncodingTokenType.LegacyPrefix_NoRep:
-						if (instruction.LegacyPrefixes.Contains(LegacyPrefix.RepeatNotEqual)
-							|| instruction.LegacyPrefixes.Contains(LegacyPrefix.RepeatEqual)) return false;
+					case NasmEncodingTokenType.LegacyPrefix_NoSimd:
+						if (instruction.LegacyPrefixes.ContainsFromGroup(LegacyPrefixGroup.Repeat)
+							|| instruction.LegacyPrefixes.ContainsFromGroup(LegacyPrefixGroup.OperandSizeOverride))
+							return false;
 						break;
+
+					case NasmEncodingTokenType.LegacyPrefix_MustRep:
+						if (instruction.SimdPrefix != SimdPrefix._F3) return false;
+						break;
+
+					case NasmEncodingTokenType.LegacyPrefix_NoRep:
+						if (instruction.LegacyPrefixes.ContainsFromGroup(LegacyPrefixGroup.Repeat)) return false;
+						break;
+
+					case NasmEncodingTokenType.LegacyPrefix_DisassembleRepAsRepE:
+					case NasmEncodingTokenType.LegacyPrefix_HleAlways:
+					case NasmEncodingTokenType.LegacyPrefix_HleWithLock:
+					case NasmEncodingTokenType.LegacyPrefix_XReleaseAlways:
+						break;
+
+					// Vex
+					case NasmEncodingTokenType.Vex:
+						if (instruction.Xex.Type != vexEncoding.GetXexType()) return false;
+						throw new NotImplementedException();
 
 					// Rex
 					case NasmEncodingTokenType.Rex_NoB:
@@ -86,7 +141,9 @@ namespace Asmuth.X86.Nasm
 					case NasmEncodingTokenType.Rex_NoW:
 						if (instruction.Xex.OperandSize64) return false;
 						break;
-					
+
+					case NasmEncodingTokenType.Rex_LockAsRexR: break;
+
 					// Byte
 					case NasmEncodingTokenType.Byte:
 						if (state < NasmEncodingParsingState.PostSimdPrefix)
@@ -102,15 +159,15 @@ namespace Asmuth.X86.Nasm
 
 						if (state < NasmEncodingParsingState.Escape0F && token.Byte == 0x0F)
 						{
-							if (!instruction.Xex.Type.AllowsEscapes() || instruction.OpcodeMap == OpcodeMap.Default) return false;
+							if (!instruction.Xex.Type.AllowsEscapes()) return false;
+							expectedOpcodeMap = OpcodeMap.Escape0F;
 							state = NasmEncodingParsingState.Escape0F;
 							continue;
 						}
 
 						if (state == NasmEncodingParsingState.Escape0F && (token.Byte == 0x38 || token.Byte == 0x3A))
 						{
-							var map = token.Byte == 0x38 ? OpcodeMap.Escape0F38 : OpcodeMap.Escape0F3A;
-							if (instruction.OpcodeMap != map) return false;
+							expectedOpcodeMap = token.Byte == 0x38 ? OpcodeMap.Escape0F38 : OpcodeMap.Escape0F3A;
 							state = NasmEncodingParsingState.PostEscape;
 							continue;
 						}
@@ -119,8 +176,18 @@ namespace Asmuth.X86.Nasm
 						{
 							if (instruction.MainByte != token.Byte) return false;
 							state = NasmEncodingParsingState.PostOpcode;
+							continue;
 						}
 
+						if (state == NasmEncodingParsingState.PostOpcode)
+						{
+							if (!upToOpcode && (byte?)instruction.ModRM != token.Byte) return false;
+							hasModRM = true;
+							state = NasmEncodingParsingState.PostModRM;
+							continue;
+						}
+
+						// Constant imm?
 						throw new NotImplementedException();
 
 					case NasmEncodingTokenType.Byte_PlusConditionCode:
@@ -138,11 +205,15 @@ namespace Asmuth.X86.Nasm
 
 					// ModRM
 					case NasmEncodingTokenType.ModRM:
-						if (!instruction.ModRM.HasValue) return false;
+						if (!upToOpcode && !instruction.ModRM.HasValue) return false;
+						hasModRM = true;
+						state = NasmEncodingParsingState.PostModRM;
 						break;
 
 					case NasmEncodingTokenType.ModRM_FixedReg:
-						if (!instruction.ModRM.HasValue || instruction.ModRM.Value.GetReg() != token.Byte) return false;
+						if (!upToOpcode && (!instruction.ModRM.HasValue || instruction.ModRM.Value.GetReg() != token.Byte)) return false;
+						hasModRM = true;
+						state = NasmEncodingParsingState.PostModRM;
 						break;
 
 					// VectorSib
@@ -155,12 +226,42 @@ namespace Asmuth.X86.Nasm
 						if (!instruction.Sib.HasValue) return false;
 						break;
 
+					// Immediates
+					case NasmEncodingTokenType.Immediate_Byte:
+					case NasmEncodingTokenType.Immediate_Byte_Signed:
+					case NasmEncodingTokenType.Immediate_Byte_Unsigned:
+					case NasmEncodingTokenType.Immediate_Is4:
+					case NasmEncodingTokenType.Immediate_RelativeOffset8:
+						immediateSize++;
+						break;
+
+					case NasmEncodingTokenType.Immediate_Word: immediateSize += 2; break;
+
+					case NasmEncodingTokenType.Immediate_Dword:
+					case NasmEncodingTokenType.Immediate_Dword_Signed:
+						immediateSize += 4;
+						break;
+
+					case NasmEncodingTokenType.Immediate_Qword: immediateSize += 8; break;
+
+					case NasmEncodingTokenType.Immediate_RelativeOffset:
+						immediateSize += instruction.DefaultAddressSize == AddressSize._16 ? 2 : 4;
+						break;
+
+					// Misc
+					case NasmEncodingTokenType.Misc_AssembleWaitPrefix:
+					case NasmEncodingTokenType.Misc_NoHigh8Register:
+						break;
+
 					default:
 						throw new NotImplementedException($"Nasm token {token}");
 				}
 			}
-
-			return true;
+			
+			return state >= NasmEncodingParsingState.PostOpcode
+				&& (expectedXexType == XexType.Escapes ? instruction.Xex.Type.AllowsEscapes() : instruction.Xex.Type == expectedXexType)
+				&& instruction.OpcodeMap == expectedOpcodeMap
+				&& (upToOpcode || instruction.ImmediateSizeInBytes == immediateSize);
 		}
 
 		private static OperandSize GetIntegerOperandSize(Instruction instruction)

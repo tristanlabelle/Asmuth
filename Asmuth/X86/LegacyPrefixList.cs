@@ -96,7 +96,7 @@ namespace Asmuth.X86
 			return null;
 		}
 
-		public bool HasPrefixFromGroup(LegacyPrefixGroup group) => GetPrefixFromGroup(group).HasValue;
+		public bool ContainsFromGroup(LegacyPrefixGroup group) => GetPrefixFromGroup(group).HasValue;
 
 		public void CopyTo(LegacyPrefix[] array, int arrayIndex)
 		{
@@ -132,7 +132,7 @@ namespace Asmuth.X86
 		public ImmutableLegacyPrefixList Insert(int index, LegacyPrefix item)
 		{
 			if (index < 0 || index > Count) throw new ArgumentOutOfRangeException(nameof(index));
-			if (HasPrefixFromGroup(item.GetGroup())) throw new InvalidOperationException();
+			if (ContainsFromGroup(item.GetGroup())) throw new InvalidOperationException();
 
 			uint data = storage & 0xFFFFFF;
 			uint multiple = multiples[index];
@@ -172,8 +172,6 @@ namespace Asmuth.X86
 		}
 		#endregion
 
-		public static implicit operator ImmutableLegacyPrefixList(LegacyPrefixList list) => list.ToImmutable();
-
 		LegacyPrefix IList<LegacyPrefix>.this[int index]
 		{
 			get { return this[index]; }
@@ -187,58 +185,6 @@ namespace Asmuth.X86
 		void ICollection<LegacyPrefix>.Add(LegacyPrefix prefix) { throw new NotSupportedException(); }
 		bool ICollection<LegacyPrefix>.Remove(LegacyPrefix prefix) { throw new NotSupportedException(); }
 		void ICollection<LegacyPrefix>.Clear() { throw new NotSupportedException(); }
-		IEnumerator<LegacyPrefix> IEnumerable<LegacyPrefix>.GetEnumerator() { throw new NotImplementedException(); }
-		IEnumerator IEnumerable.GetEnumerator() { throw new NotImplementedException(); }
-	}
-
-	public sealed class LegacyPrefixList : IList<LegacyPrefix>, IReadOnlyList<LegacyPrefix>
-	{
-		public const int Capacity = ImmutableLegacyPrefixList.Capacity;
-
-		private ImmutableLegacyPrefixList list;
-
-		public LegacyPrefixList() { }
-		public LegacyPrefixList(ImmutableLegacyPrefixList list) { this.list = list; }
-
-		public int Count => list.Count;
-		public bool IsEmpty => list.IsEmpty;
-		public bool HasOperandSizeOverride => list.HasOperandSizeOverride;
-		public bool HasAddressSizeOverride => list.HasAddressSizeOverride;
-		public SegmentRegister? SegmentOverride => list.SegmentOverride;
-
-		public LegacyPrefix this[int index]
-		{
-			get { return list[index]; }
-			set { list = list.SetAt(index, value); }
-		}
-
-		public SimdPrefix GetSimdPrefix(OpcodeMap map) => list.GetSimdPrefix(map);
-		public LegacyPrefix? GetPrefixFromGroup(LegacyPrefixGroup group) => list.GetPrefixFromGroup(group);
-		public bool HasPrefixFromGroup(LegacyPrefixGroup group) => list.HasPrefixFromGroup(group);
-		public bool Contains(LegacyPrefix prefix) => list.Contains(prefix);
-		public int IndexOf(LegacyPrefix prefix) => list.IndexOf(prefix);
-		public void CopyTo(LegacyPrefix[] array, int arrayIndex) => list.CopyTo(array, arrayIndex);
-		public void Add(LegacyPrefix prefix) => list = list.Add(prefix);
-
-		public void RemoveAt(int index) => list = list.RemoveAt(index);
-		public void Clear() => list = list.Clear();
-
-		public bool Remove(LegacyPrefix prefix)
-		{
-			int index = list.IndexOf(prefix);
-			if (index < 0) return false;
-			list = list.RemoveAt(index);
-			return true;
-		}
-
-		public ImmutableLegacyPrefixList ToImmutable() => list;
-
-		public override string ToString() => list.ToString();
-
-		public static implicit operator LegacyPrefixList(ImmutableLegacyPrefixList list) => new LegacyPrefixList(list);
-
-		bool ICollection<LegacyPrefix>.IsReadOnly => false;
-		void IList<LegacyPrefix>.Insert(int index, LegacyPrefix prefix) { throw new NotSupportedException(); }
 		IEnumerator<LegacyPrefix> IEnumerable<LegacyPrefix>.GetEnumerator() { throw new NotImplementedException(); }
 		IEnumerator IEnumerable.GetEnumerator() { throw new NotImplementedException(); }
 	}
