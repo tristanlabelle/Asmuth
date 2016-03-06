@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 namespace Asmuth.Debugger
 {
 	using System.Collections.Concurrent;
+	using Microsoft.Win32.SafeHandles;
 	using static Kernel32;
 	using static NativeMethods;
 
@@ -26,7 +27,18 @@ namespace Asmuth.Debugger
 			}
 
 			public IDebugEventListener Listener => listener;
-			public CREATE_PROCESS_DEBUG_INFO ProcessDebugInfo => debugInfo;
+
+			public int ID => unchecked((int)GetProcessId(debugInfo.hProcess));
+			public SafeFileHandle ImageHandle => new SafeFileHandle(debugInfo.hFile, ownsHandle: false);
+			public ulong ImageBase => unchecked((ulong)debugInfo.lpBaseOfImage);
+
+			ForeignPtr IProcessDebuggerService.ImageBase
+			{
+				get
+				{
+					throw new NotImplementedException();
+				}
+			}
 
 			public void RequestBreak()
 			{
@@ -64,14 +76,30 @@ namespace Asmuth.Debugger
 					CheckWin32(TerminateThread(handle, unchecked((uint)exitCode)));
 			}
 
-			public void ReadMemory(ulong address, int count, IntPtr buffer)
+			public void ReadMemory(ForeignPtr source, IntPtr dest, int count)
 			{
-				throw new NotImplementedException();
+				UIntPtr countRead;
+				CheckWin32(ReadProcessMemory(debugInfo.hProcess, (IntPtr)source.Address, dest, (UIntPtr)count, out countRead));
+				if (countRead != (UIntPtr)count) throw new InvalidOperationException();
 			}
 
-			public void WriteMemory(ulong address, int count, IntPtr buffer)
+			public void WriteMemory(IntPtr source, ForeignPtr dest, int count)
 			{
-				throw new NotImplementedException();
+				UIntPtr countWritten;
+				CheckWin32(WriteProcessMemory(debugInfo.hProcess, (IntPtr)dest.Address, source, (UIntPtr)count, out countWritten));
+				if (countWritten != (UIntPtr)count) throw new InvalidOperationException();
+			}
+
+			public void GetThreadContext(int id, uint flags, out CONTEXT_X86 context)
+			{
+				context = default(CONTEXT_X86);
+
+				IntPtr handle;
+				if (!threadIDsToHandles.TryGetValue(id, out handle))
+					throw new InvalidOperationException();
+
+				context.ContextFlags = flags;
+				CheckWin32(Kernel32.GetThreadContext(handle, ref context));
 			}
 
 			public void Dispose()
@@ -85,7 +113,7 @@ namespace Asmuth.Debugger
 			{
 				bool added = threadIDsToHandles.TryAdd(threadID, debugInfo.hThread);
 				Contract.Assert(added);
-				return listener.OnThreadCreated(threadID, unchecked((ulong)debugInfo.lpStartAddress));
+				return listener.OnThreadCreated(threadID, new ForeignPtr((ulong)debugInfo.lpStartAddress));
 			}
 
 			internal DebugEventResponse OnThreadExited(int threadID, EXIT_THREAD_DEBUG_INFO debugInfo)

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace Asmuth.Debugger
 {
+	using Microsoft.Win32.SafeHandles;
 	using System.Diagnostics.Contracts;
 	using static Kernel32;
 	using static NativeMethods;
@@ -68,8 +69,10 @@ namespace Asmuth.Debugger
 						break;
 
 					case LOAD_DLL_DEBUG_EVENT:
-						// TODO: Additional parameters
-						response = listener.OnModuleLoaded(threadID, unchecked((ulong)debugEvent.LoadDll.lpBaseOfDll), null);
+						{
+							var fileHandle = new SafeFileHandle(debugEvent.LoadDll.hFile, ownsHandle: false);
+							response = listener.OnModuleLoaded(threadID, new ForeignPtr(debugEvent.LoadDll.lpBaseOfDll), fileHandle);
+						}
 						break;
 
 					case OUTPUT_DEBUG_STRING_EVENT:
@@ -82,7 +85,7 @@ namespace Asmuth.Debugger
 						break;
 
 					case UNLOAD_DLL_DEBUG_EVENT:
-						response = listener.OnModuleUnloaded(threadID, unchecked((ulong)debugEvent.UnloadDll.lpBaseOfDll));
+						response = listener.OnModuleUnloaded(threadID, new ForeignPtr(debugEvent.UnloadDll.lpBaseOfDll));
 						break;
 
 					default:

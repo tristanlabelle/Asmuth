@@ -62,7 +62,7 @@ namespace Asmuth.X86
 		NonDestructiveReg_Shift = 3,
 		NonDestructiveReg_Mask = 15 << NonDestructiveReg_Shift,
 
-		ModRegExtension = 1 << 7, // R
+		NotModRegExtension = 1 << 7, // R
 	}
 
 	[Flags]
@@ -97,9 +97,9 @@ namespace Asmuth.X86
 		OpcodeMap_0F3A = 3 << (int)OpcodeMap_Shift,
 		OpcodeMap_Mask = 0x1FU << (int)OpcodeMap_Shift,
 
-		BaseRegExtension = 1 << 13,
-		IndexRegExtension = 1 << 14,
-		ModRegExtension = 1 << 15,
+		NotBaseRegExtension = 1 << 13,
+		NotIndexRegExtension = 1 << 14,
+		NotModRegExtension = 1 << 15,
 	}
 
 	[Flags]
@@ -339,7 +339,7 @@ namespace Asmuth.X86
 		{
 			flags = BaseFlags(XexType.Vex2, vex2.GetSimdPrefix(), OpcodeMap.Default);
 			flags |= (Flags)((uint)vex2.GetNonDestructiveReg() << (int)Flags.NonDestructiveReg_Shift);
-			if ((vex2 & Vex2.ModRegExtension) != 0) flags |= Flags.ModRegExtension;
+			if ((vex2 & Vex2.NotModRegExtension) == 0) flags |= Flags.ModRegExtension;
 			if ((vex2 & Vex2.VectorSize256) != 0) flags |= Flags.VectorSize_256;
 		}
 
@@ -347,9 +347,9 @@ namespace Asmuth.X86
 		{
 			flags = BaseFlags(XexType.Vex3, vex3.GetSimdPrefix(), vex3.GetOpcodeMap());
 			flags |= (Flags)((uint)vex3.GetNonDestructiveReg() << (int)Flags.NonDestructiveReg_Shift);
-			if ((vex3 & Vex3.ModRegExtension) != 0) flags |= Flags.ModRegExtension;
-			if ((vex3 & Vex3.BaseRegExtension) != 0) flags |= Flags.BaseRegExtension;
-			if ((vex3 & Vex3.IndexRegExtension) != 0) flags |= Flags.IndexRegExtension;
+			if ((vex3 & Vex3.NotModRegExtension) == 0) flags |= Flags.ModRegExtension;
+			if ((vex3 & Vex3.NotBaseRegExtension) == 0) flags |= Flags.BaseRegExtension;
+			if ((vex3 & Vex3.NotIndexRegExtension) == 0) flags |= Flags.IndexRegExtension;
 			if ((vex3 & Vex3.OperandSize64) != 0) flags |= Flags.OperandSize64;
 			if ((vex3 & Vex3.VectorSize256) != 0) flags |= Flags.VectorSize_256;
 		}

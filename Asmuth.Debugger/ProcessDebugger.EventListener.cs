@@ -27,6 +27,7 @@ namespace Asmuth.Debugger
 
 			public DebugEventResponse OnAttachSucceeded(int threadID, IProcessDebuggerService service)
 			{
+				owner.service = service;
 				owner.attachTaskCompletionSource.SetResult(owner);
 				return owner.initialBreak ? DebugEventResponse.Break : DebugEventResponse.ContinueUnhandled;
 			}
@@ -48,35 +49,30 @@ namespace Asmuth.Debugger
 					return DebugEventResponse.ContinueUnhandled;
 				}
 
-				thread.OnBroken();
-
 				if (record.Code == Kernel32.EXCEPTION_BREAKPOINT && owner.TryCompleteBreakTask(thread))
 				{
 					return DebugEventResponse.Break;
 				}
 				else
 				{
-					var eventArgs = new ExceptionDebugEventArgs(thread, record);
-					var response = owner.RaiseEvent(owner.ExceptionRaised, eventArgs);
-					if (response != DebugEventResponse.Break)
-						thread.OnContinued();
-					return response;
+					var eventArgs = new ExceptionEventArgs(thread, record);
+					return owner.RaiseEvent(owner.ExceptionRaised, eventArgs);
 				}
 			}
 			
-			public DebugEventResponse OnModuleLoaded(int threadID, ulong baseAddres, SafeFileHandle handle)
+			public DebugEventResponse OnModuleLoaded(int threadID, ForeignPtr @base, SafeFileHandle handle)
 			{
-				var module = new ProcessModule(baseAddres, handle);
-				owner.modulesByBaseAddress.TryAdd(module.BaseAddress, module);
-				return owner.RaiseEvent(owner.ModuleLoaded, new ModuleDebugEventArgs(module));
+				var module = new Module(@base, handle);
+				owner.modulesByBaseAddress.TryAdd(module.Base, module);
+				return owner.RaiseEvent(owner.ModuleLoaded, new ModuleEventArgs(module));
 			}
 
-			public DebugEventResponse OnModuleUnloaded(int threadID, ulong baseAddress)
+			public DebugEventResponse OnModuleUnloaded(int threadID, ForeignPtr @base)
 			{
-				ProcessModule module;
-				if (owner.modulesByBaseAddress.TryRemove(baseAddress, out module))
+				Module module;
+				if (owner.modulesByBaseAddress.TryRemove(@base, out module))
 				{
-					return owner.RaiseEvent(owner.ModuleUnloaded, new ModuleDebugEventArgs(module));
+					return owner.RaiseEvent(owner.ModuleUnloaded, new ModuleEventArgs(module));
 				}
 				else
 				{
@@ -99,20 +95,20 @@ namespace Asmuth.Debugger
 					return owner.RaiseEvent(handler, new DebugStringOutputEventArgs(str));
 			}
 
-			public DebugEventResponse OnThreadCreated(int threadID, ulong entryPoint)
+			public DebugEventResponse OnThreadCreated(int threadID, ForeignPtr entryPoint)
 			{
-				var thread = new ThreadDebugger(owner, threadID);
+				var thread = new Thread(owner, threadID);
 				bool added = owner.threadsByID.TryAdd(threadID, thread);
 				Contract.Assert(added);
-				return owner.RaiseEvent(owner.ThreadCreated, new ThreadCreatedDebugEventArgs(thread, entryPoint));
+				return owner.RaiseEvent(owner.ThreadCreated, new ThreadCreatedEventArgs(thread, entryPoint));
 			}
 
 			public DebugEventResponse OnThreadExited(int threadID, int exitCode)
 			{
-				ThreadDebugger thread;
+				Thread thread;
 				bool removed = owner.threadsByID.TryRemove(threadID, out thread);
 				Contract.Assert(removed);
-				return owner.RaiseEvent(owner.ThreadExited, new ThreadExitedDebugEventArgs(thread, exitCode));
+				return owner.RaiseEvent(owner.ThreadExited, new ThreadExitedEventArgs(thread, exitCode));
 			}
 		}
 	}

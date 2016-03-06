@@ -144,7 +144,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void TestAddpd()
 		{
-			// 66 0F 58 /r - ADDPD xmm1, xmm2/m128
+			// ADDPD xmm1, xmm2/m128 - 66 0F 58 /r
 			var modRM = ModRMEnum.FromComponents(3, 1, 2);
 			var instruction = DecodeSingle_Protected32(0x66, 0x0F, 0x58, (byte)modRM);
 			Assert.AreEqual(SimdPrefix._66, instruction.SimdPrefix);
@@ -157,7 +157,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void TestVaddpd()
 		{
-			// VEX.NDS.128.66.0F.WIG 58 /r - VADDPD xmm1, xmm2, xmm3/m128
+			// VADDPD xmm1, xmm2, xmm3/m128 - VEX.NDS.128.66.0F.WIG 58 /r
 			var modRM = ModRMEnum.FromComponents(3, 1, 2);
 			var vex = Vex3.Reserved_Value | Vex3.SimdPrefix_66 | Vex3.OpcodeMap_0F;
 			var instruction = DecodeSingle_Protected32(vex.GetFirstByte(), vex.GetSecondByte(), vex.GetThirdByte(), 0x58, (byte)modRM);

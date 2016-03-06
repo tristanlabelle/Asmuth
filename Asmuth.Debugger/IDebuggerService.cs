@@ -16,15 +16,18 @@ namespace Asmuth.Debugger
 
 	internal interface IProcessDebuggerService : IDisposable
 	{
-		CREATE_PROCESS_DEBUG_INFO ProcessDebugInfo { get; }
+		int ID { get; }
+		SafeFileHandle ImageHandle { get; }
+		ForeignPtr ImageBase { get; }
 		void RequestBreak();
 		void RequestContinue();
 		void RequestSuspendThread(int id);
 		void RequestResumeThread(int id);
 		void RequestTerminate(int exitCode);
 		void RequestTerminateThread(int id, int exitCode);
-		void ReadMemory(ulong address, int count, IntPtr buffer);
-		void WriteMemory(ulong address, int count, IntPtr buffer);
+		void ReadMemory(ForeignPtr source, IntPtr dest, int length);
+		void WriteMemory(IntPtr source, ForeignPtr dest, int length);
+		void GetThreadContext(int id, uint flags, out CONTEXT_X86 context);
 	}
 
 	internal interface IDebugEventListener
@@ -36,11 +39,11 @@ namespace Asmuth.Debugger
 			IProcessDebuggerService child, out IDebugEventListener childListener);
 
 		DebugEventResponse OnException(int threadID, ExceptionRecord record);
-		DebugEventResponse OnModuleLoaded(int threadID, ulong baseAddres, SafeFileHandle handle);
-		DebugEventResponse OnModuleUnloaded(int threadID, ulong baseAddress);
+		DebugEventResponse OnModuleLoaded(int threadID, ForeignPtr @base, SafeFileHandle handle);
+		DebugEventResponse OnModuleUnloaded(int threadID, ForeignPtr @base);
 		DebugEventResponse OnProcessExited(int threadID, int exitCode);
 		DebugEventResponse OnStringOutputted(int threadID, string str);
-		DebugEventResponse OnThreadCreated(int threadID, ulong entryPoint);
+		DebugEventResponse OnThreadCreated(int threadID, ForeignPtr entryPoint);
 		DebugEventResponse OnThreadExited(int threadID, int exitCode);
 	}
 }

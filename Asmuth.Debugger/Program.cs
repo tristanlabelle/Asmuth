@@ -6,9 +6,12 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Diagnostics.Contracts;
+using System.IO;
+using Asmuth.X86.Nasm;
 
 namespace Asmuth.Debugger
 {
+	using X86;
 	using static Kernel32;
 
 	class Program
@@ -20,12 +23,32 @@ namespace Asmuth.Debugger
 
 		private static async Task Run()
 		{
+			var nasmInsnsEntries = new List<NasmInsnsEntry>();
+			foreach (var line in File.ReadAllLines("insns.dat", Encoding.ASCII))
+			{
+				if (NasmInsns.IsIgnoredLine(line)) continue;
+				nasmInsnsEntries.Add(NasmInsns.ParseLine(line));
+			}
+			var instructionDecoder = new InstructionDecoder(
+				new NasmInstructionDecoderLookup(nasmInsnsEntries), CodeContext.Protected_Default32);
+
 			var notepadProcess = Process.Start(@"C:\Windows\SysWow64\notepad.exe");
 			var notepadDebugger = await ProcessDebugger.AttachAsync(notepadProcess.Id, initialBreak: false);
-			var brokenThread = await notepadDebugger.BreakAsync();
 
+			await Task.Delay(TimeSpan.FromSeconds(2));
+			var brokenThread = await notepadDebugger.BreakAsync();
 			var context = brokenThread.GetContext(CONTEXT_FULL);
-			Contract.Assert(!brokenThread.IsRunning);
+
+			var ip = new ForeignPtr(context.Eip);
+			var instruction = Decode(instructionDecoder, notepadDebugger, ip);
+			
+		}
+
+		private static Instruction Decode(InstructionDecoder decoder, ProcessDebugger debugger, ForeignPtr ptr)
+		{
+			var reader = new BinaryReader(debugger.OpenMemory(ptr));
+			while (decoder.Feed(reader.ReadByte())) { }
+			return decoder.GetInstruction();
 		}
 	}
 }

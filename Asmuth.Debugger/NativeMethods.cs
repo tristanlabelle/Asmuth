@@ -27,7 +27,7 @@ namespace Asmuth.Debugger
 	using UINT = UInt32;
 	using ULONG_PTR = UIntPtr;
 	using WORD = UInt16;
-
+	using Microsoft.Win32.SafeHandles;
 	internal static class Advapi32
 	{
 		private const string DllName = "advapi32.dll";
@@ -455,6 +455,21 @@ namespace Asmuth.Debugger
 			var pathBuilder = new StringBuilder((int)pathLength);
 			pathBuilder.Length = (int)pathLength;
 			NativeMethods.CheckWin32(GetFinalPathNameByHandle(handle, pathBuilder, pathLength, dwFlags) > 0);
+			return pathBuilder.ToString();
+		}
+
+		public static string GetFinalPathNameByHandle(SafeFileHandle safeHandle, DWORD dwFlags)
+		{
+			Contract.Requires(safeHandle != null);
+
+			var rawHandle = safeHandle.DangerousGetHandle();
+			if (safeHandle.IsClosed || safeHandle.IsInvalid) throw new ArgumentException();
+
+			var pathLength = GetFinalPathNameByHandle(rawHandle, null, 0, dwFlags);
+			NativeMethods.CheckWin32(pathLength > 0);
+			var pathBuilder = new StringBuilder((int)pathLength);
+			pathBuilder.Length = (int)pathLength;
+			NativeMethods.CheckWin32(GetFinalPathNameByHandle(rawHandle, pathBuilder, pathLength, dwFlags) > 0);
 			return pathBuilder.ToString();
 		}
 	}
