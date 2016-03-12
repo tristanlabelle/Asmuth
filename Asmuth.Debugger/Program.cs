@@ -37,11 +37,10 @@ namespace Asmuth.Debugger
 
 			await Task.Delay(TimeSpan.FromSeconds(2));
 			var brokenThread = await notepadDebugger.BreakAsync();
-			var context = brokenThread.GetContext(CONTEXT_FULL);
+			var context = brokenThread.GetContext(X86.CONTEXT_ALL);
 
 			var ip = new ForeignPtr(context.Eip);
 			var instruction = Decode(instructionDecoder, notepadDebugger, ip);
-			
 		}
 
 		private static Instruction Decode(InstructionDecoder decoder, ProcessDebugger debugger, ForeignPtr ptr)

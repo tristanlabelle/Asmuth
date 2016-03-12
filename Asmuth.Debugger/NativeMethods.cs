@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Win32.SafeHandles;
 
 namespace Asmuth.Debugger
 {
@@ -15,6 +16,7 @@ namespace Asmuth.Debugger
 	using HANDLE = IntPtr;
 	using HMODULE = IntPtr;
 	using LONG = Int32;
+	using LONGLONG = Int64;
 	using LPCONTEXT = IntPtr;
 	using LPCTSTR = String;
 	using LPCVOID = IntPtr;
@@ -26,8 +28,10 @@ namespace Asmuth.Debugger
 	using SIZE_T = UIntPtr;
 	using UINT = UInt32;
 	using ULONG_PTR = UIntPtr;
+	using ULONGLONG = UInt64;
 	using WORD = UInt16;
-	using Microsoft.Win32.SafeHandles;
+	using Ptr32 = System.UInt32;
+
 	internal static class Advapi32
 	{
 		private const string DllName = "advapi32.dll";
@@ -99,23 +103,9 @@ namespace Asmuth.Debugger
 	{
 		private const string DllName = "kernel32.dll";
 
-		public const DWORD SIZE_OF_80387_REGISTERS = 80;
-
-		public const DWORD CONTEXT_i386 = 0x00010000; // this assumes that i386 and
-		public const DWORD CONTEXT_i486 = 0x00010000; // i486 have identical context records
-
-		public const DWORD CONTEXT_CONTROL = CONTEXT_i386 | 0x00000001; // SS:SP, CS:IP, FLAGS, BP
-		public const DWORD CONTEXT_INTEGER = CONTEXT_i386 | 0x00000002; // AX, BX, CX, DX, SI, DI
-		public const DWORD CONTEXT_SEGMENTS = CONTEXT_i386 | 0x00000004; // DS, ES, FS, GS
-		public const DWORD CONTEXT_FLOATING_POINT = CONTEXT_i386 | 0x00000008; // 387 state
-		public const DWORD CONTEXT_DEBUG_REGISTERS = CONTEXT_i386 | 0x00000010; // DB 0-3,6,7
-		public const DWORD CONTEXT_EXTENDED_REGISTERS = CONTEXT_i386 | 0x00000020; // cpu specific extensions
-
-		public const DWORD CONTEXT_FULL = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS;
-		public const DWORD CONTEXT_ALL = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS
-			| CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
-
-		public const DWORD CONTEXT_XSTATE = CONTEXT_i386 | 0x00000040;
+		public const DWORD CONTEXT_X86 = 0x00010000; // this assumes that i386 and
+		public const DWORD CONTEXT_i386 = CONTEXT_X86; // this assumes that i386 and
+		public const DWORD CONTEXT_i486 = CONTEXT_X86; // i486 have identical context records
 
 		public const DWORD MAXIMUM_SUPPORTED_EXTENSION = 512;
 
@@ -187,20 +177,404 @@ namespace Asmuth.Debugger
 		public const DWORD EXCEPTION_INVALID_HANDLE = STATUS_INVALID_HANDLE;
 
 		public const DWORD INFINITE = 0xFFFFFFFF;
-
-		[StructLayout(LayoutKind.Sequential)]
-		public struct CONTEXT_X86
+		
+		public static class X86
 		{
-			[StructLayout(LayoutKind.Sequential, Size = (int)MAXIMUM_SUPPORTED_EXTENSION)]
-			public struct EXTENDED_REGISTERS { }
+			public const DWORD CONTEXT_CONTROL = CONTEXT_i386 | 0x00000001; // SS:SP, CS:IP, FLAGS, BP
+			public const DWORD CONTEXT_INTEGER = CONTEXT_i386 | 0x00000002; // AX, BX, CX, DX, SI, DI
+			public const DWORD CONTEXT_SEGMENTS = CONTEXT_i386 | 0x00000004; // DS, ES, FS, GS
+			public const DWORD CONTEXT_FLOATING_POINT = CONTEXT_i386 | 0x00000008; // 387 state
+			public const DWORD CONTEXT_DEBUG_REGISTERS = CONTEXT_i386 | 0x00000010; // DB 0-3,6,7
+			public const DWORD CONTEXT_EXTENDED_REGISTERS = CONTEXT_i386 | 0x00000020; // cpu specific extensions
 
-			public DWORD ContextFlags;
-			public DWORD Dr0, Dr1, Dr2, Dr3, Dr6, Dr7; // if CONTEXT_DEBUG_REGISTERS
-			public FLOATING_SAVE_AREA FloatSave; // if CONTEXT_FLOATING_POINT
-			public DWORD SegGs, SegFs, SegEs, SegDs; // if CONTEXT_SEGMENTS
-			public DWORD Edi, Esi, Ebx, Edx, Ecx, Eax; // if CONTEXT_INTEGER
-			public DWORD Ebp, Eip, SegCs, EFlags, Esp, SegSs; // if CONTEXT_CONTROL
-			public EXTENDED_REGISTERS ExtendedRegisters; // if CONTEXT_EXTENDED_REGISTERS
+			public const DWORD CONTEXT_FULL = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS;
+			public const DWORD CONTEXT_ALL = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS
+				| CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
+
+			public const DWORD CONTEXT_XSTATE = CONTEXT_i386 | 0x00000040;
+
+			public const DWORD SIZE_OF_80387_REGISTERS = 80;
+
+			[StructLayout(LayoutKind.Sequential)]
+			public struct CONTEXT
+			{
+				[StructLayout(LayoutKind.Sequential, Size = (int)MAXIMUM_SUPPORTED_EXTENSION)]
+				public struct EXTENDED_REGISTERS { }
+
+				public DWORD ContextFlags;
+				public DWORD Dr0, Dr1, Dr2, Dr3, Dr6, Dr7; // if CONTEXT_DEBUG_REGISTERS
+				public FLOATING_SAVE_AREA FloatSave; // if CONTEXT_FLOATING_POINT
+				public DWORD SegGs, SegFs, SegEs, SegDs; // if CONTEXT_SEGMENTS
+				public DWORD Edi, Esi, Ebx, Edx, Ecx, Eax; // if CONTEXT_INTEGER
+				public DWORD Ebp, Eip, SegCs, EFlags, Esp, SegSs; // if CONTEXT_CONTROL
+				public EXTENDED_REGISTERS ExtendedRegisters; // if CONTEXT_EXTENDED_REGISTERS
+			}
+
+			[StructLayout(LayoutKind.Sequential)]
+			public struct FLOATING_SAVE_AREA
+			{
+				[StructLayout(LayoutKind.Sequential, Size = (int)SIZE_OF_80387_REGISTERS)]
+				public struct REGISTER_AREA { }
+
+				DWORD ControlWord;
+				DWORD StatusWord;
+				DWORD TagWord;
+				DWORD ErrorOffset;
+				DWORD ErrorSelector;
+				DWORD DataOffset;
+				DWORD DataSelector;
+				REGISTER_AREA RegisterArea;
+				DWORD Cr0NpxState;
+			}
+
+			[StructLayout(LayoutKind.Sequential)]
+			public struct CONTEXT_EX
+			{
+				// The total length of the structure starting from the chunk with
+				// the smallest offset. N.B. that the offset may be negative.
+				public CONTEXT_CHUNK All;
+
+				// Wrapper for the traditional CONTEXT structure. N.B. the size of
+				// the chunk may be less than sizeof(CONTEXT) is some cases (when
+				// CONTEXT_EXTENDED_REGISTERS is not set on x86 for instance).
+				public CONTEXT_CHUNK Legacy;
+
+				// CONTEXT_XSTATE: Extended processor state chunk. The state is
+				// stored in the same format XSAVE operation strores it with
+				// exception of the first 512 bytes, i.e. staring from
+				// XSAVE_AREA_HEADER. The lower two bits corresponding FP and
+				// SSE state must be zero.
+				public CONTEXT_CHUNK XState;
+			}
+
+			[StructLayout(LayoutKind.Sequential)]
+			public struct CONTEXT_CHUNK
+			{
+				public LONG Offset;
+				public DWORD Length;
+			}
+
+			[StructLayout(LayoutKind.Sequential)]
+			public struct XSTATE_CONTEXT
+			{
+				public DWORD64 Mask;
+				public DWORD Length;
+				public DWORD Reserved1;
+				public Ptr32 Area; // Pointer to XSAVE_AREA
+				public DWORD Reserved2;
+				public Ptr32 Buffer;
+				public DWORD Reserved3;
+			}
+
+			[StructLayout(LayoutKind.Sequential)]
+			public struct M128A
+			{
+				public ULONGLONG Low;
+				public LONGLONG High;
+			}
+
+			[StructLayout(LayoutKind.Sequential)]
+			public struct XSAVE_AREA
+			{
+				public XSAVE_FORMAT LegacyState;
+				public XSAVE_AREA_HEADER Header;
+			}
+
+			[StructLayout(LayoutKind.Sequential)]
+			public struct XSAVE_FORMAT
+			{
+				[StructLayout(LayoutKind.Sequential)]
+				public struct FLOAT_REGISTERS
+				{
+					public M128A _0, _1, _2, _3, _4, _5, _6, _7;
+				}
+
+				[StructLayout(LayoutKind.Sequential, Size = 192)]
+				public struct RESERVED4 { }
+
+				[StructLayout(LayoutKind.Sequential, Size = sizeof(DWORD) * 7)]
+				public struct STACK_CONTROL { }
+
+				public WORD ControlWord;
+				public WORD StatusWord;
+				public BYTE TagWord;
+				public BYTE Reserved1;
+				public WORD ErrorOpcode;
+				public DWORD ErrorOffset;
+				public WORD ErrorSelector;
+				public WORD Reserved2;
+				public DWORD DataOffset;
+				public WORD DataSelector;
+				public WORD Reserved3;
+				public DWORD MxCsr;
+				public DWORD MxCsr_Mask;
+				public FLOAT_REGISTERS FloatRegisters;
+
+				public FLOAT_REGISTERS XmmRegisters;
+				public RESERVED4 Reserved4;
+
+				//
+				// The fields below are not part of XSAVE/XRSTOR format.
+				// They are written by the OS which is relying on a fact that
+				// neither (FX)SAVE nor (F)XSTOR used this area.
+				//
+
+				public STACK_CONTROL StackControl; // KERNEL_STACK_CONTROL structure actualy
+				public DWORD Cr0NpxState;
+			}
+
+			[StructLayout(LayoutKind.Sequential)]
+			public struct XSAVE_AREA_HEADER
+			{
+				[StructLayout(LayoutKind.Sequential)]
+				public struct RESERVED
+				{
+					public DWORD64 _0, _1, _2, _3, _4, _5, _6;
+				}
+
+				public DWORD64 Mask;
+				public RESERVED Reserved;
+			}
+		}
+
+		public static class WOW64
+		{
+			public const DWORD CONTEXT_i386 = 0x00010000;
+			public const DWORD CONTEXT_i486 = 0x00010000;
+
+			public const DWORD CONTEXT_CONTROL = CONTEXT_i386 | 0x00000001; // SS:SP, CS:IP, FLAGS, BP
+			public const DWORD CONTEXT_INTEGER = CONTEXT_i386 | 0x00000002; // AX, BX, CX, DX, SI, DI
+			public const DWORD CONTEXT_SEGMENTS = CONTEXT_i386 | 0x00000004; // DS, ES, FS, GS
+			public const DWORD CONTEXT_FLOATING_POINT = CONTEXT_i386 | 0x00000008; // 387 state
+			public const DWORD CONTEXT_DEBUG_REGISTERS = CONTEXT_i386 | 0x00000010; // DB 0-3,6,7
+			public const DWORD CONTEXT_EXTENDED_REGISTERS = CONTEXT_i386 | 0x00000020; // cpu specific extensions
+
+			public const DWORD CONTEXT_FULL = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS;
+
+			public const DWORD CONTEXT_ALL = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS
+				| CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS;
+
+			public const DWORD CONTEXT_XSTATE = CONTEXT_i386 | 0x00000040;
+
+			public const DWORD SIZE_OF_80387_REGISTERS = 80;
+
+			public const DWORD MAXIMUM_SUPPORTED_EXTENSION = 512;
+
+			[StructLayout(LayoutKind.Sequential)]
+			public struct CONTEXT
+			{
+				[StructLayout(LayoutKind.Sequential, Size = (int)MAXIMUM_SUPPORTED_EXTENSION)]
+				public struct EXTENDED_REGISTERS { }
+
+				// The flags values within this flag control the contents of
+				// a CONTEXT record.
+				//
+				// If the context record is used as an input parameter, then
+				// for each portion of the context record controlled by a flag
+				// whose value is set, it is assumed that that portion of the
+				// context record contains valid context. If the context record
+				// is being used to modify a threads context, then only that
+				// portion of the threads context will be modified.
+				//
+				// If the context record is used as an IN OUT parameter to capture
+				// the context of a thread, then only those portions of the thread's
+				// context corresponding to set flags will be returned.
+				//
+				// The context record is never used as an OUT only parameter.
+				public DWORD ContextFlags;
+				
+				// This section is specified/returned if CONTEXT_DEBUG_REGISTERS is
+				// set in ContextFlags.  Note that CONTEXT_DEBUG_REGISTERS is NOT
+				// included in CONTEXT_FULL.
+				public DWORD Dr0;
+				public DWORD Dr1;
+				public DWORD Dr2;
+				public DWORD Dr3;
+				public DWORD Dr6;
+				public DWORD Dr7;
+
+				// This section is specified/returned if the
+				// ContextFlags word contians the flag CONTEXT_FLOATING_POINT.
+				public FLOATING_SAVE_AREA FloatSave;
+				
+				// This section is specified/returned if the
+				// ContextFlags word contians the flag CONTEXT_SEGMENTS.
+				public DWORD SegGs;
+				public DWORD SegFs;
+				public DWORD SegEs;
+				public DWORD SegDs;
+				
+				// This section is specified/returned if the
+				// ContextFlags word contians the flag CONTEXT_INTEGER.
+				public DWORD Edi;
+				public DWORD Esi;
+				public DWORD Ebx;
+				public DWORD Edx;
+				public DWORD Ecx;
+				public DWORD Eax;
+				
+				// This section is specified/returned if the
+				// ContextFlags word contains the flag CONTEXT_CONTROL.
+				public DWORD Ebp;
+				public DWORD Eip;
+				public DWORD SegCs; // MUST BE SANITIZED
+				public DWORD EFlags; // MUST BE SANITIZED
+				public DWORD Esp;
+				public DWORD SegSs;
+
+				// This section is specified/returned if the ContextFlags word
+				// contains the flag CONTEXT_EXTENDED_REGISTERS.
+				// The format and contexts are processor specific
+				public EXTENDED_REGISTERS ExtendedRegisters;
+			}
+
+			[StructLayout(LayoutKind.Sequential)]
+			public struct FLOATING_SAVE_AREA
+			{
+				[StructLayout(LayoutKind.Sequential, Size = (int)SIZE_OF_80387_REGISTERS)]
+				public struct REGISTER_AREA { }
+
+				public DWORD ControlWord;
+				public DWORD StatusWord;
+				public DWORD TagWord;
+				public DWORD ErrorOffset;
+				public DWORD ErrorSelector;
+				public DWORD DataOffset;
+				public DWORD DataSelector;
+				public REGISTER_AREA RegisterArea;
+				public DWORD Cr0NpxState;
+			}
+		}
+
+		public static class AMD64
+		{
+			[StructLayout(LayoutKind.Sequential)]
+			public struct CONTEXT
+			{
+				// Register parameter home addresses.
+				//
+				// N.B. These fields are for convience - they could be used to extend the
+				//      context record in the future.
+				public DWORD64 P1Home;
+				public DWORD64 P2Home;
+				public DWORD64 P3Home;
+				public DWORD64 P4Home;
+				public DWORD64 P5Home;
+				public DWORD64 P6Home;
+
+				// Control flags.
+				public DWORD ContextFlags;
+				public DWORD MxCsr;
+
+				// Segment Registers and processor flags.
+				public WORD SegCs;
+				public WORD SegDs;
+				public WORD SegEs;
+				public WORD SegFs;
+				public WORD SegGs;
+				public WORD SegSs;
+				public DWORD EFlags;
+
+				// Debug registers
+				public DWORD64 Dr0;
+				public DWORD64 Dr1;
+				public DWORD64 Dr2;
+				public DWORD64 Dr3;
+				public DWORD64 Dr6;
+				public DWORD64 Dr7;
+
+				// Integer registers.
+				public DWORD64 Rax;
+				public DWORD64 Rcx;
+				public DWORD64 Rdx;
+				public DWORD64 Rbx;
+				public DWORD64 Rsp;
+				public DWORD64 Rbp;
+				public DWORD64 Rsi;
+				public DWORD64 Rdi;
+				public DWORD64 R8;
+				public DWORD64 R9;
+				public DWORD64 R10;
+				public DWORD64 R11;
+				public DWORD64 R12;
+				public DWORD64 R13;
+				public DWORD64 R14;
+				public DWORD64 R15;
+
+				// Program counter.
+				public DWORD64 Rip;
+
+				// Floating point state.
+				//union {
+				//XMM_SAVE_AREA32 FltSave;
+				//struct {
+
+				//			M128A Header[2];
+				//		M128A Legacy[8];
+				//		M128A Xmm0;
+				//		M128A Xmm1;
+				//		M128A Xmm2;
+				//		M128A Xmm3;
+				//		M128A Xmm4;
+				//		M128A Xmm5;
+				//		M128A Xmm6;
+				//		M128A Xmm7;
+				//		M128A Xmm8;
+				//		M128A Xmm9;
+				//		M128A Xmm10;
+				//		M128A Xmm11;
+				//		M128A Xmm12;
+				//		M128A Xmm13;
+				//		M128A Xmm14;
+				//		M128A Xmm15;
+				//	}
+				//	DUMMYSTRUCTNAME;
+				//	}
+				//DUMMYUNIONNAME;
+
+				// Vector registers.
+				//public M128A VectorRegister[26];
+				public DWORD64 VectorControl;
+
+				// Special debug control registers.
+				public DWORD64 DebugControl;
+				public DWORD64 LastBranchToRip;
+				public DWORD64 LastBranchFromRip;
+				public DWORD64 LastExceptionToRip;
+				public DWORD64 LastExceptionFromRip;
+			}
+		}
+		
+		#region DEBUG_EVENT
+		[StructLayout(LayoutKind.Explicit)]
+		public struct DEBUG_EVENT
+		{
+			[FieldOffset(0)]
+			public DWORD dwDebugEventCode;
+			[FieldOffset(4)]
+			public DWORD dwProcessId;
+			[FieldOffset(8)]
+			public DWORD dwThreadId;
+			[FieldOffset(12)]
+			public EXCEPTION_DEBUG_INFO32 Exception32;
+			[FieldOffset(12)]
+			public EXCEPTION_DEBUG_INFO64 Exception64;
+			[FieldOffset(12)]
+			public CREATE_THREAD_DEBUG_INFO CreateThread;
+			[FieldOffset(12)]
+			public CREATE_PROCESS_DEBUG_INFO CreateProcessInfo;
+			[FieldOffset(12)]
+			public EXIT_THREAD_DEBUG_INFO ExitThread;
+			[FieldOffset(12)]
+			public EXIT_PROCESS_DEBUG_INFO ExitProcess;
+			[FieldOffset(12)]
+			public LOAD_DLL_DEBUG_INFO LoadDll;
+			[FieldOffset(12)]
+			public UNLOAD_DLL_DEBUG_INFO UnloadDll;
+			[FieldOffset(12)]
+			public OUTPUT_DEBUG_STRING_INFO DebugString;
+			[FieldOffset(12)]
+			public RIP_INFO RipInfo;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
@@ -282,23 +656,6 @@ namespace Asmuth.Debugger
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct FLOATING_SAVE_AREA
-		{
-			[StructLayout(LayoutKind.Sequential, Size = (int)SIZE_OF_80387_REGISTERS)]
-			public struct REGISTER_AREA { }
-
-			DWORD ControlWord;
-			DWORD StatusWord;
-			DWORD TagWord;
-			DWORD ErrorOffset;
-			DWORD ErrorSelector;
-			DWORD DataOffset;
-			DWORD DataSelector;
-			REGISTER_AREA RegisterArea;
-			DWORD Cr0NpxState;
-		}
-
-		[StructLayout(LayoutKind.Sequential)]
 		public struct LOAD_DLL_DEBUG_INFO
 		{
 			public HANDLE hFile;
@@ -328,38 +685,8 @@ namespace Asmuth.Debugger
 		{
 			public DWORD dwError;
 			public DWORD dwType;
-		}
-
-		[StructLayout(LayoutKind.Explicit)]
-		public struct DEBUG_EVENT
-		{
-			[FieldOffset(0)]
-			public DWORD dwDebugEventCode;
-			[FieldOffset(4)]
-			public DWORD dwProcessId;
-			[FieldOffset(8)]
-			public DWORD dwThreadId;
-			[FieldOffset(12)]
-			public EXCEPTION_DEBUG_INFO32 Exception32;
-			[FieldOffset(12)]
-			public EXCEPTION_DEBUG_INFO64 Exception64;
-			[FieldOffset(12)]
-			public CREATE_THREAD_DEBUG_INFO CreateThread;
-			[FieldOffset(12)]
-			public CREATE_PROCESS_DEBUG_INFO CreateProcessInfo;
-			[FieldOffset(12)]
-			public EXIT_THREAD_DEBUG_INFO ExitThread;
-			[FieldOffset(12)]
-			public EXIT_PROCESS_DEBUG_INFO ExitProcess;
-			[FieldOffset(12)]
-			public LOAD_DLL_DEBUG_INFO LoadDll;
-			[FieldOffset(12)]
-			public UNLOAD_DLL_DEBUG_INFO UnloadDll;
-			[FieldOffset(12)]
-			public OUTPUT_DEBUG_STRING_INFO DebugString;
-			[FieldOffset(12)]
-			public RIP_INFO RipInfo;
-		}
+		} 
+		#endregion
 
 		[DllImport(DllName, SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
@@ -410,7 +737,7 @@ namespace Asmuth.Debugger
 
 		[DllImport(DllName, SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
-		public static extern BOOL GetThreadContext(HANDLE hThread, ref CONTEXT_X86 lpContext);
+		public static extern BOOL GetThreadContext(HANDLE hThread, ref X86.CONTEXT lpContext);
 
 		[DllImport(DllName, SetLastError = true)]
 		public static extern DWORD GetThreadId(HANDLE Thread);

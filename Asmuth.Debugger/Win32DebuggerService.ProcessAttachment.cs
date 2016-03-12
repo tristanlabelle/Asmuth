@@ -90,9 +90,9 @@ namespace Asmuth.Debugger
 				if (countWritten != (UIntPtr)count) throw new InvalidOperationException();
 			}
 
-			public void GetThreadContext(int id, uint flags, out CONTEXT_X86 context)
+			public void GetThreadContext(int id, uint flags, out X86.CONTEXT context)
 			{
-				context = default(CONTEXT_X86);
+				context = default(X86.CONTEXT);
 
 				IntPtr handle;
 				if (!threadIDsToHandles.TryGetValue(id, out handle))

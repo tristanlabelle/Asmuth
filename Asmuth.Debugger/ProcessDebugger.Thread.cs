@@ -30,12 +30,12 @@ namespace Asmuth.Debugger
 			public void RequestResume() => process.service.RequestResumeThread(id);
 			public void RequestSuspend() => process.service.RequestSuspendThread(id);
 
-			internal void GetContext(uint flags, out CONTEXT_X86 context)
+			internal void GetContext(uint flags, out X86.CONTEXT context)
 				=> process.service.GetThreadContext(id, flags, out context);
 
-			internal CONTEXT_X86 GetContext(uint flags)
+			internal X86.CONTEXT GetContext(uint flags)
 			{
-				CONTEXT_X86 context;
+				X86.CONTEXT context;
 				GetContext(flags, out context);
 				return context;
 			}

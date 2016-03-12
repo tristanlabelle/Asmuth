@@ -27,7 +27,7 @@ namespace Asmuth.Debugger
 		void RequestTerminateThread(int id, int exitCode);
 		void ReadMemory(ForeignPtr source, IntPtr dest, int length);
 		void WriteMemory(IntPtr source, ForeignPtr dest, int length);
-		void GetThreadContext(int id, uint flags, out CONTEXT_X86 context);
+		void GetThreadContext(int id, uint flags, out X86.CONTEXT context);
 	}
 
 	internal interface IDebugEventListener
