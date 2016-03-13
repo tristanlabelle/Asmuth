@@ -102,15 +102,12 @@ namespace Asmuth.X86
 				context.GetDefaultAddressSize(), reg.Code.GetLow3Bits(), displacementSize);
 			Emit(encoding.ModRM);
 			if (encoding.Sib.HasValue) Emit(encoding.Sib.Value);
-			if (displacementSize.HasValue)
+
+			switch (displacementSize)
 			{
-				switch (displacementSize.Value)
-				{
-					case OperandSize.Byte: Emit((sbyte)encoding.Displacement); break;
-					case OperandSize.Word: Emit((short)encoding.Displacement); break;
-					case OperandSize.Dword: Emit(encoding.Displacement); break;
-					default: throw new UnreachableException();
-				}
+				case DisplacementSize._8: Emit((sbyte)encoding.Displacement); break;
+				case DisplacementSize._16: Emit((short)encoding.Displacement); break;
+				case DisplacementSize._32: Emit(encoding.Displacement); break;
 			}
 		}
 

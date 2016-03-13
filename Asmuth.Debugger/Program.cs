@@ -7,11 +7,11 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Diagnostics.Contracts;
 using System.IO;
+using Asmuth.X86;
 using Asmuth.X86.Nasm;
 
 namespace Asmuth.Debugger
 {
-	using X86;
 	using static Kernel32;
 
 	class Program

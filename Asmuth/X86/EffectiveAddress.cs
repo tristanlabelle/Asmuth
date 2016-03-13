@@ -320,10 +320,8 @@ namespace Asmuth.X86
 						: Absolute(addressSize, encoding.Displacement);
 				}
 
-				int displacementSize = encoding.ModRM.GetDisplacementSizeInBytes(encoding.Sib.GetValueOrDefault(), addressSize);
-				Contract.Assert(displacementSize != 0 || encoding.Displacement == 0);
-				Contract.Assert(displacementSize != 1 || unchecked((sbyte)encoding.Displacement) == encoding.Displacement);
-				Contract.Assert(displacementSize != 2);
+				var displacementSize = encoding.ModRM.GetDisplacementSize(encoding.Sib.GetValueOrDefault(), addressSize);
+				Contract.Assert(displacementSize.CanEncodeValue(encoding.Displacement));
 
 				GprCode? baseReg = (GprCode)encoding.ModRM.GetRM();
 				if (baseReg != GprCode.Esp)
@@ -386,7 +384,7 @@ namespace Asmuth.X86
 				var @base = Base;
 				var defaultSegment = (@base == AddressBaseRegister.SP || @base == AddressBaseRegister.BP)
 					? SegmentRegister.SS : SegmentRegister.DS;
-				return Segment == defaultSegment;
+				return Segment != defaultSegment;
 			}
 		}
 
@@ -439,13 +437,19 @@ namespace Asmuth.X86
 
 		public int Displacement => displacement;
 
-		public OperandSize? MinimumDisplacementSize
+		public DisplacementSize MinimumDisplacementSize
 		{
 			get
 			{
-				if (displacement == 0) return null;
-				if ((displacement & 0xFFFFFF00) == 0) return OperandSize.Byte;
-				return AddressSize == AddressSize._16 ? OperandSize.Word : OperandSize.Dword;
+				var addressSize = AddressSize;
+				if ((displacement & 0xFFFFFF00) != 0 || (flags & Flags.BaseReg_Mask) == Flags.BaseReg_None)
+					return DisplacementSizeEnum.GetMaximum(addressSize);
+
+				// Displacement fits in sbyte, base != none
+				var @base = Base.Value;
+				if (@base == AddressBaseRegister.BP) return DisplacementSize._8;
+				if (@base == AddressBaseRegister.Rip) return DisplacementSize._32;
+				return displacement == 0 ? DisplacementSize._0 : DisplacementSize._8;
 			}
 		}
 		#endregion
@@ -463,15 +467,13 @@ namespace Asmuth.X86
 				|| (flags & Flags.IndexReg_Mask) < Flags.IndexReg_R8;
 		}
 
-		public bool IsEncodableWithDisplacementSize(OperandSize? size)
+		public bool IsEncodableWithDisplacementSize(DisplacementSize size)
 		{
-			if (!size.HasValue) return displacement == 0;
-			if (size.Value > OperandSize.Dword) return false;
-			if (size.Value == OperandSize.Byte) return true;
-			return (size.Value == OperandSize.Word) == (AddressSize == AddressSize._16);
+			return size >= MinimumDisplacementSize
+				&& (size == DisplacementSize._16) == (AddressSize == AddressSize._16);
 		}
 
-		public Encoding Encode(AddressSize defaultAddressSize, byte modReg, OperandSize? displacementSize)
+		public Encoding Encode(AddressSize defaultAddressSize, byte modReg, DisplacementSize displacementSize)
 		{
 			if ((defaultAddressSize == AddressSize._16 && AddressSize == AddressSize._64)
 				|| (defaultAddressSize == AddressSize._64 && AddressSize == AddressSize._16))
@@ -481,9 +483,51 @@ namespace Asmuth.X86
 			if (!IsEncodableWithDisplacementSize(displacementSize))
 				throw new ArgumentException(nameof(displacementSize));
 
-			var encoding = new Encoding();
-			encoding.AddressSizeOverride = (AddressSize != defaultAddressSize);
-			throw new NotImplementedException();
+			var encoding = new Encoding()
+			{
+				Segment = RequiresSegmentOverride ? Segment : (SegmentRegister?)null,
+				AddressSizeOverride = AddressSize != defaultAddressSize,
+				BaseRegExtension = BaseAsGprCode >= GprCode.R8,
+				IndexRegExtension = IndexAsGprCode >= GprCode.R8,
+				Displacement = displacement
+			};
+
+			if (AddressSize == AddressSize._16) throw new NotImplementedException();
+
+			byte mod;
+			switch (displacementSize)
+			{
+				case DisplacementSize._0: mod = 0; break;
+				case DisplacementSize._8: mod = 1; break;
+				default: mod = 2; break;
+			}
+
+			var @base = Base;
+			bool needsSib = false;
+			if (AddressSize == AddressSize._64)
+			{
+				// Same as 32-bit except that [disp32] encodes [rip + disp32]
+				if (!@base.HasValue) needsSib = true;
+				if (@base == AddressBaseRegister.Rip) @base = null;
+			}
+
+			if (@base == AddressBaseRegister.SP || (mod == 0 && @base == AddressBaseRegister.BP))
+				needsSib = true;
+
+			if (needsSib)
+			{
+				if (@base == AddressBaseRegister.BP) throw new NotImplementedException();
+
+				encoding.ModRM = ModRMEnum.FromComponents(mod, modReg, 0) | ModRM.RM_Sib;
+
+				throw new NotImplementedException();
+			}
+			else
+			{
+				encoding.ModRM = ModRMEnum.FromComponents(mod, modReg, (byte)((byte)@base.Value & 0x7));
+			}
+
+			return encoding;
 		}
 
 		public string ToString(bool vectorSib)

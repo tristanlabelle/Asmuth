@@ -156,6 +156,9 @@ namespace Asmuth.X86
 			}
 		}
 
+		// Operator overload abuse for nice code emitting syntax
+		public EffectiveAddress this[int displacement] => EffectiveAddress.Indirect(this, displacement);
+
 		public override bool Equals(object obj) => obj is Gpr && Equals((Gpr)obj);
 		public bool Equals(Gpr other) => value == other.value;
 		public override int GetHashCode() => value;

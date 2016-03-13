@@ -43,6 +43,12 @@ namespace Asmuth.X86
 	public static class SibEnum
 	{
 		[Pure]
+		public static Sib Create(GprCode @base, GprCode index, byte scale)
+		{
+			throw new NotImplementedException();
+		}
+
+		[Pure]
 		public static string ToDebugString(this Sib sib)
 			=> $"ss = {GetSS(sib)}, index = {GetIndex(sib)}, base = {GetBase(sib)}";
 

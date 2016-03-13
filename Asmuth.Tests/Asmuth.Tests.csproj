@@ -50,6 +50,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="CpuidTests.cs" />
     <Compile Include="ExceptionAssert.cs" />
     <Compile Include="EffectiveAddressTests.cs" />
     <Compile Include="GprTests.cs" />

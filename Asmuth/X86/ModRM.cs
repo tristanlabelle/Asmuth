@@ -21,6 +21,7 @@ namespace Asmuth.X86
 		RM_6 = 6 << RM_Shift,
 		RM_7 = 7 << RM_Shift,
 		RM_Mask = 7 << RM_Shift,
+		RM_Sib = RM_4,
 
 		Reg_Shift = 3,
 		Reg_0 = 0 << Reg_Shift,
@@ -81,25 +82,25 @@ namespace Asmuth.X86
 			=> (modRM & ModRM.Mod_Mask) != ModRM.Mod_Direct;
 
 		[Pure]
-		public static int GetDisplacementSizeInBytes(this ModRM modRM, Sib sib, AddressSize addressSize)
+		public static DisplacementSize GetDisplacementSize(this ModRM modRM, Sib sib, AddressSize addressSize)
 		{
 			switch (modRM & ModRM.Mod_Mask)
 			{
 				case ModRM.Mod_IndirectByteDisplacement:
-					return 1;
+					return DisplacementSize._8;
 				case ModRM.Mod_IndirectLongDisplacement:
-					return addressSize == AddressSize._16 ? 2 : 4;
+					return addressSize == AddressSize._16 ? DisplacementSize._16 : DisplacementSize._32;
 				case ModRM.Mod_Direct: return 0;
 			}
 
 			// Mod = 0
 			if (addressSize == AddressSize._16)
-				return GetRM(modRM) == 6 ? 2 : 0;
+				return GetRM(modRM) == 6 ? DisplacementSize._16 : DisplacementSize._0;
 
-			if (GetRM(modRM) == 5) return 4;
+			if (GetRM(modRM) == 5) return DisplacementSize._32;
 
 			// 32-bit mode, mod = 0, RM = 6 (sib byte)
-			return (sib & Sib.Base_Mask) == Sib.Base_Special ? 4 : 0;
+			return (sib & Sib.Base_Mask) == Sib.Base_Special ? DisplacementSize._32 : DisplacementSize._0;
 		}
 
 		[Pure]

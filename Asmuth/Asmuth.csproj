@@ -47,6 +47,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AccessType.cs" />
+    <Compile Include="X86\Cpuid.InvokeImpl.cs" />
     <Compile Include="EmptyArray.cs" />
     <Compile Include="MultiDictionary.cs" />
     <Compile Include="MultiDictionary.ValueCollection.cs" />
@@ -56,7 +57,9 @@
     <Compile Include="Bits.cs" />
     <Compile Include="X86\AddressSize.cs" />
     <Compile Include="X86\CodeWriter.cs" />
-    <Compile Include="X86\CpuidQuery.Perform.cs" />
+    <Compile Include="X86\Cpuid.cs" />
+    <Compile Include="X86\CpuidResult.cs" />
+    <Compile Include="X86\DisplacementSize.cs" />
     <Compile Include="X86\EffectiveAddress.cs" />
     <Compile Include="X86\ImmediateSize.cs" />
     <Compile Include="X86\Instruction.Builder.cs" />

@@ -107,9 +107,9 @@ namespace Asmuth.X86
 					length == 2 || length == 6 || length == 9,
 					instruction.LegacyPrefixes.Count == 1);
 				Assert.AreEqual(length >= 5 && length != 7, instruction.Sib.HasValue);
-				Assert.AreEqual(length <= 3, instruction.DisplacementSizeInBytes == 0);
-				Assert.AreEqual(length >= 4 && length <= 6, instruction.DisplacementSizeInBytes == 1);
-				Assert.AreEqual(length >= 7, instruction.DisplacementSizeInBytes == 4);
+				Assert.AreEqual(length <= 3, instruction.DisplacementSize == DisplacementSize._0);
+				Assert.AreEqual(length >= 4 && length <= 6, instruction.DisplacementSize == DisplacementSize._8);
+				Assert.AreEqual(length >= 7, instruction.DisplacementSize == DisplacementSize._32);
 			}
 		}
 

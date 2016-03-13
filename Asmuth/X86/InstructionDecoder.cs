@@ -193,16 +193,16 @@ namespace Asmuth.X86
 				{
 					accumulator |= (uint)@byte << (substate * 8);
 					substate++;
-					var displacementSize = builder.ModRM.Value.GetDisplacementSizeInBytes(
+					var displacementSize = builder.ModRM.Value.GetDisplacementSize(
 						builder.Sib.GetValueOrDefault(), GetEffectiveAddressSize());
-					if (substate < displacementSize) return true; // More bytes to come
+					if (substate < displacementSize.InBytes()) return true; // More bytes to come
 
 					// Sign-extend
-					if (displacementSize == 1)
+					if (displacementSize == DisplacementSize._8)
 						builder.Displacement = unchecked((sbyte)accumulator);
-					else if (displacementSize == 2)
+					else if (displacementSize == DisplacementSize._16)
 						builder.Displacement = unchecked((short)accumulator);
-					else if (displacementSize == 4)
+					else if (displacementSize == DisplacementSize._32)
 						builder.Displacement = unchecked((int)accumulator);
 
 					return AdvanceToImmediateOrEnd();
@@ -263,12 +263,12 @@ namespace Asmuth.X86
 			return mode.GetEffectiveAddressSize(@override: builder.LegacyPrefixes.HasAddressSizeOverride);
 		}
 
-		private int GetDisplacementSizeInBytes()
+		private DisplacementSize GetDisplacementSize()
 		{
 			Contract.Requires(state > InstructionDecodingState.ExpectSib);
 			if (!builder.ModRM.HasValue) return 0;
 
-			return builder.ModRM.Value.GetDisplacementSizeInBytes(
+			return builder.ModRM.Value.GetDisplacementSize(
 				builder.Sib.GetValueOrDefault(), GetEffectiveAddressSize());
 		}
 
@@ -299,10 +299,8 @@ namespace Asmuth.X86
 		{
 			Contract.Requires(State >= InstructionDecodingState.ExpectModRM);
 			Contract.Requires(State < InstructionDecodingState.ExpectDisplacement);
-
-			var displacementSize = builder.ModRM.Value.GetDisplacementSizeInBytes(
-				builder.Sib.GetValueOrDefault(), GetEffectiveAddressSize());
-			return displacementSize > 0
+			
+			return GetDisplacementSize() > DisplacementSize._0
 				? AdvanceTo(InstructionDecodingState.ExpectDisplacement)
 				: AdvanceToImmediateOrEnd();
 		}

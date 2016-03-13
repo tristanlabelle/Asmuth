@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86
 {
-	public partial struct CpuidQuery : IEquatable<CpuidQuery>
+	public struct CpuidQuery : IEquatable<CpuidQuery>
 	{
 		#region Fields
 		private readonly uint function;

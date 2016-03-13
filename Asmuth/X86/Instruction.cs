@@ -96,12 +96,12 @@ namespace Asmuth.X86
 			}
 		}
 
-		public int DisplacementSizeInBytes
+		public DisplacementSize DisplacementSize
 		{
 			get
 			{
 				if ((flags & Flags.HasModRM) == 0) return 0;
-				return modRM.GetDisplacementSizeInBytes(sib, EffectiveAddressSize);
+				return modRM.GetDisplacementSize(sib, EffectiveAddressSize);
 			}
 		}
 
@@ -120,7 +120,7 @@ namespace Asmuth.X86
 					size++;
 					var addressSize = EffectiveAddressSize;
 					if (modRM.ImpliesSib(addressSize)) size++;
-					size += modRM.GetDisplacementSizeInBytes(sib, addressSize);
+					size += modRM.GetDisplacementSize(sib, addressSize).InBytes();
 				}
 
 				size += ImmediateSizeInBytes;
