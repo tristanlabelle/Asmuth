@@ -36,7 +36,7 @@ namespace Asmuth.X86
 
 		Mod_Shift = 6,
 		Mod_Indirect = 0 << Mod_Shift,
-		Mod_IndirectByteDisplacement = 1 << Mod_Shift,
+		Mod_IndirectDisplacement8 = 1 << Mod_Shift,
 		Mod_IndirectLongDisplacement = 2 << Mod_Shift,
 		Mod_Direct = 3 << Mod_Shift,
 		Mod_Mask = 3 << Mod_Shift,
@@ -86,7 +86,7 @@ namespace Asmuth.X86
 		{
 			switch (modRM & ModRM.Mod_Mask)
 			{
-				case ModRM.Mod_IndirectByteDisplacement:
+				case ModRM.Mod_IndirectDisplacement8:
 					return DisplacementSize._8;
 				case ModRM.Mod_IndirectLongDisplacement:
 					return addressSize == AddressSize._16 ? DisplacementSize._16 : DisplacementSize._32;

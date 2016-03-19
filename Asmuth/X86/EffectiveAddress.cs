@@ -442,7 +442,7 @@ namespace Asmuth.X86
 			get
 			{
 				var addressSize = AddressSize;
-				if ((displacement & 0xFFFFFF00) != 0 || (flags & Flags.BaseReg_Mask) == Flags.BaseReg_None)
+				if (unchecked((sbyte)displacement) != displacement || (flags & Flags.BaseReg_Mask) == Flags.BaseReg_None)
 					return DisplacementSizeEnum.GetMaximum(addressSize);
 
 				// Displacement fits in sbyte, base != none
@@ -519,8 +519,10 @@ namespace Asmuth.X86
 				if (@base == AddressBaseRegister.BP) throw new NotImplementedException();
 
 				encoding.ModRM = ModRMEnum.FromComponents(mod, modReg, 0) | ModRM.RM_Sib;
-
-				throw new NotImplementedException();
+				encoding.Sib = SibEnum.FromComponents(
+					ss: (byte)((int)(flags & Flags.Scale_Mask) >> (int)Flags.Scale_Shift),
+					index: (IndexAsGprCode ?? GprCode.SP).GetLow3Bits(),
+					@base: (BaseAsGprCode ?? GprCode.BP).GetLow3Bits());
 			}
 			else
 			{

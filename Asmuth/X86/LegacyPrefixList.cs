@@ -112,49 +112,50 @@ namespace Asmuth.X86
 			return -1;
 		}
 
-		public ImmutableLegacyPrefixList SetAt(int index, LegacyPrefix item)
+		#region Static Mutators
+		public static ImmutableLegacyPrefixList SetAt(ImmutableLegacyPrefixList list, int index, LegacyPrefix item)
 		{
 			var group = item.GetGroup();
-			for (int i = 0; i < Count; ++i)
-				if (i != index && this[i].GetGroup() == group)
+			for (int i = 0; i < list.Count; ++i)
+				if (i != index && list[i].GetGroup() == group)
 					throw new ArgumentException();
 
-			var data = storage & 0xFFFFFF;
+			var data = list.storage & 0xFFFFFF;
 			uint multiple = multiples[index];
 			data = (data / multiple / legacyPrefixCount * legacyPrefixCount
 				+ (uint)item) * multiple + data % multiple;
-			return new ImmutableLegacyPrefixList((storage & 0xFF000000) | data);
+			return new ImmutableLegacyPrefixList((list.storage & 0xFF000000) | data);
 		}
 
-		public ImmutableLegacyPrefixList Add(LegacyPrefix item) => Insert(Count, item);
-		public ImmutableLegacyPrefixList Clear() => Empty;
+		public static ImmutableLegacyPrefixList Add(ImmutableLegacyPrefixList list, LegacyPrefix item)
+			=> Insert(list, list.Count, item);
 
-		public ImmutableLegacyPrefixList Insert(int index, LegacyPrefix item)
+		public static ImmutableLegacyPrefixList Insert(ImmutableLegacyPrefixList list, int index, LegacyPrefix item)
 		{
-			if (index < 0 || index > Count) throw new ArgumentOutOfRangeException(nameof(index));
-			if (ContainsFromGroup(item.GetGroup())) throw new InvalidOperationException();
+			if (index < 0 || index > list.Count) throw new ArgumentOutOfRangeException(nameof(index));
+			if (list.ContainsFromGroup(item.GetGroup())) throw new InvalidOperationException();
 
-			uint data = storage & 0xFFFFFF;
+			uint data = list.storage & 0xFFFFFF;
 			uint multiple = multiples[index];
 			data = (data / multiple * legacyPrefixCount + (uint)item) * multiple + data % multiple;
-			data |= (storage & 0xFF000000) + 0x01000000;
+			data |= (list.storage & 0xFF000000) + 0x01000000;
 			return new ImmutableLegacyPrefixList(data);
 		}
 
-		public ImmutableLegacyPrefixList Remove(LegacyPrefix item)
+		public static ImmutableLegacyPrefixList Remove(ImmutableLegacyPrefixList list, LegacyPrefix item)
 		{
-			int index = IndexOf(item);
-			return index < 0 ? this : RemoveAt(index);
+			int index = list.IndexOf(item);
+			return index < 0 ? list : RemoveAt(list, index);
 		}
 
-		public ImmutableLegacyPrefixList RemoveAt(int index)
+		public static ImmutableLegacyPrefixList RemoveAt(ImmutableLegacyPrefixList list, int index)
 		{
-			if (index < 0 || index >= Count) throw new ArgumentOutOfRangeException(nameof(index));
+			if (index < 0 || index >= list.Count) throw new ArgumentOutOfRangeException(nameof(index));
 
-			uint newStorage = storage & 0xFFFFFF;
+			uint newStorage = list.storage & 0xFFFFFF;
 			uint multiple = multiples[index];
 			newStorage = newStorage / multiple / legacyPrefixCount * multiple + newStorage % multiple;
-			newStorage |= (storage & 0xFF000000) - 0x01000000;
+			newStorage |= (list.storage & 0xFF000000) - 0x01000000;
 			return new ImmutableLegacyPrefixList(newStorage);
 		}
 
@@ -165,11 +166,12 @@ namespace Asmuth.X86
 			for (int i = 0; i < Count; ++i)
 			{
 				if (i > 0) str.Append(", ");
-				str.AppendFormat(CultureInfo.InvariantCulture, "X2", (byte)this[i]);
+				str.Append(this[i].GetMnemonicOrHexValue());
 			}
 			str.Append(']');
 			return str.ToString();
-		}
+		} 
+		#endregion
 		#endregion
 
 		LegacyPrefix IList<LegacyPrefix>.this[int index]

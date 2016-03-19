@@ -11,8 +11,8 @@ namespace Asmuth.X86
 	{
 		_0,
 		_8,
-		_16,
-		_32
+		_16, // 16-bit effective address size only
+		_32 // 32/64-bit effective address sizes only
 	}
 
 	public static class DisplacementSizeEnum

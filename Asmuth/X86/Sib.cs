@@ -43,9 +43,12 @@ namespace Asmuth.X86
 	public static class SibEnum
 	{
 		[Pure]
-		public static Sib Create(GprCode @base, GprCode index, byte scale)
+		public static Sib FromComponents(byte ss, byte index, byte @base)
 		{
-			throw new NotImplementedException();
+			Contract.Requires(ss < 4 && index < 8 && @base < 8);
+			return (Sib)((ss << (int)Sib.Scale_Shift)
+				| (index << (int)Sib.Index_Shift)
+				| (@base << (int)Sib.Base_Shift));
 		}
 
 		[Pure]

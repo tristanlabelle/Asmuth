@@ -38,7 +38,7 @@ namespace Asmuth.X86
 			public void Clear()
 			{
 				DefaultAddressSize = AddressSize._32;
-				LegacyPrefixes.Clear();
+				LegacyPrefixes = ImmutableLegacyPrefixList.Empty;
 				Xex = default(Xex);
 				OpcodeByte = 0;
 				ModRM = null;

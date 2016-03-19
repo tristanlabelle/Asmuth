@@ -26,9 +26,44 @@ namespace Asmuth.X86
 		public void Nop() => Emit(0x90);
 		public void Ret() => Emit(0xC3);
 
-		private void Emit(byte @byte) => stream.WriteByte(@byte);
-		private void Emit(LegacyPrefix legacyPrefix) => Emit(legacyPrefix.GetEncodingByte());
-		private void Emit(OpcodeMap map)
+		#region Emit (full instructions)
+		private void Emit(byte opcode) => Write(opcode);
+
+		private void Emit(OpcodeMap map, byte opcode)
+		{
+			Write(map);
+			Write(opcode);
+		}
+
+		private void Emit(OpcodeMap map, byte opcode8, byte opcode, Gpr reg, EffectiveAddress rm)
+		{
+			WritePrefixes(reg, rm);
+			Emit(map, reg.Size == OperandSize.Byte ? opcode8 : opcode);
+
+			var displacementSize = rm.MinimumDisplacementSize;
+			var encoding = rm.Encode(
+				context.GetDefaultAddressSize(), reg.Code.GetLow3Bits(), displacementSize);
+			Write(encoding.ModRM);
+			if (encoding.Sib.HasValue) Write(encoding.Sib.Value);
+
+			switch (displacementSize)
+			{
+				case DisplacementSize._8: Write((sbyte)encoding.Displacement); break;
+				case DisplacementSize._16: Write((short)encoding.Displacement); break;
+				case DisplacementSize._32: Write(encoding.Displacement); break;
+			}
+		}
+
+		private void Emit(byte opcode8, byte opcode, Gpr reg, EffectiveAddress rm)
+			=> Emit(OpcodeMap.Default, opcode8, opcode, reg, rm);
+		#endregion
+
+		#region Write (instruction components)
+		private void Write(byte value) => stream.WriteByte(value);
+
+		private void Write(LegacyPrefix legacyPrefix) => Write(legacyPrefix.GetEncodingByte());
+
+		private void Write(OpcodeMap map)
 		{
 			switch (map)
 			{
@@ -40,37 +75,32 @@ namespace Asmuth.X86
 			}
 		}
 
-		private void Emit(Rex rex) => Emit((byte)((rex & ~Rex.Reserved_Mask) | Rex.Reserved_Value));
-		private void Emit(ModRM modRM) => Emit((byte)modRM);
-		private void Emit(Sib sib) => Emit((byte)sib);
-		private void Emit(sbyte value) => Emit(unchecked((byte)value));
-		private void Emit(short value)
+		private void Write(Rex rex) => Write((byte)((rex & ~Rex.Reserved_Mask) | Rex.Reserved_Value));
+		private void Write(ModRM modRM) => Write((byte)modRM);
+		private void Write(Sib sib) => Write((byte)sib);
+		private void Write(sbyte value) => Write(unchecked((byte)value));
+
+		private void Write(short value)
 		{
 			throw new NotImplementedException();
 		}
 
-		private void Emit(int value)
+		private void Write(int value)
 		{
 			throw new NotImplementedException();
 		}
 
-		private void Emit(OpcodeMap map, byte opcode)
-		{
-			Emit(map);
-			Emit(opcode);
-		}
-
-		private void EmitPrefixes(Gpr reg, EffectiveAddress effectiveAddress)
+		private void WritePrefixes(Gpr reg, EffectiveAddress effectiveAddress)
 		{
 			if (effectiveAddress.RequiresSegmentOverride)
-				Emit(LegacyPrefixEnum.GetSegmentOverride(effectiveAddress.Segment));
+				Write(LegacyPrefixEnum.GetSegmentOverride(effectiveAddress.Segment));
 
 			var effectiveAddressSize = effectiveAddress.AddressSize;
 			if (effectiveAddressSize != context.GetDefaultAddressSize())
 			{
 				if (effectiveAddressSize != context.GetEffectiveAddressSize(@override: true))
 					throw new InvalidDataException();
-				Emit(LegacyPrefix.AddressSizeOverride);
+				Write(LegacyPrefix.AddressSizeOverride);
 			}
 
 			// Rex
@@ -89,29 +119,8 @@ namespace Asmuth.X86
 			if (reg.Code >= GprCode.R8) rex = rex.GetValueOrDefault() | Rex.ModRegExtension;
 			if (effectiveAddress.BaseAsGprCode >= GprCode.R8) rex = rex.GetValueOrDefault() | Rex.BaseRegExtension;
 			if (effectiveAddress.IndexAsGprCode >= GprCode.R8) rex = rex.GetValueOrDefault() | Rex.IndexRegExtension;
-			if (rex.HasValue) Emit(rex.Value);
-		}
-
-		private void Emit(OpcodeMap map, byte opcode8, byte opcode, Gpr reg, EffectiveAddress rm)
-		{
-			EmitPrefixes(reg, rm);
-			Emit(map, reg.Size == OperandSize.Byte ? opcode8 : opcode);
-
-			var displacementSize = rm.MinimumDisplacementSize;
-			var encoding = rm.Encode(
-				context.GetDefaultAddressSize(), reg.Code.GetLow3Bits(), displacementSize);
-			Emit(encoding.ModRM);
-			if (encoding.Sib.HasValue) Emit(encoding.Sib.Value);
-
-			switch (displacementSize)
-			{
-				case DisplacementSize._8: Emit((sbyte)encoding.Displacement); break;
-				case DisplacementSize._16: Emit((short)encoding.Displacement); break;
-				case DisplacementSize._32: Emit(encoding.Displacement); break;
-			}
-		}
-
-		private void Emit(byte opcode8, byte opcode, Gpr reg, EffectiveAddress rm)
-			=> Emit(OpcodeMap.Default, opcode8, opcode, reg, rm);
+			if (rex.HasValue) Write(rex.Value);
+		} 
+		#endregion
 	}
 }

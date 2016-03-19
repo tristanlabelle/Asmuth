@@ -77,7 +77,7 @@ namespace Asmuth.X86
 		}
 
 		[TestMethod]
-		public void TestNopVariations()
+		public void TestMultiByteNops()
 		{
 			var nops = new byte[]
 			{
@@ -111,6 +111,16 @@ namespace Asmuth.X86
 				Assert.AreEqual(length >= 4 && length <= 6, instruction.DisplacementSize == DisplacementSize._8);
 				Assert.AreEqual(length >= 7, instruction.DisplacementSize == DisplacementSize._32);
 			}
+		}
+
+		[TestMethod]
+		public void TestDisplacementSizes()
+		{
+			Assert.AreEqual(DisplacementSize._0, DecodeSingle_Protected32(0x0F, 0x1F, (byte)ModRM.Mod_Direct).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._8, DecodeSingle_Protected32(0x0F, 0x1F, (byte)ModRM.Mod_IndirectDisplacement8, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._16, DecodeSingle_Protected32(0x67, 0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._32, DecodeSingle_Protected32(0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._32, DecodeSingle_64Bit(0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
 		}
 
 		[TestMethod]
@@ -181,6 +191,7 @@ namespace Asmuth.X86
 					decoder.Reset();
 				}
 			}
+			Assert.AreEqual(InstructionDecodingState.Initial, decoder.State);
 			return instructions.ToArray();
 		}
 
@@ -202,5 +213,8 @@ namespace Asmuth.X86
 
 		private static Instruction DecodeSingle_Protected32(params byte[] bytes)
 			=> DecodeSingle(CodeContext.Protected_Default32, bytes);
+
+		private static Instruction DecodeSingle_64Bit(params byte[] bytes)
+			=> DecodeSingle(CodeContext.SixtyFourBit, bytes);
 	}
 }

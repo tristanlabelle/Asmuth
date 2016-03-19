@@ -87,7 +87,7 @@ namespace Asmuth.X86
 						if (builder.LegacyPrefixes.ContainsFromGroup(legacyPrefix.Value.GetGroup()))
 							return AdvanceToError(InstructionDecodingError.DuplicateLegacyPrefixGroup);
 						
-						builder.LegacyPrefixes = builder.LegacyPrefixes.Add(legacyPrefix.Value);
+						builder.LegacyPrefixes = ImmutableLegacyPrefixList.Add(builder.LegacyPrefixes, legacyPrefix.Value);
 						return true;
 					}
 

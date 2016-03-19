@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -99,6 +100,10 @@ namespace Asmuth.X86
 				default: return null;
 			}
 		}
+
+		[Pure]
+		public static string GetMnemonicOrHexValue(this LegacyPrefix prefix)
+			=> TryGetMnemonic(prefix) ?? prefix.GetEncodingByte().ToString("X2", CultureInfo.InvariantCulture);
 
 		[Pure]
 		public static byte GetEncodingByte(this LegacyPrefix prefix)
