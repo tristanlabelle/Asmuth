@@ -45,9 +45,8 @@ namespace Asmuth.X86
 				default: throw new ArgumentException();
 			}
 		}
-
-
-		bool IInstructionDecoderLookup.TryLookup(
+		
+		object IInstructionDecoderLookup.TryLookup(
 			CodeContext mode, ImmutableLegacyPrefixList legacyPrefixes,
 			Xex xex, byte opcode, out bool hasModRM, out int immediateSizeInBytes)
 		{
@@ -85,12 +84,12 @@ namespace Asmuth.X86
 			{
 				hasModRM = false;
 				immediateSizeInBytes = 0;
-				return false;
+				return null;
 			}
 
 			hasModRM = bestMatch.Encoding.HasModRM();
 			immediateSizeInBytes = bestMatch.Encoding.GetImmediatesSizeInBytes(operandSize, addressSize);
-			return true;
+			return bestMatch;
 		}
 	}
 }

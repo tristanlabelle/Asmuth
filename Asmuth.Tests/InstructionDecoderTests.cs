@@ -10,9 +10,10 @@ namespace Asmuth.X86
 	{
 		private sealed class InstructionLookup : IInstructionDecoderLookup
 		{
+			private static readonly object found = new object();
 			public static readonly InstructionLookup Instance = new InstructionLookup();
 
-			public bool TryLookup(CodeContext mode,
+			public object TryLookup(CodeContext mode,
 				ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
 				out bool hasModRM, out int immediateSizeInBytes)
 			{
@@ -21,21 +22,21 @@ namespace Asmuth.X86
 					// NOP
 					hasModRM = false;
 					immediateSizeInBytes = 0;
-					return true;
+					return found;
 				}
 				else if (xex.OpcodeMap == OpcodeMap.Escape0F && opcode == 0x1F)
 				{
 					// 3+ byte nop form
 					hasModRM = true;
 					immediateSizeInBytes = 0;
-					return true;
+					return found;
 				}
 				else if (xex.OpcodeMap == OpcodeMap.Default && (opcode & 0xF8) == 0xB0)
 				{
 					// MOV x8, imm8
 					hasModRM = false;
 					immediateSizeInBytes = 1;
-					return true;
+					return found;
 				}
 				else if (xex.OpcodeMap == OpcodeMap.Default && (opcode & 0xF8) == 0xB8)
 				{
@@ -49,7 +50,7 @@ namespace Asmuth.X86
 
 					hasModRM = false;
 					immediateSizeInBytes = operandSize.InBytes();
-					return true;
+					return found;
 				}
 				else if (xex.OpcodeMap == OpcodeMap.Escape0F
 					&& (xex.SimdPrefix ?? legacyPrefixes.GetSimdPrefix(xex.OpcodeMap)) == SimdPrefix._66
@@ -57,13 +58,13 @@ namespace Asmuth.X86
 				{
 					hasModRM = true;
 					immediateSizeInBytes = 0;
-					return true;
+					return found;
 				}
 				else
 				{
 					hasModRM = false;
 					immediateSizeInBytes = 0;
-					return false;
+					return null;
 				}
 			}
 		}

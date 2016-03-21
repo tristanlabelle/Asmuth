@@ -37,13 +37,14 @@ namespace Asmuth.X86
 	{
 		#region Fields
 		private readonly IInstructionDecoderLookup lookup;
-		private CodeContext mode;
+		private CodeContext context;
 
 		// State data
 		private InstructionDecodingState state;
 		private byte substate;
 		private uint accumulator;
 		private readonly Instruction.Builder builder = new Instruction.Builder();
+		private object tag;
 		#endregion
 
 		#region Constructors
@@ -52,12 +53,12 @@ namespace Asmuth.X86
 			Contract.Requires(lookup != null);
 
 			this.lookup = lookup;
-			this.mode = mode;
+			this.context = mode;
 		}
 		#endregion
 
 		#region Properties
-		public CodeContext Mode => mode;
+		public CodeContext Mode => context;
 		public InstructionDecodingState State => state;
 
 		public InstructionDecodingError? Error
@@ -66,6 +67,15 @@ namespace Asmuth.X86
 			{
 				if (state != InstructionDecodingState.Error) return null;
 				return (InstructionDecodingError)state;
+			}
+		}
+
+		public object Tag
+		{
+			get
+			{
+				Contract.Requires(State > InstructionDecodingState.ExpectOpcode && State != InstructionDecodingState.Error);
+				return tag;
 			}
 		}
 		#endregion
@@ -92,7 +102,7 @@ namespace Asmuth.X86
 					}
 
 					var xexType = XexEnums.GetTypeFromByte(@byte);
-					if (mode == CodeContext.SixtyFourBit && xexType == XexType.RexAndEscapes)
+					if (context == CodeContext.SixtyFourBit && xexType == XexType.RexAndEscapes)
 					{
 						builder.Xex = new Xex((Rex)@byte);
 						return AdvanceTo(InstructionDecodingState.ExpectOpcode);
@@ -100,7 +110,7 @@ namespace Asmuth.X86
 
 					if (xexType >= XexType.Vex2)
 					{
-						if (mode.IsRealOrVirtual8086())
+						if (context.IsRealOrVirtual8086())
 							return AdvanceToError(InstructionDecodingError.VexIn8086Mode);
 
 						int remainingBytes = xexType.GetMinSizeInBytes() - 1;
@@ -170,8 +180,12 @@ namespace Asmuth.X86
 
 					bool hasModRM;
 					int immediateSizeInBytes;
-					if (!lookup.TryLookup(mode, builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, out hasModRM, out immediateSizeInBytes))
+					tag = lookup.TryLookup(context, builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte,
+						out hasModRM, out immediateSizeInBytes);
+
+					if (tag == null)
 						return AdvanceToError(InstructionDecodingError.UnknownOpcode);
+
 					builder.ImmediateSizeInBytes = immediateSizeInBytes;
 						
 					return hasModRM ? AdvanceTo(InstructionDecodingState.ExpectModRM) : AdvanceToImmediateOrEnd();
@@ -248,19 +262,20 @@ namespace Asmuth.X86
 			substate = 0;
 			accumulator = 0;
 			builder.Clear();
-			builder.DefaultAddressSize = mode.GetDefaultAddressSize();
+			builder.DefaultAddressSize = context.GetDefaultAddressSize();
+			tag = null;
 		}
 
 		public void Reset(CodeContext mode)
 		{
-			this.mode = mode;
+			this.context = mode;
 			Reset();
 		}
 
 		private AddressSize GetEffectiveAddressSize()
 		{
 			Contract.Requires(state > InstructionDecodingState.ExpectPrefixOrOpcode);
-			return mode.GetEffectiveAddressSize(@override: builder.LegacyPrefixes.HasAddressSizeOverride);
+			return context.GetEffectiveAddressSize(@override: builder.LegacyPrefixes.HasAddressSizeOverride);
 		}
 
 		private DisplacementSize GetDisplacementSize()

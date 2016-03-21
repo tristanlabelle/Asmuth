@@ -15,21 +15,21 @@ namespace Asmuth.X86.Nasm
 			this.entries = entries.ToList();
 		}
 
-		public bool TryLookup(
+		public object TryLookup(
 			CodeContext mode, ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
 			out bool hasModRM, out int immediateSizeInBytes)
 		{
 			hasModRM = false;
 			immediateSizeInBytes = 0;
 
-			bool matched = false;
+			NasmInsnsEntry match = null;
 			foreach (var entry in entries)
 			{
 				bool entryHasModRM;
 				int entryImmediateSize;
 				if (entry.Match(mode.GetDefaultAddressSize(), legacyPrefixes, xex, opcode, out entryHasModRM, out entryImmediateSize))
 				{
-					if (matched)
+					if (match != null)
 					{
 						// If we match multiple, we should have the same response for each
 						if (entryHasModRM != hasModRM) return false;
@@ -38,11 +38,11 @@ namespace Asmuth.X86.Nasm
 
 					hasModRM = entryHasModRM;
 					immediateSizeInBytes = entryImmediateSize;
-					matched = true;
+					match = entry;
 				}
 			}
 
-			return matched;
+			return match;
 		}
 	}
 }
