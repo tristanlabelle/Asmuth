@@ -124,11 +124,11 @@ namespace Asmuth.X86
 
 				case InstructionDecodingState.ExpectXexByte:
 				{
-					if ((accumulator >> 24) == (uint)Xop.FirstByte && (@byte & 0x04) == 0)
+					if ((accumulator >> 24) == (uint)Vex3Xop.FirstByte_Xop && (@byte & 0x04) == 0)
 					{
 						// What we just read was not a XOP, but a POP reg/mem
 						builder.Xex = default(Xex);
-						builder.OpcodeByte = (byte)Xop.FirstByte;
+						builder.OpcodeByte = (byte)Vex3Xop.FirstByte_Xop;
 						builder.ModRM = (ModRM)@byte;
 						state = InstructionDecodingState.ExpectModRM;
 						return AdvanceToSibOrFurther();
@@ -144,8 +144,12 @@ namespace Asmuth.X86
 					switch (xexType)
 					{
 						case XexType.Vex2: builder.Xex = new Xex((Vex2)accumulator); break;
-						case XexType.Vex3: builder.Xex = new Xex((Vex3)accumulator); break;
-						case XexType.Xop: builder.Xex = new Xex((Xop)accumulator); break;
+						
+						case XexType.Vex3:
+						case XexType.Xop:
+							builder.Xex = new Xex((Vex3Xop)accumulator);
+							break;
+
 						case XexType.EVex: builder.Xex = new Xex((EVex)accumulator); break;
 						default: throw new UnreachableException();
 					}

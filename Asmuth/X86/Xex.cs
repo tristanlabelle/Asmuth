@@ -59,87 +59,59 @@ namespace Asmuth.X86
 		VectorSize256 = 1 << 2, // L
 
 		// vvvv
-		NonDestructiveReg_Shift = 3,
-		NonDestructiveReg_Mask = 15 << NonDestructiveReg_Shift,
+		NotNonDestructiveReg_Shift = 3,
+		NotNonDestructiveReg_Unused = 0xF << NotNonDestructiveReg_Shift,
+		NotNonDestructiveReg_Mask = 0xF << NotNonDestructiveReg_Shift,
 
 		NotModRegExtension = 1 << 7, // R
 	}
 
+	/// <summary>
+	/// Represents either Intel's 3-byte VEX prefix or AMD's XOP prefix.
+	/// </summary>
 	[Flags]
-	public enum Vex3 : uint
+	public enum Vex3Xop
 	{
 		ByteCount = 3,
-		FirstByte = 0xC4,
+		FirstByte_Vex3 = 0xC4,
+		FirstByte_Xop = 0x8F,
 
-		Reserved_Mask = 0xFF0000,
-		Reserved_Value = 0xC40000,
+		Header_Mask = 0xFF0000,
+		Header_Vex3 = 0xC40000,
+		Header_Xop = 0x8F0000,
 
 		// pp
 		SimdPrefix_Shift = 0,
-		SimdPrefix_None = 0U << (int)SimdPrefix_Shift,
-		SimdPrefix_66 = 1U << (int)SimdPrefix_Shift,
-		SimdPrefix_F2 = 2U << (int)SimdPrefix_Shift,
-		SimdPrefix_F3 = 3U << (int)SimdPrefix_Shift,
-		SimdPrefix_Mask = 3U << (int)SimdPrefix_Shift,
+		SimdPrefix_None = 0 << SimdPrefix_Shift,
+		SimdPrefix_66 = 1 << SimdPrefix_Shift,
+		SimdPrefix_F2 = 2 << SimdPrefix_Shift,
+		SimdPrefix_F3 = 3 << SimdPrefix_Shift,
+		SimdPrefix_Mask = 3 << SimdPrefix_Shift,
 
 		VectorSize256 = 1 << 2, // L
 
 		// vvvv
 		NotNonDestructiveReg_Shift = 3,
-		NotNonDestructiveReg_Unused = 0xFU << (int)NotNonDestructiveReg_Shift,
-		NotNonDestructiveReg_Mask = 0xFU << (int)NotNonDestructiveReg_Shift,
+		NotNonDestructiveReg_Unused = 0xF << NotNonDestructiveReg_Shift,
+		NotNonDestructiveReg_Mask = 0xF << NotNonDestructiveReg_Shift,
 
 		OperandSize64 = 1 << 7, // W
 
 		// Opcode map
 		OpcodeMap_Shift = 8,
-		OpcodeMap_0F = 1 << (int)OpcodeMap_Shift,
-		OpcodeMap_0F38 = 2 << (int)OpcodeMap_Shift,
-		OpcodeMap_0F3A = 3 << (int)OpcodeMap_Shift,
-		OpcodeMap_Mask = 0x1FU << (int)OpcodeMap_Shift,
+		OpcodeMap_0F = 1 << OpcodeMap_Shift, // Used with VEX
+		OpcodeMap_0F38 = 2 << OpcodeMap_Shift,
+		OpcodeMap_0F3A = 3 << OpcodeMap_Shift,
+		OpcodeMap_8 = 8 << OpcodeMap_Shift, // Used with XOP
+		OpcodeMap_9 = 9 << OpcodeMap_Shift,
+		OpcodeMap_10 = 10 << OpcodeMap_Shift,
+		OpcodeMap_Mask = 0x1F << OpcodeMap_Shift,
 
 		NotBaseRegExtension = 1 << 13, // B
 		NotIndexRegExtension = 1 << 14, // X
 		NotModRegExtension = 1 << 15, // R
 
 		NoRegExtensions = NotBaseRegExtension | NotIndexRegExtension | NotModRegExtension,
-	}
-
-	[Flags]
-	public enum Xop : uint
-	{
-		ByteCount = 3,
-		FirstByte = 0x8F,
-
-		Reserved_Mask = 0xFF0400,
-		Reserved_Value = 0x8F0400,
-
-		// Compressed SIMD prefix
-		pp_Shift = 0,
-		pp_None = 0U << (int)pp_Shift,
-		pp_66 = 1U << (int)pp_Shift,
-		pp_F2 = 2U << (int)pp_Shift,
-		pp_F3 = 3U << (int)pp_Shift,
-		pp_Mask = 3U << (int)pp_Shift,
-
-		L = 1 << 2,
-
-		// NDS Register specifier, in one's complement
-		vvvv_Shift = 3,
-		vvvv_Mask = 15U << (int)vvvv_Shift,
-
-		W = 1 << 7,
-
-		// Opcode map. Careful, this is not the same as in Vex3.
-		mmmmm_Shift = 8,
-		mmmmm_Map8 = 8 << (int)mmmmm_Shift,
-		mmmmm_Map9 = 9 << (int)mmmmm_Shift,
-		mmmmm_Map10 = 10 << (int)mmmmm_Shift,
-		mmmmm_Mask = 0x1FU << (int)mmmmm_Shift,
-
-		B = 1 << 13,
-		X = 1 << 14,
-		R = 1 << 15,
 	}
 
 	[Flags]
@@ -195,13 +167,17 @@ namespace Asmuth.X86
 			=> xexType == XexType.Vex2 || xexType == XexType.Vex3;
 
 		[Pure]
+		public static bool IsVex3Xop(this XexType xexType)
+			=> xexType == XexType.Vex3 || xexType == XexType.Xop;
+
+		[Pure]
 		public static XexType GetTypeFromByte(byte value)
 		{
 			switch (value)
 			{
 				case (byte)Vex2.FirstByte: return XexType.Vex2;
-				case (byte)Vex3.FirstByte: return XexType.Vex3;
-				case (byte)Xop.FirstByte: return XexType.Xop;
+				case (byte)Vex3Xop.FirstByte_Vex3: return XexType.Vex3;
+				case (byte)Vex3Xop.FirstByte_Xop: return XexType.Xop;
 				case (byte)EVex.FirstByte: return XexType.EVex;
 				default: return ((value & 0xF0) == (byte)Rex.HighNibble) ? XexType.RexAndEscapes : XexType.Escapes;
 			}
@@ -258,30 +234,40 @@ namespace Asmuth.X86
 
 		[Pure]
 		public static byte GetNonDestructiveReg(this Vex2 vex)
-			=> (byte)Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.NonDestructiveReg_Mask, (int)Vex2.NonDestructiveReg_Shift);
+			=> (byte)(~Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.NotNonDestructiveReg_Mask, (int)Vex2.NotNonDestructiveReg_Shift) & 0xF);
 		#endregion
 
 		#region Vex3
 		[Pure]
-		public static byte GetFirstByte(this Vex3 vex) => (byte)Vex3.FirstByte;
+		public static bool IsVex3(this Vex3Xop xop)
+		{
+			var header = (xop & Vex3Xop.Header_Mask);
+			return header == Vex3Xop.Header_Xop || header == 0;
+		}
 
 		[Pure]
-		public static byte GetSecondByte(this Vex3 vex) => unchecked((byte)((uint)vex >> 8));
+		public static bool IsXop(this Vex3Xop xop) => (xop & Vex3Xop.Header_Mask) == Vex3Xop.Header_Xop;
 
 		[Pure]
-		public static byte GetThirdByte(this Vex3 vex) => unchecked((byte)vex);
+		public static byte GetFirstByte(this Vex3Xop vex) => unchecked((byte)((uint)vex >> 16));
 
 		[Pure]
-		public static SimdPrefix GetSimdPrefix(this Vex3 vex)
-			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3.SimdPrefix_Mask, (int)Vex3.SimdPrefix_Shift);
+		public static byte GetSecondByte(this Vex3Xop vex) => unchecked((byte)((uint)vex >> 8));
 
 		[Pure]
-		public static OpcodeMap GetOpcodeMap(this Vex3 vex)
-			=> (OpcodeMap)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3.OpcodeMap_Mask, (int)Vex3.OpcodeMap_Shift);
+		public static byte GetThirdByte(this Vex3Xop vex) => unchecked((byte)vex);
 
 		[Pure]
-		public static byte GetNonDestructiveReg(this Vex3 vex)
-			=> (byte)(~Bits.MaskAndShiftRight((uint)vex, (uint)Vex3.NotNonDestructiveReg_Mask, (int)Vex3.NotNonDestructiveReg_Shift) & 0xF); 
+		public static SimdPrefix GetSimdPrefix(this Vex3Xop vex)
+			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.SimdPrefix_Mask, (int)Vex3Xop.SimdPrefix_Shift);
+
+		[Pure]
+		public static OpcodeMap GetOpcodeMap(this Vex3Xop vex)
+			=> (OpcodeMap)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.OpcodeMap_Mask, (int)Vex3Xop.OpcodeMap_Shift);
+
+		[Pure]
+		public static byte GetNonDestructiveReg(this Vex3Xop vex)
+			=> (byte)(~Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.NotNonDestructiveReg_Mask, (int)Vex3Xop.NotNonDestructiveReg_Shift) & 0xF); 
 		#endregion
 	}
 
@@ -346,20 +332,16 @@ namespace Asmuth.X86
 			if ((vex2 & Vex2.VectorSize256) != 0) flags |= Flags.VectorSize_256;
 		}
 
-		public Xex(Vex3 vex3)
+		public Xex(Vex3Xop vex3)
 		{
-			flags = BaseFlags(XexType.Vex3, vex3.GetSimdPrefix(), vex3.GetOpcodeMap());
+			flags = BaseFlags(vex3.IsXop() ? XexType.Xop : XexType.Vex3,
+				vex3.GetSimdPrefix(), vex3.GetOpcodeMap());
 			flags |= (Flags)((uint)vex3.GetNonDestructiveReg() << (int)Flags.NonDestructiveReg_Shift);
-			if ((vex3 & Vex3.NotModRegExtension) == 0) flags |= Flags.ModRegExtension;
-			if ((vex3 & Vex3.NotBaseRegExtension) == 0) flags |= Flags.BaseRegExtension;
-			if ((vex3 & Vex3.NotIndexRegExtension) == 0) flags |= Flags.IndexRegExtension;
-			if ((vex3 & Vex3.OperandSize64) != 0) flags |= Flags.OperandSize64;
-			if ((vex3 & Vex3.VectorSize256) != 0) flags |= Flags.VectorSize_256;
-		}
-
-		public Xex(Xop xop)
-		{
-			throw new NotImplementedException();
+			if ((vex3 & Vex3Xop.NotModRegExtension) == 0) flags |= Flags.ModRegExtension;
+			if ((vex3 & Vex3Xop.NotBaseRegExtension) == 0) flags |= Flags.BaseRegExtension;
+			if ((vex3 & Vex3Xop.NotIndexRegExtension) == 0) flags |= Flags.IndexRegExtension;
+			if ((vex3 & Vex3Xop.OperandSize64) != 0) flags |= Flags.OperandSize64;
+			if ((vex3 & Vex3Xop.VectorSize256) != 0) flags |= Flags.VectorSize_256;
 		}
 
 		public Xex(EVex evex)
@@ -420,7 +402,7 @@ namespace Asmuth.X86
 					case XexType.RexAndEscapes: return 1 + OpcodeMap.GetEscapeByteCount();
 					case XexType.Vex2: return 2;
 					case XexType.Vex3: return 3;
-					case XexType.Xop: return 4;
+					case XexType.Xop: return 3;
 					case XexType.EVex: return 4;
 					default: throw new UnreachableException();
 				}
