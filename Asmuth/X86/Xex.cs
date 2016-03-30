@@ -85,10 +85,11 @@ namespace Asmuth.X86
 		VectorSize256 = 1 << 2, // L
 
 		// vvvv
-		NonDestructiveReg_Shift = 3,
-		NonDestructiveReg_Mask = 15U << (int)NonDestructiveReg_Shift,
+		NotNonDestructiveReg_Shift = 3,
+		NotNonDestructiveReg_Unused = 0xFU << (int)NotNonDestructiveReg_Shift,
+		NotNonDestructiveReg_Mask = 0xFU << (int)NotNonDestructiveReg_Shift,
 
-		OperandSize64 = 1 << 7,
+		OperandSize64 = 1 << 7, // W
 
 		// Opcode map
 		OpcodeMap_Shift = 8,
@@ -97,9 +98,11 @@ namespace Asmuth.X86
 		OpcodeMap_0F3A = 3 << (int)OpcodeMap_Shift,
 		OpcodeMap_Mask = 0x1FU << (int)OpcodeMap_Shift,
 
-		NotBaseRegExtension = 1 << 13,
-		NotIndexRegExtension = 1 << 14,
-		NotModRegExtension = 1 << 15,
+		NotBaseRegExtension = 1 << 13, // B
+		NotIndexRegExtension = 1 << 14, // X
+		NotModRegExtension = 1 << 15, // R
+
+		NoRegExtensions = NotBaseRegExtension | NotIndexRegExtension | NotModRegExtension,
 	}
 
 	[Flags]
@@ -278,7 +281,7 @@ namespace Asmuth.X86
 
 		[Pure]
 		public static byte GetNonDestructiveReg(this Vex3 vex)
-			=> (byte)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3.NonDestructiveReg_Mask, (int)Vex3.NonDestructiveReg_Shift); 
+			=> (byte)(~Bits.MaskAndShiftRight((uint)vex, (uint)Vex3.NotNonDestructiveReg_Mask, (int)Vex3.NotNonDestructiveReg_Shift) & 0xF); 
 		#endregion
 	}
 

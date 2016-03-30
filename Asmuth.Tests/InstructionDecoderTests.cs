@@ -170,9 +170,16 @@ namespace Asmuth.X86
 		{
 			// VADDPD xmm1, xmm2, xmm3/m128 - VEX.NDS.128.66.0F.WIG 58 /r
 			var modRM = ModRMEnum.FromComponents(3, 1, 2);
-			var vex = Vex3.Reserved_Value | Vex3.SimdPrefix_66 | Vex3.OpcodeMap_0F;
+			var vex = Vex3.Reserved_Value | Vex3.NoRegExtensions | Vex3.NotNonDestructiveReg_Unused
+				| Vex3.SimdPrefix_66 | Vex3.OpcodeMap_0F;
 			var instruction = DecodeSingle_Protected32(vex.GetFirstByte(), vex.GetSecondByte(), vex.GetThirdByte(), 0x58, (byte)modRM);
 			Assert.AreEqual(XexType.Vex3, instruction.Xex.Type);
+			Assert.AreEqual(OperandSize._128, instruction.Xex.VectorSize);
+			Assert.AreEqual((byte)0, instruction.Xex.NonDestructiveReg);
+			Assert.IsFalse(instruction.Xex.OperandSize64);
+			Assert.IsFalse(instruction.Xex.ModRegExtension);
+			Assert.IsFalse(instruction.Xex.BaseRegExtension);
+			Assert.IsFalse(instruction.Xex.IndexRegExtension);
 			Assert.AreEqual(SimdPrefix._66, instruction.SimdPrefix);
 			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
 			Assert.AreEqual(0x58, instruction.MainByte);
