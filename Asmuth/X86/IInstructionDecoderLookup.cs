@@ -12,6 +12,7 @@ namespace Asmuth.X86
 	/// </summary>
 	public interface IInstructionDecoderLookup
 	{
+		[Obsolete("FIXME: ModRM may be needed to know the immediate size.")]
 		object TryLookup(CodeContext codeContext,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
 			out bool hasModRM, out int immediateSizeInBytes);
