@@ -10,10 +10,10 @@ using System.Threading.Tasks;
 namespace Asmuth.X86.Nasm
 {
 	[StructLayout(LayoutKind.Sequential, Size = 2)]
-	public struct NasmEncodingToken : IEquatable<NasmEncodingToken>
+	public readonly struct NasmEncodingToken : IEquatable<NasmEncodingToken>
 	{
-		public readonly NasmEncodingTokenType Type;
-		public readonly byte Byte;
+		public NasmEncodingTokenType Type { get; }
+		public byte Byte { get; }
 
 		public NasmEncodingToken(NasmEncodingTokenType type, byte @byte = 0)
 		{

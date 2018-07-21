@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86.Nasm
 {
-	public struct NasmOperand : IEquatable<NasmOperand>
+	public readonly struct NasmOperand : IEquatable<NasmOperand>
 	{
 		public OperandField? Field { get; }
 		public NasmOperandType Type { get; }
