@@ -7,9 +7,15 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86
 {
-	public struct CpuidResult
+	public readonly struct CpuidResult
 	{
-		public uint Eax, Ebx, Ecx, Edx;
+		public uint Eax { get; }
+		public uint Ebx { get; }
+		public uint Ecx { get; }
+		public uint Edx { get; }
+
+		public CpuidResult(uint eax, uint ebx, uint ecx, uint edx)
+			=> (Eax, Ebx, Ecx, Edx) = (eax, ebx, ecx, edx);
 
 		public uint Get(GprCode code)
 		{

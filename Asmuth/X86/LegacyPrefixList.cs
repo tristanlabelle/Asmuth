@@ -15,7 +15,7 @@ namespace Asmuth.X86
 	/// Does not allow multiple prefixes from the same group.
 	/// </summary>
 	[StructLayout(LayoutKind.Sequential, Size = sizeof(uint))]
-	public struct ImmutableLegacyPrefixList : IList<LegacyPrefix>, IReadOnlyList<LegacyPrefix>
+	public readonly struct ImmutableLegacyPrefixList : IList<LegacyPrefix>, IReadOnlyList<LegacyPrefix>
 	{
 		private const uint legacyPrefixCount = 11;
 
