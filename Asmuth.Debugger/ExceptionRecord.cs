@@ -24,6 +24,7 @@ namespace Asmuth.Debugger
 			this.address = address;
 			this.flags = flags;
 			this.arguments = arguments;
+			this.child = child;
 		}
 
 		public uint Code => code;
