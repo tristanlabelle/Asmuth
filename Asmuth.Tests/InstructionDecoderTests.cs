@@ -14,7 +14,7 @@ namespace Asmuth.X86
 			public static readonly InstructionLookup Instance = new InstructionLookup();
 
 			public object TryLookup(CodeContext mode,
-				ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
+				ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode, byte? modReg,
 				out bool hasModRM, out int immediateSizeInBytes)
 			{
 				if (xex.OpcodeMap == OpcodeMap.Default && opcode == 0x90)
@@ -50,6 +50,36 @@ namespace Asmuth.X86
 
 					hasModRM = false;
 					immediateSizeInBytes = operandSize.InBytes();
+					return found;
+				}
+				else if (xex.OpcodeMap == OpcodeMap.Default && opcode == 0xF7)
+				{
+					// TEST: F7 /0 imm(16|32)
+					// MUL: F7 /4
+					hasModRM = true;
+
+					if (!modReg.HasValue)
+					{
+						// We need the ModRM byte to report the immediate size
+						immediateSizeInBytes = -1;
+						return null;
+					}
+
+					if (modReg == 0)
+					{
+						immediateSizeInBytes = mode.GetDefaultOperandSize()
+							.OverrideWordDword(legacyPrefixes.HasOperandSizeOverride)
+							.InBytes();
+					}
+					else if (modReg == 4)
+					{
+						immediateSizeInBytes = 0;
+					}
+					else
+					{
+						throw new NotImplementedException();
+					}
+
 					return found;
 				}
 				else if (xex.OpcodeMap == OpcodeMap.Escape0F
@@ -144,6 +174,15 @@ namespace Asmuth.X86
 		}
 
 		[TestMethod]
+		public void TestModRMRequiredForImmediateSize()
+		{
+			// TEST: F7 /0 imm(16|32)
+			// MUL: F7 /4
+			Assert.AreEqual(4, DecodeSingle_Protected32(0xF7, ModRM_Reg(0), 0x00, 0x01, 0x02, 0x03).ImmediateSizeInBytes);
+			Assert.AreEqual(0, DecodeSingle_Protected32(0xF7, ModRM_Reg(4)).ImmediateSizeInBytes);
+		}
+
+		[TestMethod]
 		public void TestVex2Nop()
 		{
 			var vex = Vex2.Reserved_Value;
@@ -186,6 +225,8 @@ namespace Asmuth.X86
 			Assert.AreEqual(0x58, instruction.MainByte);
 			Assert.AreEqual(modRM, instruction.ModRM);
 		}
+		
+		private static byte ModRM_Reg(byte reg) => (byte)ModRMEnum.FromComponents(mod: 3, reg: reg, rm: 0);
 
 		private static Instruction[] Decode(CodeContext context, params byte[] bytes)
 		{

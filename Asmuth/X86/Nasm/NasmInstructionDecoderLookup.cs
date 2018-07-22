@@ -15,8 +15,8 @@ namespace Asmuth.X86.Nasm
 			this.entries = entries.ToList();
 		}
 
-		public object TryLookup(
-			CodeContext mode, ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
+		public object TryLookup(CodeContext mode,
+			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode, byte? modReg,
 			out bool hasModRM, out int immediateSizeInBytes)
 		{
 			hasModRM = false;

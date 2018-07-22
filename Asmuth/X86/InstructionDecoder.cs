@@ -44,17 +44,20 @@ namespace Asmuth.X86
 		private byte substate;
 		private uint accumulator;
 		private readonly Instruction.Builder builder = new Instruction.Builder();
-		private object tag;
+		private object lookupTag;
 		#endregion
 
 		#region Constructors
-		public InstructionDecoder(IInstructionDecoderLookup lookup, CodeContext mode)
+		public InstructionDecoder(IInstructionDecoderLookup lookup, CodeContext context)
 		{
 			Contract.Requires(lookup != null);
 
 			this.lookup = lookup;
-			this.context = mode;
+			this.context = context;
 		}
+
+		public InstructionDecoder(CodeContext context)
+			: this(InstructionEncodingTable.Instance, context) { }
 		#endregion
 
 		#region Properties
@@ -70,12 +73,12 @@ namespace Asmuth.X86
 			}
 		}
 
-		public object Tag
+		public object LookupTag
 		{
 			get
 			{
 				Contract.Requires(State > InstructionDecodingState.ExpectOpcode && State != InstructionDecodingState.Error);
-				return tag;
+				return lookupTag;
 			}
 		}
 		#endregion
@@ -181,23 +184,45 @@ namespace Asmuth.X86
 					}
 
 					builder.OpcodeByte = @byte;
-
-					bool hasModRM;
-					int immediateSizeInBytes;
-					tag = lookup.TryLookup(context, builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte,
-						out hasModRM, out immediateSizeInBytes);
-
-					if (tag == null)
-						return AdvanceToError(InstructionDecodingError.UnknownOpcode);
-
-					builder.ImmediateSizeInBytes = immediateSizeInBytes;
 						
-					return hasModRM ? AdvanceTo(InstructionDecodingState.ExpectModRM) : AdvanceToImmediateOrEnd();
+					lookupTag = lookup.TryLookup(context,
+						builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modReg: null,
+						out bool hasModRM, out int immediateSizeInBytes);
+
+					if (lookupTag == null)
+					{
+						// If we know there is a ModRM, read it and lookup again afterwards.
+						if (hasModRM) return AdvanceTo(InstructionDecodingState.ExpectModRM);
+
+						return AdvanceToError(InstructionDecodingError.UnknownOpcode);
+					}
+
+					Contract.Assert(immediateSizeInBytes >= 0);
+					builder.ImmediateSizeInBytes = immediateSizeInBytes;
+					
+					return hasModRM
+						? AdvanceTo(InstructionDecodingState.ExpectModRM)
+						: AdvanceToImmediateOrEnd();
 				}
 
 				case InstructionDecodingState.ExpectModRM:
 				{
 					builder.ModRM = (ModRM)@byte;
+
+					// If we don't have a lookup tag yet, we needed the ModRM to complete the lookup.
+					if (lookupTag == null)
+					{
+						lookupTag = lookup.TryLookup(context,
+							builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modReg: builder.ModRM?.GetReg(),
+							out bool hasModRM, out int immediateSizeInBytes);
+						if (!hasModRM) throw new NotSupportedException("Contradictory lookup result.");
+
+						if (lookupTag == null || immediateSizeInBytes < 0)
+							return AdvanceToError(InstructionDecodingError.UnknownOpcode);
+
+						builder.ImmediateSizeInBytes = immediateSizeInBytes;
+					}
+
 					return AdvanceToSibOrFurther();
 				}
 
@@ -267,7 +292,7 @@ namespace Asmuth.X86
 			accumulator = 0;
 			builder.Clear();
 			builder.DefaultAddressSize = context.GetDefaultAddressSize();
-			tag = null;
+			lookupTag = null;
 		}
 
 		public void Reset(CodeContext mode)
@@ -328,7 +353,7 @@ namespace Asmuth.X86
 		{
 			Contract.Requires(State >= InstructionDecodingState.ExpectOpcode);
 			Contract.Requires(State < InstructionDecodingState.ExpectImmediate);
-
+			
 			return builder.ImmediateSizeInBytes > 0
 				? AdvanceTo(InstructionDecodingState.ExpectImmediate)
 				: AdvanceTo(InstructionDecodingState.Completed);

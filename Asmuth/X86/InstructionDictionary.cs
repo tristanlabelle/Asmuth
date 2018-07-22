@@ -48,7 +48,8 @@ namespace Asmuth.X86
 		
 		object IInstructionDecoderLookup.TryLookup(
 			CodeContext mode, ImmutableLegacyPrefixList legacyPrefixes,
-			Xex xex, byte opcode, out bool hasModRM, out int immediateSizeInBytes)
+			Xex xex, byte opcode, byte? modReg,
+			out bool hasModRM, out int immediateSizeInBytes)
 		{
 			var operandSize = mode.GetEffectiveOperandSize(legacyPrefixes, xex);
 			var addressSize = mode.GetEffectiveAddressSize(legacyPrefixes);
