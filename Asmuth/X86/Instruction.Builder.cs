@@ -11,8 +11,6 @@ namespace Asmuth.X86
 	{
 		public sealed class Builder
 		{
-			private byte immediateSizeInBytes;
-			
 			public CodeSegmentType CodeSegmentType { get; set; } = CodeSegmentType._32Bits;
 			public ImmutableLegacyPrefixList LegacyPrefixes { get; set; }
 			public Xex Xex { get; set; }
@@ -20,17 +18,7 @@ namespace Asmuth.X86
 			public ModRM? ModRM { get; set; }
 			public Sib? Sib { get; set; }
 			public int Displacement { get; set; }
-			public ulong Immediate { get; set; }
-
-			public int ImmediateSizeInBytes
-			{
-				get { return immediateSizeInBytes; }
-				set
-				{
-					Contract.Requires(value >= 0 && value <= 8);
-					immediateSizeInBytes = (byte)value;
-				}
-			}
+			public Immediate Immediate { get; set; }
 
 			public Instruction Build() => new Instruction(this);
 			public void Build(out Instruction instruction) => instruction = new Instruction(this);
@@ -44,8 +32,7 @@ namespace Asmuth.X86
 				ModRM = null;
 				Sib = null;
 				Displacement = 0;
-				Immediate = 0;
-				immediateSizeInBytes = 0;
+				Immediate = default;
 			}
 		}
 	}

@@ -163,7 +163,7 @@ namespace Asmuth.X86
 			{
 				var instruction = instructions[i];
 				Assert.AreEqual(1 << i, instruction.ImmediateSizeInBytes);
-				Assert.AreEqual(1UL, instruction.Immediate);
+				Assert.AreEqual((byte)1, instruction.Immediate.GetByte(0));
 			}
 		}
 

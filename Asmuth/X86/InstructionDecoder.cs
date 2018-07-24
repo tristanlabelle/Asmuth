@@ -37,13 +37,14 @@ namespace Asmuth.X86
 	{
 		#region Fields
 		private readonly IInstructionDecoderLookup lookup;
-		private CodeSegmentType codeSegmentType;
 
 		// State data
 		private InstructionDecodingState state;
 		private byte substate;
 		private uint accumulator;
 		private readonly Instruction.Builder builder = new Instruction.Builder();
+		private ulong immediateRawStorage;
+		private int immediateSizeInBytes;
 		private object lookupTag;
 		#endregion
 
@@ -53,7 +54,7 @@ namespace Asmuth.X86
 			Contract.Requires(lookup != null);
 
 			this.lookup = lookup;
-			this.codeSegmentType = codeSegmentType;
+			this.builder.CodeSegmentType = codeSegmentType;
 		}
 
 		public InstructionDecoder(CodeSegmentType codeSegmentType)
@@ -61,7 +62,7 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Properties
-		public CodeSegmentType CodeSegmentType => codeSegmentType;
+		public CodeSegmentType CodeSegmentType => builder.CodeSegmentType;
 		public InstructionDecodingState State => state;
 
 		public InstructionDecodingError? Error
@@ -105,7 +106,7 @@ namespace Asmuth.X86
 					}
 
 					var xexType = XexEnums.GetTypeFromByte(@byte);
-					if (codeSegmentType.IsLongMode() && xexType == XexType.RexAndEscapes)
+					if (CodeSegmentType.IsLongMode() && xexType == XexType.RexAndEscapes)
 					{
 						builder.Xex = new Xex((Rex)@byte);
 						return AdvanceTo(InstructionDecodingState.ExpectOpcode);
@@ -182,9 +183,9 @@ namespace Asmuth.X86
 
 					builder.OpcodeByte = @byte;
 						
-					lookupTag = lookup.TryLookup(codeSegmentType,
+					lookupTag = lookup.TryLookup(CodeSegmentType,
 						builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modReg: null,
-						out bool hasModRM, out int immediateSizeInBytes);
+						out bool hasModRM, out immediateSizeInBytes);
 
 					if (lookupTag == null)
 					{
@@ -195,7 +196,6 @@ namespace Asmuth.X86
 					}
 
 					Contract.Assert(immediateSizeInBytes >= 0);
-					builder.ImmediateSizeInBytes = immediateSizeInBytes;
 					
 					return hasModRM
 						? AdvanceTo(InstructionDecodingState.ExpectModRM)
@@ -209,15 +209,13 @@ namespace Asmuth.X86
 					// If we don't have a lookup tag yet, we needed the ModRM to complete the lookup.
 					if (lookupTag == null)
 					{
-						lookupTag = lookup.TryLookup(codeSegmentType,
+						lookupTag = lookup.TryLookup(CodeSegmentType,
 							builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modReg: builder.ModRM?.GetReg(),
-							out bool hasModRM, out int immediateSizeInBytes);
+							out bool hasModRM, out immediateSizeInBytes);
 						if (!hasModRM) throw new NotSupportedException("Contradictory lookup result.");
 
 						if (lookupTag == null || immediateSizeInBytes < 0)
 							return AdvanceToError(InstructionDecodingError.UnknownOpcode);
-
-						builder.ImmediateSizeInBytes = immediateSizeInBytes;
 					}
 
 					return AdvanceToSibOrFurther();
@@ -250,11 +248,12 @@ namespace Asmuth.X86
 
 				case InstructionDecodingState.ExpectImmediate:
 				{
-					builder.Immediate |= (ulong)@byte << (substate * 8);
+					immediateRawStorage |= (ulong)@byte << (substate * 8);
 					substate++;
-					if (substate < builder.ImmediateSizeInBytes)
+					if (substate < immediateSizeInBytes)
 						return true; // More bytes to come
-					
+
+					builder.Immediate = Immediate.FromRawStorage(immediateRawStorage, immediateSizeInBytes);
 					return AdvanceTo(InstructionDecodingState.Completed);
 				}
 
@@ -283,24 +282,28 @@ namespace Asmuth.X86
 		{
 			if (state == InstructionDecodingState.Initial) return;
 
+			var codeSegmentType = builder.CodeSegmentType;
+
 			state = InstructionDecodingState.Initial;
 			substate = 0;
 			accumulator = 0;
 			builder.Clear();
 			builder.CodeSegmentType = codeSegmentType;
+			immediateRawStorage = 0;
+			immediateSizeInBytes = 0;
 			lookupTag = null;
 		}
 
 		public void Reset(CodeSegmentType codeSegmentType)
 		{
-			this.codeSegmentType = codeSegmentType;
 			Reset();
+			builder.CodeSegmentType = codeSegmentType;
 		}
 
 		private AddressSize GetEffectiveAddressSize()
 		{
 			Contract.Requires(state > InstructionDecodingState.ExpectPrefixOrOpcode);
-			return codeSegmentType.GetEffectiveAddressSize(builder.LegacyPrefixes);
+			return CodeSegmentType.GetEffectiveAddressSize(builder.LegacyPrefixes);
 		}
 
 		private DisplacementSize GetDisplacementSize()
@@ -350,7 +353,7 @@ namespace Asmuth.X86
 			Contract.Requires(State >= InstructionDecodingState.ExpectOpcode);
 			Contract.Requires(State < InstructionDecodingState.ExpectImmediate);
 			
-			return builder.ImmediateSizeInBytes > 0
+			return immediateSizeInBytes > 0
 				? AdvanceTo(InstructionDecodingState.ExpectImmediate)
 				: AdvanceTo(InstructionDecodingState.Completed);
 		} 

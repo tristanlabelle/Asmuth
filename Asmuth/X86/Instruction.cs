@@ -40,7 +40,7 @@ namespace Asmuth.X86
 
 		private readonly int displacement; // 4 bytes
 
-		private readonly ulong immediate; // 8 bytes
+		private readonly ulong immediateRawStorage; // 8 bytes
 		#endregion
 
 		#region Constructors
@@ -54,12 +54,12 @@ namespace Asmuth.X86
 			modRM = builder.ModRM.GetValueOrDefault();
 			sib = builder.Sib.GetValueOrDefault(); // Validate if necessary
 			displacement = builder.Displacement; // Validate with mod/sib
-			immediate = builder.Immediate; // Truncate to size
+			immediateRawStorage = builder.Immediate.RawStorage; // Truncate to size
 
 			flags = 0;
 			flags |= (Flags)((int)builder.CodeSegmentType << (int)Flags.CodeSegmentType_Shift);
 			if (builder.ModRM.HasValue) flags |= Flags.HasModRM;
-			flags |= (Flags)(builder.ImmediateSizeInBytes << (int)Flags.ImmediateSizeInBytes_Shift);
+			flags |= (Flags)(builder.Immediate.SizeInBytes << (int)Flags.ImmediateSizeInBytes_Shift);
 		}
 		#endregion
 
@@ -109,8 +109,8 @@ namespace Asmuth.X86
 		}
 
 		public int Displacement => displacement;
-		public ulong Immediate => immediate;
 		public int ImmediateSizeInBytes => (int)Bits.MaskAndShiftRight((uint)flags, (uint)Flags.ImmediateSizeInBytes_Mask, (int)Flags.ImmediateSizeInBytes_Shift);
+		public Immediate Immediate => Immediate.FromRawStorage(immediateRawStorage, ImmediateSizeInBytes);
 
 		public int SizeInBytes
 		{
