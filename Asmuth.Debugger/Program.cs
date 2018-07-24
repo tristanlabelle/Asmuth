@@ -30,7 +30,7 @@ namespace Asmuth.Debugger
 				nasmInsnsEntries.Add(NasmInsns.ParseLine(line));
 			}
 			var instructionDecoder = new InstructionDecoder(
-				new NasmInstructionDecoderLookup(nasmInsnsEntries), CodeContext.Protected_Default32);
+				new NasmInstructionDecoderLookup(nasmInsnsEntries), CodeSegmentType._32Bits);
 
 			var notepadProcess = Process.Start(@"C:\Windows\SysWow64\notepad.exe");
 			var notepadDebugger = await ProcessDebugger.AttachAsync(notepadProcess.Id, initialBreak: false);

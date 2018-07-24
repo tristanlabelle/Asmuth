@@ -28,7 +28,7 @@ namespace Asmuth.X86
 			}
 		}
 		
-		public object TryLookup(CodeContext codeContext,
+		public object TryLookup(CodeSegmentType codeSegmentType,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode, byte? modReg,
 			out bool hasModRM, out int immediateSizeInBytes)
 		{

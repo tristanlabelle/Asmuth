@@ -17,13 +17,6 @@ namespace Asmuth.Disassembler
 	{
 		static void Main(string[] args)
 		{
-			var nasmInsnsEntries = new List<NasmInsnsEntry>();
-			foreach (var line in File.ReadAllLines("insns.dat", Encoding.ASCII))
-			{
-				if (NasmInsns.IsIgnoredLine(line)) continue;
-				nasmInsnsEntries.Add(NasmInsns.ParseLine(line));
-			}
-
 			var filePath = Path.GetFullPath(args[0]);
 			using (var memoryMappedFile = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))
 			using (var fileViewAccessor = memoryMappedFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read))
@@ -61,8 +54,7 @@ namespace Asmuth.Disassembler
 				}
 
 				// Disassemble executable sections
-				var instructionDecoderLookup = new NasmInstructionDecoderLookup(nasmInsnsEntries);
-				var instructionDecoder = new InstructionDecoder(instructionDecoderLookup, CodeContext.Compatibility_Default32);
+				var instructionDecoder = new InstructionDecoder(CodeSegmentType._32Bits);
 				foreach (var sectionHeader in sectionHeaders)
 				{
 					if ((sectionHeader.Characteristics & IMAGE_SCN_CNT_CODE) == 0) continue;
@@ -91,49 +83,22 @@ namespace Asmuth.Disassembler
 						while (Console.CursorLeft < 40) Console.Write(' ');
 
 						var instruction = instructionDecoder.GetInstruction();
+						var mnemonic = (string)instructionDecoder.LookupTag;
 						instructionDecoder.Reset();
 
-						var candidateNasmInsnsEntries = nasmInsnsEntries.Where(e => e.IsMatch(instruction)).ToArray();
-						var nasmInsnsEntry = candidateNasmInsnsEntries.Single();
 						Console.Write('\t');
-						Console.Write(nasmInsnsEntry.Mnemonic.ToLowerInvariant());
+						Console.Write(mnemonic);
 
-						bool firstOperand = true;
-						foreach (var operandDefinition in nasmInsnsEntry.Operands)
+						if (instruction.ModRM.HasValue)
 						{
-							Console.Write(firstOperand ? " " : ", ");
-							if (operandDefinition.Field == OperandField.BaseReg)
-							{
-								if (instruction.HasMemoryRM)
-								{
-									Console.Write(instruction.GetRMEffectiveAddress()
-										.ToString().ToLowerInvariant());
-								}
-								else
-								{
-									var regCode = instruction.ModRM.Value.GetRM();
-									Console.Write(Gpr.GetName((GprCode)regCode, GprPart.Dword).ToLowerInvariant());
-								}
-							}
-							else if (operandDefinition.Field == OperandField.ModReg)
-							{
-								var reg = instruction.ModRM?.GetReg() ?? (instruction.MainByte & 0x7);
-								if (instruction.Xex.ModRegExtension) reg |= 0x8;
-								Console.Write(new Gpr(reg, GprPart.Dword).Name.ToLowerInvariant());
-							}
-							else if (operandDefinition.Field == OperandField.Immediate)
-							{
-								if (instruction.Immediate <= (byte)sbyte.MaxValue)
-									Console.Write(instruction.Immediate);
-								else
-									Console.Write("0x{0:X}", instruction.Immediate);
-							}
-							else
-							{
-								Console.Write('?');
-							}
+							Console.Write(" ");
+							Console.Write(instruction.ModRM.Value.ToDebugString());
 
-							firstOperand = false;
+							if (instruction.Sib.HasValue)
+							{
+								Console.Write(" ");
+								Console.Write(instruction.Sib.Value.ToDebugString());
+							}
 						}
 
 						Console.WriteLine();

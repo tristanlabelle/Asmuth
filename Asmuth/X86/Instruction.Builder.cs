@@ -13,6 +13,7 @@ namespace Asmuth.X86
 		{
 			private byte immediateSizeInBytes;
 
+			[Obsolete("Should probably be a CodeSegmentType")]
 			public AddressSize DefaultAddressSize { get; set; } = AddressSize._32;
 			public ImmutableLegacyPrefixList LegacyPrefixes { get; set; }
 			public Xex Xex { get; set; }

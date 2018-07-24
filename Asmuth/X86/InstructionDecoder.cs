@@ -37,7 +37,7 @@ namespace Asmuth.X86
 	{
 		#region Fields
 		private readonly IInstructionDecoderLookup lookup;
-		private CodeContext context;
+		private CodeSegmentType codeSegmentType;
 
 		// State data
 		private InstructionDecodingState state;
@@ -48,20 +48,20 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Constructors
-		public InstructionDecoder(IInstructionDecoderLookup lookup, CodeContext context)
+		public InstructionDecoder(IInstructionDecoderLookup lookup, CodeSegmentType codeSegmentType)
 		{
 			Contract.Requires(lookup != null);
 
 			this.lookup = lookup;
-			this.context = context;
+			this.codeSegmentType = codeSegmentType;
 		}
 
-		public InstructionDecoder(CodeContext context)
-			: this(InstructionEncodingTable.Instance, context) { }
+		public InstructionDecoder(CodeSegmentType codeSegmentType)
+			: this(InstructionEncodingTable.Instance, codeSegmentType) { }
 		#endregion
 
 		#region Properties
-		public CodeContext Mode => context;
+		public CodeSegmentType CodeSegmentType => codeSegmentType;
 		public InstructionDecodingState State => state;
 
 		public InstructionDecodingError? Error
@@ -105,7 +105,7 @@ namespace Asmuth.X86
 					}
 
 					var xexType = XexEnums.GetTypeFromByte(@byte);
-					if (context == CodeContext.SixtyFourBit && xexType == XexType.RexAndEscapes)
+					if (codeSegmentType.IsLongMode() && xexType == XexType.RexAndEscapes)
 					{
 						builder.Xex = new Xex((Rex)@byte);
 						return AdvanceTo(InstructionDecodingState.ExpectOpcode);
@@ -113,9 +113,6 @@ namespace Asmuth.X86
 
 					if (xexType >= XexType.Vex2)
 					{
-						if (context.IsRealOrVirtual8086())
-							return AdvanceToError(InstructionDecodingError.VexIn8086Mode);
-
 						int remainingBytes = xexType.GetMinSizeInBytes() - 1;
 						// Hack: We accumulate the xex bytes, but make sure we end up with the type in the most significant byte
 						accumulator = @byte | ((uint)xexType << (24 - remainingBytes * 8));
@@ -185,7 +182,7 @@ namespace Asmuth.X86
 
 					builder.OpcodeByte = @byte;
 						
-					lookupTag = lookup.TryLookup(context,
+					lookupTag = lookup.TryLookup(codeSegmentType,
 						builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modReg: null,
 						out bool hasModRM, out int immediateSizeInBytes);
 
@@ -212,7 +209,7 @@ namespace Asmuth.X86
 					// If we don't have a lookup tag yet, we needed the ModRM to complete the lookup.
 					if (lookupTag == null)
 					{
-						lookupTag = lookup.TryLookup(context,
+						lookupTag = lookup.TryLookup(codeSegmentType,
 							builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modReg: builder.ModRM?.GetReg(),
 							out bool hasModRM, out int immediateSizeInBytes);
 						if (!hasModRM) throw new NotSupportedException("Contradictory lookup result.");
@@ -291,20 +288,20 @@ namespace Asmuth.X86
 			substate = 0;
 			accumulator = 0;
 			builder.Clear();
-			builder.DefaultAddressSize = context.GetDefaultAddressSize();
+			builder.DefaultAddressSize = codeSegmentType.GetDefaultAddressSize();
 			lookupTag = null;
 		}
 
-		public void Reset(CodeContext mode)
+		public void Reset(CodeSegmentType codeSegmentType)
 		{
-			this.context = mode;
+			this.codeSegmentType = codeSegmentType;
 			Reset();
 		}
 
 		private AddressSize GetEffectiveAddressSize()
 		{
 			Contract.Requires(state > InstructionDecodingState.ExpectPrefixOrOpcode);
-			return context.GetEffectiveAddressSize(@override: builder.LegacyPrefixes.HasAddressSizeOverride);
+			return codeSegmentType.GetEffectiveAddressSize(builder.LegacyPrefixes);
 		}
 
 		private DisplacementSize GetDisplacementSize()

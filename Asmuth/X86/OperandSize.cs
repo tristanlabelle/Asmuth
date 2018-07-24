@@ -43,13 +43,5 @@ namespace Asmuth.X86
 
 		[Pure]
 		public static int InBits(this OperandSize? size) => InBytes(size) * Bits.PerByte;
-
-		[Pure]
-		public static OperandSize OverrideWordDword(this OperandSize size, bool @override = true)
-		{
-			if (size == OperandSize.Word) return @override ? OperandSize.Dword : OperandSize.Word;
-			if (size == OperandSize.Dword) return @override ? OperandSize.Word : OperandSize.Dword;
-			return size;
-		}
 	}
 }

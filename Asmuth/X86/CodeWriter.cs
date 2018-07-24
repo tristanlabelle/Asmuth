@@ -11,14 +11,16 @@ namespace Asmuth.X86
 	public sealed class CodeWriter
 	{
 		private readonly Stream stream;
-		private readonly CodeContext context;
+		private readonly CodeSegmentType codeSegmentType;
 
-		public CodeWriter(Stream stream, CodeContext context)
+		public CodeWriter(Stream stream, CodeSegmentType codeSegmentType)
 		{
 			Contract.Requires(stream != null && stream.CanWrite);
 			this.stream = stream;
-			this.context = context;
+			this.codeSegmentType = codeSegmentType;
 		}
+
+		public CodeSegmentType CodeSegmentType => codeSegmentType;
 
 		public void Mov(EffectiveAddress dest, Gpr src) => Emit(0x88, 0x89, src, dest);
 		public void Mov(Gpr dest, EffectiveAddress src) => Emit(0x8A, 0x8B, dest, src);
@@ -42,7 +44,7 @@ namespace Asmuth.X86
 
 			var displacementSize = rm.MinimumDisplacementSize;
 			var encoding = rm.Encode(
-				context.GetDefaultAddressSize(), reg.Code.GetLow3Bits(), displacementSize);
+				codeSegmentType.GetDefaultAddressSize(), reg.Code.GetLow3Bits(), displacementSize);
 			Write(encoding.ModRM);
 			if (encoding.Sib.HasValue) Write(encoding.Sib.Value);
 
@@ -96,9 +98,9 @@ namespace Asmuth.X86
 				Write(LegacyPrefixEnum.GetSegmentOverride(effectiveAddress.Segment));
 
 			var effectiveAddressSize = effectiveAddress.AddressSize;
-			if (effectiveAddressSize != context.GetDefaultAddressSize())
+			if (effectiveAddressSize != codeSegmentType.GetDefaultAddressSize())
 			{
-				if (effectiveAddressSize != context.GetEffectiveAddressSize(@override: true))
+				if (effectiveAddressSize != codeSegmentType.GetEffectiveAddressSize(@override: true))
 					throw new InvalidDataException();
 				Write(LegacyPrefix.AddressSizeOverride);
 			}
@@ -107,7 +109,7 @@ namespace Asmuth.X86
 			Rex? rex = null;
 			if (reg.Part == GprPart.Qword)
 			{
-				if (context != CodeContext.SixtyFourBit) throw new ArgumentException("reg");
+				if (!codeSegmentType.IsLongMode()) throw new ArgumentException("reg");
 				rex = rex.GetValueOrDefault() | Rex.OperandSize64;
 			}
 			else if (reg.Size == OperandSize.Byte)

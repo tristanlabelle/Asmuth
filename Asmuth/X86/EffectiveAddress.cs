@@ -337,8 +337,8 @@ namespace Asmuth.X86
 			}
 		}
 
-		public static EffectiveAddress FromEncoding(CodeContext decodingMode, Encoding encoding)
-			=> FromEncoding(decodingMode.GetDefaultAddressSize(), encoding);
+		public static EffectiveAddress FromEncoding(CodeSegmentType codeSegmentType, Encoding encoding)
+			=> FromEncoding(codeSegmentType.GetDefaultAddressSize(), encoding);
 		#endregion
 
 		#region Properties

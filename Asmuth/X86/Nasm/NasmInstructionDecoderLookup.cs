@@ -15,7 +15,7 @@ namespace Asmuth.X86.Nasm
 			this.entries = entries.ToList();
 		}
 
-		public object TryLookup(CodeContext mode,
+		public object TryLookup(CodeSegmentType codeSegmentType,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode, byte? modReg,
 			out bool hasModRM, out int immediateSizeInBytes)
 		{
@@ -27,7 +27,7 @@ namespace Asmuth.X86.Nasm
 			{
 				bool entryHasModRM;
 				int entryImmediateSize;
-				if (entry.Match(mode.GetDefaultAddressSize(), legacyPrefixes, xex, opcode, out entryHasModRM, out entryImmediateSize))
+				if (entry.Match(codeSegmentType.GetDefaultAddressSize(), legacyPrefixes, xex, opcode, out entryHasModRM, out entryImmediateSize))
 				{
 					if (match != null)
 					{

@@ -12,7 +12,7 @@ namespace Asmuth.X86
 	/// </summary>
 	public interface IInstructionDecoderLookup
 	{
-		object TryLookup(CodeContext codeContext,
+		object TryLookup(CodeSegmentType codeSegmentType,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex,
 			byte opcode, byte? modReg,
 			out bool hasModRM, // If true and null return, must lookup again after reading modRM

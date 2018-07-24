@@ -18,7 +18,7 @@ namespace Asmuth.X86
 	{
 		[Pure]
 		public static OperandSize ToOperandSize(this AddressSize size)
-			=> (OperandSize)((int)size + 1);
+			=> OperandSize.Word + (int)size;
 
 		[Pure]
 		public static int InBytes(this AddressSize size)
@@ -27,12 +27,5 @@ namespace Asmuth.X86
 		[Pure]
 		public static int InBits(this AddressSize size)
 			=> InBytes(size) * 8;
-
-		[Pure]
-		public static AddressSize GetEffective(this AddressSize size, bool @override)
-		{
-			if (!@override) return size;
-			return size == AddressSize._32 ? AddressSize._16 : AddressSize._32;
-		}
 	}
 }
