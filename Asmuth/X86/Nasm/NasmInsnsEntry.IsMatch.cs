@@ -22,12 +22,13 @@ namespace Asmuth.X86.Nasm
 		}
 
 		public bool Match(
-			AddressSize defaultAddressSize, ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
+			CodeSegmentType codeSegmentType,
+			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
 			out bool hasModRM, out int immediateSize)
 		{
 			var partialInstruction = new Instruction.Builder
 			{
-				DefaultAddressSize = defaultAddressSize,
+				CodeSegmentType = codeSegmentType,
 				LegacyPrefixes = legacyPrefixes,
 				Xex = xex,
 				OpcodeByte = opcode
@@ -38,9 +39,9 @@ namespace Asmuth.X86.Nasm
 
 		public bool IsMatch(Instruction instruction)
 		{
-			bool hasModRM;
-			int immediateSize;
-			return Match(instruction, upToOpcode: false, hasModRM: out hasModRM, immediateSize: out immediateSize);
+			return Match(instruction, upToOpcode: false,
+				hasModRM: out var hasModRM,
+				immediateSize: out var immediateSize);
 		}
 
 		private bool Match(Instruction instruction, bool upToOpcode, out bool hasModRM, out int immediateSize)
@@ -70,7 +71,7 @@ namespace Asmuth.X86.Nasm
 						break;
 
 					case NasmEncodingTokenType.AddressSize_NoOverride:
-						if (instruction.EffectiveAddressSize != instruction.DefaultAddressSize) return false;
+						if (instruction.LegacyPrefixes.HasAddressSizeOverride) return false;
 						break;
 
 					// Operand size
@@ -91,7 +92,7 @@ namespace Asmuth.X86.Nasm
 						break;
 
 					case NasmEncodingTokenType.OperandSize_64WithoutW:
-						if (instruction.DefaultAddressSize != AddressSize._64
+						if (!instruction.CodeSegmentType.IsLongMode()
 							|| instruction.LegacyPrefixes.HasOperandSizeOverride) return false;
 						break;
 
@@ -245,7 +246,9 @@ namespace Asmuth.X86.Nasm
 					case NasmEncodingTokenType.Immediate_Qword: immediateSize += 8; break;
 
 					case NasmEncodingTokenType.Immediate_RelativeOffset:
-						immediateSize += instruction.DefaultAddressSize == AddressSize._16 ? 2 : 4;
+						immediateSize += instruction.CodeSegmentType
+							.GetIntegerOperandSize(instruction.LegacyPrefixes, instruction.Xex)
+							== OperandSize.Word ? 2 : 4;
 						break;
 
 					// Misc
@@ -279,10 +282,8 @@ namespace Asmuth.X86.Nasm
 
 		private static OperandSize GetIntegerOperandSize(Instruction instruction)
 		{
-			if (instruction.DefaultAddressSize == AddressSize._64 && instruction.Xex.OperandSize64)
-				return OperandSize.Qword;
-			var operandSize = instruction.DefaultAddressSize == AddressSize._16 ? OperandSize.Word : OperandSize.Dword;
-			return operandSize.OverrideWordDword(instruction.LegacyPrefixes.HasOperandSizeOverride);
+			return instruction.CodeSegmentType.GetIntegerOperandSize(
+				instruction.LegacyPrefixes, instruction.Xex);
 		}
 	}
 }

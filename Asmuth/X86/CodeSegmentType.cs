@@ -34,17 +34,21 @@ namespace Asmuth.X86
 		public static OperandSize GetDefaultOperandSize(this CodeSegmentType type)
 			=> type == CodeSegmentType._16Bits ? OperandSize.Word : OperandSize.Dword;
 
+		// The "integer operand size" is also known as the "effective operand size",
+		// but non-integer instructions might have a different logic to determine
+		// the operand size.
 		[Pure]
-		public static OperandSize GetEffectiveOperandSize(this CodeSegmentType type,
+		public static OperandSize GetIntegerOperandSize(this CodeSegmentType type,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex)
 		{
-			return GetEffectiveOperandSize(type,
+			return GetIntegerOperandSize(type,
 				@override: legacyPrefixes.HasOperandSizeOverride,
 				rexW: xex.OperandSize64);
 		}
 
 		[Pure]
-		public static OperandSize GetEffectiveOperandSize(this CodeSegmentType type, bool @override, bool rexW)
+		public static OperandSize GetIntegerOperandSize(this CodeSegmentType type,
+			bool @override, bool rexW)
 		{
 			if (rexW)
 			{
@@ -105,10 +109,24 @@ namespace Asmuth.X86
 			if (type == CodeSegmentType._16Bits) return @override ? AddressSize._32 : AddressSize._16;
 			if (type == CodeSegmentType._32Bits) return @override ? AddressSize._16 : AddressSize._32;
 			if (type == CodeSegmentType._64Bits) return @override ? AddressSize._32 : AddressSize._64;
-			throw new ArgumentOutOfRangeException("type");
+			throw new ArgumentOutOfRangeException(nameof(type));
+		}
+
+		[Pure]
+		public static bool Supports(this CodeSegmentType type, AddressSize addressSize)
+			=> type == CodeSegmentType._64Bits 
+			? (addressSize != AddressSize._16) : (addressSize != AddressSize._64);
+
+		[Pure]
+		public static bool Supports(this CodeSegmentType type, AddressSize addressSize,
+			out bool withOverride)
+		{
+			bool supported = Supports(type, addressSize);
+			withOverride = supported && GetDefaultAddressSize(type) == addressSize;
+			return supported;
 		}
 		#endregion
-		
+
 		[Pure]
 		public static bool IsLongMode(this CodeSegmentType type)
 			=> type == CodeSegmentType._64Bits;

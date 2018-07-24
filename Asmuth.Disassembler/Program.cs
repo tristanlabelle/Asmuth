@@ -115,8 +115,7 @@ namespace Asmuth.Disassembler
 	{
 		public static T Read<T>(this UnmanagedMemoryAccessor accessor, long position) where T : struct
 		{
-			T value;
-			accessor.Read(position, out value);
+			accessor.Read(position, out T value);
 			return value;
 		}
 	}

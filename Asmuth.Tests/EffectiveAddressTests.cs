@@ -16,7 +16,7 @@ namespace Asmuth.X86
 		{
 			ExceptionAssert.Throws<ArgumentException>(() =>
 			{
-				EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+				EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding
 				{
 					ModRM = ModRMEnum.FromComponents(mod: 3, reg: 0, rm: GprCode.DX)
 				});
@@ -26,7 +26,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Indirect()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding
 			{
 				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: GprCode.DX)
 			});
@@ -39,7 +39,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Indirect16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._16, new EffectiveAddress.Encoding
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding
 			{
 				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 7)
 			});
@@ -52,7 +52,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Indexed16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._16, new EffectiveAddress.Encoding
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding
 			{
 				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: (byte)0)
 			});
@@ -65,7 +65,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Absolute16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._16, new EffectiveAddress.Encoding
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding
 			{
 				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 6),
 				Displacement = short.MaxValue
@@ -80,7 +80,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Absolute32()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding
 			{
 				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 5),
 				Displacement = int.MaxValue
@@ -95,7 +95,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_IndirectWithDisplacement8()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding
 			{
 				ModRM = ModRMEnum.FromComponents(mod: 1, reg: 0, rm: GprCode.D),
 				Displacement = sbyte.MaxValue
@@ -110,7 +110,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_IndirectWithDisplacement16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._16, new EffectiveAddress.Encoding
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding
 			{
 				ModRM = ModRMEnum.FromComponents(mod: 2, reg: 0, rm: 7),
 				Displacement = short.MaxValue
@@ -125,7 +125,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_IndirectWithDisplacement32()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(AddressSize._32, new EffectiveAddress.Encoding
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding
 			{
 				ModRM = ModRMEnum.FromComponents(mod: 2, reg: 0, rm: GprCode.D),
 				Displacement = int.MaxValue

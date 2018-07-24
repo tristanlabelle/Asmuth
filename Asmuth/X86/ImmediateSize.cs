@@ -14,9 +14,10 @@ namespace Asmuth.X86
 		Fixed16,
 		Fixed32,
 		Fixed64,
-		Operand16Or32, // Depends on operand size
-		Operand16Or32Or64, // Depends on operand size
-		Address16Or32, // Depends on address size
+		Operand16Or32, // imm16/32
+		// Operand32Or48, // ptr16:16/16:32
+		Operand16Or32Or64, // MOV B8+r imm16/32/64
+		Address16Or32, // rel16/l32
 		// InstructionEncoding depends on this being 3 bits
 	}
 
@@ -38,7 +39,7 @@ namespace Asmuth.X86
 				case ImmediateSize.Fixed32: return 4;
 				case ImmediateSize.Fixed64: return 8;
 				case ImmediateSize.Operand16Or32: return operandSize == OperandSize.Word ? 2 : 4;
-				case ImmediateSize.Operand16Or32Or64: return operandSize == OperandSize.Qword ? 8 : 4;
+				case ImmediateSize.Operand16Or32Or64: return operandSize.InBytes();
 				case ImmediateSize.Address16Or32: return addressSize == AddressSize._16 ? 2 : 4;
 				default: throw new ArgumentException(nameof(size));
 			}

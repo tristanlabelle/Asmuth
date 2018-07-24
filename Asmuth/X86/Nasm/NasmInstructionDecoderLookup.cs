@@ -25,9 +25,8 @@ namespace Asmuth.X86.Nasm
 			NasmInsnsEntry match = null;
 			foreach (var entry in entries)
 			{
-				bool entryHasModRM;
-				int entryImmediateSize;
-				if (entry.Match(codeSegmentType.GetDefaultAddressSize(), legacyPrefixes, xex, opcode, out entryHasModRM, out entryImmediateSize))
+				if (entry.Match(codeSegmentType, legacyPrefixes, xex, opcode,
+					out bool entryHasModRM, out int entryImmediateSize))
 				{
 					if (match != null)
 					{

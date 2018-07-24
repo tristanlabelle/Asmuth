@@ -14,11 +14,11 @@ namespace Asmuth.X86
 		[Flags]
 		private enum Flags : byte
 		{
-			DefaultAddressSize_Shift = 0,
-			DefaultAddressSize_16 = 0 << (int)DefaultAddressSize_Shift,
-			DefaultAddressSize_32 = 1 << (int)DefaultAddressSize_Shift,
-			DefaultAddressSize_64 = 2 << (int)DefaultAddressSize_Shift,
-			DefaultAddressSize_Mask = 3 << (int)DefaultAddressSize_Shift,
+			CodeSegmentType_Shift = 0,
+			CodeSegmentType_16 = 0 << (int)CodeSegmentType_Shift,
+			CodeSegmentType_32 = 1 << (int)CodeSegmentType_Shift,
+			CodeSegmentType_64 = 2 << (int)CodeSegmentType_Shift,
+			CodeSegmentType_Mask = 3 << (int)CodeSegmentType_Shift,
 
 			HasModRM = 1 << 2,
 
@@ -46,6 +46,8 @@ namespace Asmuth.X86
 		#region Constructors
 		private Instruction(Builder builder)
 		{
+			Contract.Requires(builder != null);
+
 			legacyPrefixes = builder.LegacyPrefixes;
 			xex = builder.Xex; // Validate if redundant with prefixes
 			mainByte = builder.OpcodeByte;
@@ -55,16 +57,17 @@ namespace Asmuth.X86
 			immediate = builder.Immediate; // Truncate to size
 
 			flags = 0;
-			flags |= (Flags)((int)builder.DefaultAddressSize << (int)Flags.DefaultAddressSize_Shift);
+			flags |= (Flags)((int)builder.CodeSegmentType << (int)Flags.CodeSegmentType_Shift);
 			if (builder.ModRM.HasValue) flags |= Flags.HasModRM;
 			flags |= (Flags)(builder.ImmediateSizeInBytes << (int)Flags.ImmediateSizeInBytes_Shift);
 		}
 		#endregion
 
 		#region Properties
-		public AddressSize DefaultAddressSize => (AddressSize)Bits.MaskAndShiftRight(
-			(uint)flags, (uint)Flags.DefaultAddressSize_Mask, (int)Flags.DefaultAddressSize_Shift);
-		public AddressSize EffectiveAddressSize => DefaultAddressSize.GetEffective(legacyPrefixes.HasAddressSizeOverride);
+		public CodeSegmentType CodeSegmentType => (CodeSegmentType)Bits.MaskAndShiftRight(
+			(uint)flags, (uint)Flags.CodeSegmentType_Mask, (int)Flags.CodeSegmentType_Shift);
+		public AddressSize EffectiveAddressSize => CodeSegmentType.GetEffectiveAddressSize(
+			legacyPrefixes.HasAddressSizeOverride);
 		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
 		public Xex Xex => xex;
 		public OpcodeMap OpcodeMap => xex.OpcodeMap;
@@ -146,7 +149,7 @@ namespace Asmuth.X86
 		{
 			Contract.Requires(ModRM.HasValue);
 			var encoding = new EffectiveAddress.Encoding(legacyPrefixes, xex, modRM, Sib, displacement);
-			return EffectiveAddress.FromEncoding(DefaultAddressSize, encoding);
+			return EffectiveAddress.FromEncoding(CodeSegmentType, encoding);
 		}
 		#endregion
 	}

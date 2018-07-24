@@ -42,7 +42,7 @@ namespace Asmuth.X86
 				{
 					// Mov r(16|32|64), imm(16|32|64)
 					hasModRM = false;
-					immediateSizeInBytes = codeSegmentType.GetEffectiveOperandSize(
+					immediateSizeInBytes = codeSegmentType.GetIntegerOperandSize(
 						@override: legacyPrefixes.HasAddressSizeOverride,
 						rexW: xex.OperandSize64).InBytes();
 					return found;

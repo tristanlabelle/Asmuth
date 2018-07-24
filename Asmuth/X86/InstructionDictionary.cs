@@ -51,7 +51,7 @@ namespace Asmuth.X86
 			Xex xex, byte opcode, byte? modReg,
 			out bool hasModRM, out int immediateSizeInBytes)
 		{
-			var operandSize = codeSegmentType.GetEffectiveOperandSize(legacyPrefixes, xex);
+			var operandSize = codeSegmentType.GetIntegerOperandSize(legacyPrefixes, xex);
 			var addressSize = codeSegmentType.GetEffectiveAddressSize(legacyPrefixes);
 			InstructionDefinition bestMatch = null;
 			int bestOperandSizeMatchLevel = -1;

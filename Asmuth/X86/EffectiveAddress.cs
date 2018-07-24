@@ -32,7 +32,7 @@ namespace Asmuth.X86
 	/// Encapsulates all data to compute an effective address, as can be specified using an r/m operand.
 	/// </summary>
 	[StructLayout(LayoutKind.Sequential, Size = 8)]
-	public struct EffectiveAddress
+	public readonly struct EffectiveAddress
 	{
 		#region Encoding struct
 		public struct Encoding
@@ -292,12 +292,12 @@ namespace Asmuth.X86
 			return Indirect(AddressSize._16, segment, @base, index, 1, displacement);
 		}
 
-		public static EffectiveAddress FromEncoding(AddressSize defaultAddressSize, Encoding encoding)
+		public static EffectiveAddress FromEncoding(CodeSegmentType codeSegmentType, Encoding encoding)
 		{
 			if ((encoding.ModRM & ModRM.Mod_Mask) == ModRM.Mod_Direct)
 				throw new ArgumentException("ModRM does not encode a memory operand.");
 
-			var addressSize = defaultAddressSize.GetEffective(encoding.AddressSizeOverride);
+			var addressSize = codeSegmentType.GetEffectiveAddressSize(encoding.AddressSizeOverride);
 
 			// Mod in { 0, 1, 2 }
 			if (addressSize == AddressSize._16)
@@ -315,7 +315,7 @@ namespace Asmuth.X86
 			{
 				if (encoding.ModRM.GetMod() == 0 && encoding.ModRM.GetRM() == 5)
 				{
-					return defaultAddressSize == AddressSize._64
+					return codeSegmentType.IsLongMode()
 						? RipRelative(addressSize, encoding.Segment, encoding.Displacement)
 						: Absolute(addressSize, encoding.Displacement);
 				}
@@ -336,9 +336,6 @@ namespace Asmuth.X86
 				return Indirect(addressSize, encoding.Segment, baseReg, index, (byte)scale, encoding.Displacement);
 			}
 		}
-
-		public static EffectiveAddress FromEncoding(CodeSegmentType codeSegmentType, Encoding encoding)
-			=> FromEncoding(codeSegmentType.GetDefaultAddressSize(), encoding);
 		#endregion
 
 		#region Properties
@@ -473,20 +470,19 @@ namespace Asmuth.X86
 				&& (size == DisplacementSize._16) == (AddressSize == AddressSize._16);
 		}
 
-		public Encoding Encode(AddressSize defaultAddressSize, byte modReg, DisplacementSize displacementSize)
+		public Encoding Encode(CodeSegmentType codeSegmentType, byte modReg, DisplacementSize displacementSize)
 		{
-			if ((defaultAddressSize == AddressSize._16 && AddressSize == AddressSize._64)
-				|| (defaultAddressSize == AddressSize._64 && AddressSize == AddressSize._16))
-				throw new ArgumentException(nameof(defaultAddressSize));
+			if (codeSegmentType.Supports(AddressSize, out bool addressSizeOverride))
+				throw new ArgumentOutOfRangeException(nameof(codeSegmentType));
 
-			if (modReg >= 8) throw new ArgumentException(nameof(modReg));
+			if (modReg >= 8) throw new ArgumentOutOfRangeException(nameof(modReg));
 			if (!IsEncodableWithDisplacementSize(displacementSize))
-				throw new ArgumentException(nameof(displacementSize));
+				throw new ArgumentOutOfRangeException(nameof(displacementSize));
 
 			var encoding = new Encoding()
 			{
 				Segment = RequiresSegmentOverride ? Segment : (SegmentRegister?)null,
-				AddressSizeOverride = AddressSize != defaultAddressSize,
+				AddressSizeOverride = addressSizeOverride,
 				BaseRegExtension = BaseAsGprCode >= GprCode.R8,
 				IndexRegExtension = IndexAsGprCode >= GprCode.R8,
 				Displacement = displacement

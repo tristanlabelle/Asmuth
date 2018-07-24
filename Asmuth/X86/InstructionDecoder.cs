@@ -127,7 +127,7 @@ namespace Asmuth.X86
 					if ((accumulator >> 24) == (uint)Vex3Xop.FirstByte_Xop && (@byte & 0x04) == 0)
 					{
 						// What we just read was not a XOP, but a POP reg/mem
-						builder.Xex = default(Xex);
+						builder.Xex = default;
 						builder.OpcodeByte = (byte)Vex3Xop.FirstByte_Xop;
 						builder.ModRM = (ModRM)@byte;
 						state = InstructionDecodingState.ExpectModRM;
@@ -272,8 +272,7 @@ namespace Asmuth.X86
 		
 		public Instruction GetInstruction()
 		{
-			Instruction instruction;
-			GetInstruction(out instruction);
+			GetInstruction(out Instruction instruction);
 			return instruction;
 		}
 
@@ -288,7 +287,7 @@ namespace Asmuth.X86
 			substate = 0;
 			accumulator = 0;
 			builder.Clear();
-			builder.DefaultAddressSize = codeSegmentType.GetDefaultAddressSize();
+			builder.CodeSegmentType = codeSegmentType;
 			lookupTag = null;
 		}
 

@@ -43,8 +43,7 @@ namespace Asmuth.X86
 			Emit(map, reg.Size == OperandSize.Byte ? opcode8 : opcode);
 
 			var displacementSize = rm.MinimumDisplacementSize;
-			var encoding = rm.Encode(
-				codeSegmentType.GetDefaultAddressSize(), reg.Code.GetLow3Bits(), displacementSize);
+			var encoding = rm.Encode(codeSegmentType, reg.Code.GetLow3Bits(), displacementSize);
 			Write(encoding.ModRM);
 			if (encoding.Sib.HasValue) Write(encoding.Sib.Value);
 

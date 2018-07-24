@@ -12,9 +12,8 @@ namespace Asmuth.X86
 		public sealed class Builder
 		{
 			private byte immediateSizeInBytes;
-
-			[Obsolete("Should probably be a CodeSegmentType")]
-			public AddressSize DefaultAddressSize { get; set; } = AddressSize._32;
+			
+			public CodeSegmentType CodeSegmentType { get; set; } = CodeSegmentType._32Bits;
 			public ImmutableLegacyPrefixList LegacyPrefixes { get; set; }
 			public Xex Xex { get; set; }
 			public byte OpcodeByte { get; set; }
@@ -38,9 +37,9 @@ namespace Asmuth.X86
 
 			public void Clear()
 			{
-				DefaultAddressSize = AddressSize._32;
+				CodeSegmentType = CodeSegmentType._32Bits;
 				LegacyPrefixes = ImmutableLegacyPrefixList.Empty;
-				Xex = default(Xex);
+				Xex = default;
 				OpcodeByte = 0;
 				ModRM = null;
 				Sib = null;
