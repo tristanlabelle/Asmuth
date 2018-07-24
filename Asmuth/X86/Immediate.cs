@@ -6,67 +6,67 @@ using System.Text;
 namespace Asmuth.X86
 {
 	// Represents an untyped immediate value associated with an instruction
-    public readonly struct Immediate : IReadOnlyList<byte>, IList<byte>
+    public readonly struct Immediate : IReadOnlyList<byte>, IList<byte>, IEquatable<Immediate>
     {
 		// Bytes 0-7 of immediate stored as 0x7766554433221100
-		private readonly ulong bytes;
+		private readonly ulong rawStorage;
 		private readonly byte sizeInBytes;
 
-		public ulong RawStorage => bytes;
+		public ulong RawStorage => rawStorage;
 		public int SizeInBytes => sizeInBytes;
 		public int SizeInBits => sizeInBytes * 8;
 
 		private Immediate(ulong bytes, int sizeInBytes)
-			=> (this.bytes, this.sizeInBytes) = (bytes, (byte)sizeInBytes);
+			=> (this.rawStorage, this.sizeInBytes) = (bytes, (byte)sizeInBytes);
 
 		#region Methods
 		public byte GetByte(int index)
 		{
 			if (index >= sizeInBytes) throw new IndexOutOfRangeException();
-			return (byte)((bytes >> (index * 8)) & 0xFF);
+			return (byte)((rawStorage >> (index * 8)) & 0xFF);
 		}
 
 		public byte AsUInt8()
 		{
 			if (sizeInBytes != 1) throw new InvalidOperationException();
-			return (byte)bytes;
+			return (byte)rawStorage;
 		}
 
 		public ushort AsUInt16()
 		{
 			if (sizeInBytes != 2) throw new InvalidOperationException();
-			return (ushort)(bytes & 0xFFFF);
+			return (ushort)(rawStorage & 0xFFFF);
 		}
 
 		public uint AsUInt32()
 		{
 			if (sizeInBytes != 4) throw new InvalidOperationException();
-			return (uint)(bytes & 0xFFFFFFFFU);
+			return (uint)(rawStorage & 0xFFFFFFFFU);
 		}
 
 		public ulong AsUInt64()
 		{
 			if (sizeInBytes != 8) throw new InvalidOperationException();
-			return bytes;
+			return rawStorage;
 		}
 
 		public sbyte AsSInt8() => unchecked((sbyte)AsUInt8());
 		public short AsInt16() => unchecked((short)AsUInt16());
 		public int AsInt32() => unchecked((int)AsUInt32());
-		public long AsInt64() => unchecked((long)bytes);
+		public long AsInt64() => unchecked((long)rawStorage);
 
 		public (ushort, ushort) AsFarPtr16()
 		{
 			if (sizeInBytes != 4) throw new InvalidOperationException();
 			// Our encoding/endianness means that this is reversed
-			return ((ushort)bytes, (ushort)(bytes >> 16));
+			return ((ushort)rawStorage, (ushort)(rawStorage >> 16));
 		}
 
 		public (ushort, uint) AsFarPtr32()
 		{
 			if (sizeInBytes != 6) throw new InvalidOperationException();
 			// Our encoding/endianness means that this is reversed
-			return ((ushort)bytes, (uint)(bytes >> 16));
+			return ((ushort)rawStorage, (uint)(rawStorage >> 16));
 		}
 
 		public byte[] AsBytes()
@@ -78,7 +78,7 @@ namespace Asmuth.X86
 
 		public void CopyBytes(byte[] array, int arrayIndex)
 		{
-			ulong temp = bytes;
+			ulong temp = rawStorage;
 			for (int i = 0; i < sizeInBytes; ++i)
 			{
 				array[arrayIndex] = (byte)(temp & 0xFF);
@@ -87,9 +87,18 @@ namespace Asmuth.X86
 			}
 		}
 
+		public bool Equals(Immediate other)
+			=> sizeInBytes == other.sizeInBytes && rawStorage == other.rawStorage;
+
+		public override bool Equals(object obj)
+			=> obj is Immediate && Equals((Immediate)obj);
+
+		public override int GetHashCode()
+			=> ((int)sizeInBytes << 25) ^ rawStorage.GetHashCode();
+
 		private int IndexOf(byte item)
 		{
-			ulong temp = bytes;
+			ulong temp = rawStorage;
 			for (int i = 0; i < sizeInBytes; ++i)
 			{
 				if ((byte)(temp & 0xFF) == item) return i;
@@ -102,6 +111,8 @@ namespace Asmuth.X86
 		#region Static Methods
 		// 0, 1, 2, 4, 6, 8
 		public static bool IsValidSize(int size) => unchecked((uint)size) <= 8 && (size & (size - 1)) == 0;
+
+		public static bool Equals(Immediate lhs, Immediate rhs) => lhs.Equals(rhs);
 
 		public static Immediate FromByte(byte value) => new Immediate(value, 1);
 		public static Immediate FromBytes(byte a, byte b)
@@ -124,12 +135,18 @@ namespace Asmuth.X86
 		public static Immediate FromInteger(ulong value) => new Immediate(value, 8);
 		public static Immediate FromInteger(long value) => new Immediate(unchecked((ulong)value), 8);
 
-		public static Immediate FromRawStorage(ulong value, int size)
+		public static Immediate FromRawStorage(ulong value, int sizeInBytes)
 		{
-			if (!IsValidSize(size)) throw new ArgumentOutOfRangeException(nameof(size));
-			return new Immediate(value, size);
+			if (!IsValidSize(sizeInBytes)) throw new ArgumentOutOfRangeException(nameof(sizeInBytes));
+			return new Immediate(value & GetMask(sizeInBytes), sizeInBytes);
 		}
+
+		private static ulong GetMask(int sizeInBytes)
+			=> sizeInBytes == 8 ? ulong.MaxValue : (1UL << (sizeInBytes* 8)) - 1UL;
 		#endregion
+
+		public static bool operator ==(Immediate lhs, Immediate rhs) => Equals(lhs, rhs);
+		public static bool operator !=(Immediate lhs, Immediate rhs) => !Equals(lhs, rhs);
 
 		#region Explicit Members
 		int IReadOnlyCollection<byte>.Count => sizeInBytes;
