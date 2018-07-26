@@ -3,8 +3,12 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Company />
     <Authors />
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
