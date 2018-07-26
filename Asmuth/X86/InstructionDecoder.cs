@@ -120,6 +120,7 @@ namespace Asmuth.X86
 						return AdvanceTo(InstructionDecodingState.ExpectXexByte, substate: (byte)remainingBytes);
 					}
 
+					state = InstructionDecodingState.ExpectOpcode;
 					goto case InstructionDecodingState.ExpectOpcode;
 				}
 

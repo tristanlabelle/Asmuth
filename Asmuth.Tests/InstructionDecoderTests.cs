@@ -31,6 +31,14 @@ namespace Asmuth.X86
 					immediateSizeInBytes = 0;
 					return found;
 				}
+				else if (xex.OpcodeMap == OpcodeMap.Escape0F && opcode == 0x45)
+				{
+					// 0F 45 /r = cmovne ecx, eax
+					// 0x45 should not be interpreted as REX
+					hasModRM = true;
+					immediateSizeInBytes = 0;
+					return found;
+				}
 				else if (xex.OpcodeMap == OpcodeMap.Default && (opcode & 0xF8) == 0xB0)
 				{
 					// MOV x8, imm8
@@ -174,6 +182,15 @@ namespace Asmuth.X86
 			// MUL: F7 /4
 			Assert.AreEqual(4, DecodeSingle_32Bits(0xF7, ModRM_Reg(0), 0x00, 0x01, 0x02, 0x03).ImmediateSizeInBytes);
 			Assert.AreEqual(0, DecodeSingle_32Bits(0xF7, ModRM_Reg(4)).ImmediateSizeInBytes);
+		}
+
+		[TestMethod]
+		public void TestRexAfter0F()
+		{
+			var instruction = DecodeSingle_64Bits(0x0F, 0x45, 0xC8); // cmovne ecx, eax
+			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
+			Assert.AreEqual((byte)0x45, instruction.MainByte);
+			Assert.IsTrue(instruction.ModRM.HasValue);
 		}
 
 		[TestMethod]
