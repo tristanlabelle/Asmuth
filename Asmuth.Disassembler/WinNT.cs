@@ -234,6 +234,45 @@ namespace Asmuth.Disassembler
 			public DWORD LoaderFlags;
 			public DWORD NumberOfRvaAndSizes;
 			public IMAGE_OPTIONAL_HEADER_DATA_DIRECTORY DataDirectory;
+
+			public IMAGE_OPTIONAL_HEADER64 As64()
+			{
+				// All fields are the same, but some are widened.
+				return new IMAGE_OPTIONAL_HEADER64
+				{
+					Magic = Magic,
+					MajorLinkerVersion = MajorLinkerVersion,
+					MinorLinkerVersion = MinorLinkerVersion,
+					SizeOfCode = SizeOfCode,
+					SizeOfInitializedData = SizeOfInitializedData,
+					SizeOfUninitializedData = SizeOfUninitializedData,
+					AddressOfEntryPoint = AddressOfEntryPoint,
+					BaseOfCode = BaseOfCode,
+					// No BaseOfData in 64 bits,
+					ImageBase = ImageBase,
+					SectionAlignment = SectionAlignment,
+					FileAlignment = FileAlignment,
+					MajorOperatingSystemVersion = MajorOperatingSystemVersion,
+					MinorOperatingSystemVersion = MinorOperatingSystemVersion,
+					MajorImageVersion = MajorImageVersion,
+					MinorImageVersion = MinorImageVersion,
+					MajorSubsystemVersion = MajorSubsystemVersion,
+					MinorSubsystemVersion = MinorSubsystemVersion,
+					Win32VersionValue = Win32VersionValue,
+					SizeOfImage = SizeOfImage,
+					SizeOfHeaders = SizeOfHeaders,
+					CheckSum = CheckSum,
+					Subsystem = Subsystem,
+					DllCharacteristics = DllCharacteristics,
+					SizeOfStackReserve = SizeOfStackReserve,
+					SizeOfStackCommit = SizeOfStackCommit,
+					SizeOfHeapReserve = SizeOfHeapReserve,
+					SizeOfHeapCommit = SizeOfHeapCommit,
+					LoaderFlags = LoaderFlags,
+					NumberOfRvaAndSizes = NumberOfRvaAndSizes,
+					DataDirectory = DataDirectory
+				};
+			}
 		}
 
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -247,7 +286,6 @@ namespace Asmuth.Disassembler
 			public DWORD SizeOfUninitializedData;
 			public DWORD AddressOfEntryPoint;
 			public DWORD BaseOfCode;
-			public DWORD BaseOfData;
 			public ULONGLONG ImageBase;
 			public DWORD SectionAlignment;
 			public DWORD FileAlignment;

@@ -30,18 +30,34 @@ namespace Asmuth.Disassembler
 				if (fileViewAccessor.ReadUInt32(ntHeaderPosition) != IMAGE_NT_SIGNATURE)
 					throw new InvalidDataException();
 				var fileHeader = fileViewAccessor.Read<IMAGE_FILE_HEADER>(ntHeaderPosition + IMAGE_NT_HEADERS.FileHeaderOffset);
-				if (fileHeader.Machine != IMAGE_FILE_MACHINE_I386)
+				if (fileHeader.Machine != IMAGE_FILE_MACHINE_I386 && fileHeader.Machine != IMAGE_FILE_MACHINE_AMD64)
 					throw new InvalidDataException();
+
+				bool is32Bit = fileHeader.Machine == IMAGE_FILE_MACHINE_I386;
 
 				// NT optional header
 				var optionalHeaderMagic = fileViewAccessor.ReadUInt16(
 					ntHeaderPosition + IMAGE_NT_HEADERS.OptionalHeaderOffset + IMAGE_OPTIONAL_HEADER.MagicOffset);
-				if (optionalHeaderMagic != IMAGE_NT_OPTIONAL_HDR32_MAGIC
-					|| fileHeader.SizeOfOptionalHeader != Marshal.SizeOf(typeof(IMAGE_OPTIONAL_HEADER32)))
-					throw new InvalidDataException();
-				var optionalHeader = fileViewAccessor.Read<IMAGE_OPTIONAL_HEADER32>(
-					ntHeaderPosition + IMAGE_NT_HEADERS.OptionalHeaderOffset);
 				
+				IMAGE_OPTIONAL_HEADER64 optionalHeader;
+				if (is32Bit)
+				{
+					if (optionalHeaderMagic != IMAGE_NT_OPTIONAL_HDR32_MAGIC
+						|| fileHeader.SizeOfOptionalHeader != Marshal.SizeOf(typeof(IMAGE_OPTIONAL_HEADER32)))
+						throw new InvalidDataException();
+					optionalHeader = fileViewAccessor.Read<IMAGE_OPTIONAL_HEADER32>(
+						ntHeaderPosition + IMAGE_NT_HEADERS.OptionalHeaderOffset)
+						.As64();
+				}
+				else
+				{
+					if (optionalHeaderMagic != IMAGE_NT_OPTIONAL_HDR64_MAGIC
+						|| fileHeader.SizeOfOptionalHeader != Marshal.SizeOf(typeof(IMAGE_OPTIONAL_HEADER64)))
+						throw new InvalidDataException();
+					optionalHeader = fileViewAccessor.Read<IMAGE_OPTIONAL_HEADER64>(
+						ntHeaderPosition + IMAGE_NT_HEADERS.OptionalHeaderOffset);
+				}
+
 				Contract.Assert(optionalHeader.NumberOfRvaAndSizes == IMAGE_NUMBEROF_DIRECTORY_ENTRIES);
 
 				// Sections
@@ -54,7 +70,8 @@ namespace Asmuth.Disassembler
 				}
 
 				// Disassemble executable sections
-				var instructionDecoder = new InstructionDecoder(CodeSegmentType._32Bits);
+				var instructionDecoder = new InstructionDecoder(
+					is32Bit ? CodeSegmentType._32Bits : CodeSegmentType._64Bits);
 				foreach (var sectionHeader in sectionHeaders)
 				{
 					if ((sectionHeader.Characteristics & IMAGE_SCN_CNT_CODE) == 0) continue;
@@ -68,7 +85,7 @@ namespace Asmuth.Disassembler
 					long codeOffset = 0;
 					while (true)
 					{
-						Console.Write($"{sectionBaseAddress + codeOffset:X}".PadLeft(8));
+						Console.Write($"{sectionBaseAddress + (ulong)codeOffset:X}".PadLeft(8));
 						Console.Write(":       ");
 						while (true)
 						{
@@ -83,22 +100,17 @@ namespace Asmuth.Disassembler
 						while (Console.CursorLeft < 40) Console.Write(' ');
 
 						var instruction = instructionDecoder.GetInstruction();
-						var mnemonic = (string)instructionDecoder.LookupTag;
 						instructionDecoder.Reset();
 
 						Console.Write('\t');
-						Console.Write(mnemonic);
-
+						Console.Write("{0:X2}", instruction.MainByte);
+						
 						if (instruction.ModRM.HasValue)
 						{
-							Console.Write(" ");
-							Console.Write(instruction.ModRM.Value.ToDebugString());
-
-							if (instruction.Sib.HasValue)
-							{
-								Console.Write(" ");
-								Console.Write(instruction.Sib.Value.ToDebugString());
-							}
+							var modRM = instruction.ModRM.Value;
+							Console.Write(" /{0} ", modRM.GetReg());
+							if (modRM.IsMemoryRM()) Console.Write(instruction.GetRMEffectiveAddress());
+							else Console.Write("r{0}", modRM.GetRM());
 						}
 
 						Console.WriteLine();
