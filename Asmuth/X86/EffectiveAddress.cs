@@ -297,6 +297,9 @@ namespace Asmuth.X86
 			if ((encoding.ModRM & ModRM.Mod_Mask) == ModRM.Mod_Direct)
 				throw new ArgumentException("ModRM does not encode a memory operand.");
 
+			if ((encoding.BaseRegExtension || encoding.IndexRegExtension) && codeSegmentType != CodeSegmentType._64Bits)
+				throw new ArgumentException();
+
 			var addressSize = codeSegmentType.GetEffectiveAddressSize(encoding.AddressSizeOverride);
 
 			// Mod in { 0, 1, 2 }
@@ -324,16 +327,25 @@ namespace Asmuth.X86
 				Contract.Assert(displacementSize.CanEncodeValue(encoding.Displacement));
 
 				GprCode? baseReg = (GprCode)encoding.ModRM.GetRM();
+
 				if (baseReg != GprCode.Esp)
+				{
+					if (encoding.BaseRegExtension) baseReg += 8;
 					return Indirect(addressSize, encoding.Segment, baseReg.Value, encoding.Displacement);
+				}
 
 				// Sib byte
 				if (!encoding.Sib.HasValue) throw new ArgumentException();
 
-				baseReg = encoding.Sib.Value.GetBaseReg(encoding.ModRM);
-				var index = encoding.Sib.Value.GetIndexReg();
-				int scale = encoding.Sib.Value.GetScale();
-				return Indirect(addressSize, encoding.Segment, baseReg, index, (byte)scale, encoding.Displacement);
+				var sib = encoding.Sib.Value;
+				baseReg = sib.GetBaseReg(encoding.ModRM);
+				if (baseReg.HasValue && encoding.BaseRegExtension) baseReg += 8;
+
+				var indexReg = sib.GetIndexReg();
+				if (indexReg.HasValue && encoding.IndexRegExtension) indexReg += 8;
+				
+				return Indirect(addressSize, encoding.Segment,
+					baseReg, indexReg, (byte)sib.GetScale(), encoding.Displacement);
 			}
 		}
 		#endregion
@@ -406,11 +418,13 @@ namespace Asmuth.X86
 			}
 		}
 
+		public bool HasIndex => (flags & Flags.IndexReg_Mask) != Flags.IndexReg_None;
+
 		public GprCode? IndexAsGprCode
 		{
 			get
 			{
-				if ((flags & Flags.IndexReg_Mask) == Flags.IndexReg_None) return null;
+				if (!HasIndex) return null;
 				var gpr = (GprCode)GetFlagsField(Flags.IndexReg_Mask, Flags.IndexReg_Shift);
 				if (gpr == GprCode.Esp) gpr = GprCode.Eax; // Due to hack to default to "none"
 				return gpr;
@@ -528,9 +542,9 @@ namespace Asmuth.X86
 			return encoding;
 		}
 
-		public string ToString(bool vectorSib)
+		public string ToString(bool vectorSib, ulong? rip = null)
 		{
-			// SS:[EAX+EAX*8+0x2000000000]
+			// SS:[eax+eax*8+0x2000000000]
 			var str = new StringBuilder(30);
 			
 			if (RequiresSegmentOverride)
@@ -541,11 +555,21 @@ namespace Asmuth.X86
 
 			str.Append('[');
 
+			int displacementToPrint = Displacement;
 			bool firstTerm = true;
 			var @base = Base;
 			if (@base.HasValue)
 			{
-				if (@base == AddressBaseRegister.Rip) str.Append("RIP");
+				if (@base == AddressBaseRegister.Rip)
+				{
+					if (rip.HasValue)
+					{
+						ulong address = checked((ulong)((long)rip.Value + Displacement));
+						AppendAddress(str, address);
+						displacementToPrint = 0;
+					}
+					else str.Append("rip");
+				}
 				else str.Append(BaseAsGpr.Value.Name);
 				firstTerm = false;
 			}
@@ -564,15 +588,26 @@ namespace Asmuth.X86
 				firstTerm = false;
 			}
 
-			if (displacement != 0 || firstTerm)
+			if (firstTerm)
 			{
-				if (displacement >= 0 && !firstTerm) str.Append('+');
-				str.AppendFormat(CultureInfo.InvariantCulture, "{0:D}", Displacement);
+				AppendAddress(str, checked((ulong)Displacement));
+			}
+			else if (displacementToPrint != 0)
+			{
+				if (displacementToPrint >= 0) str.Append('+');
+				bool hex = displacementToPrint < -9 || displacementToPrint > 9;
+				str.AppendFormat(CultureInfo.InvariantCulture, hex ? "0x{0:X}" : "{0:D}", displacementToPrint);
 			}
 
 			str.Append(']');
 
 			return str.ToString();
+		}
+
+		private void AppendAddress(StringBuilder str, ulong address)
+		{
+			str.Append("0x");
+			str.Append(address.ToString("X").PadLeft(AddressSize.InBytes() * 2, '0'));
 		}
 
 		public override string ToString() => ToString(vectorSib: false);

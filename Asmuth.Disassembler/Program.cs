@@ -108,9 +108,14 @@ namespace Asmuth.Disassembler
 						if (instruction.ModRM.HasValue)
 						{
 							var modRM = instruction.ModRM.Value;
-							Console.Write(" /{0} ", modRM.GetReg());
-							if (modRM.IsMemoryRM()) Console.Write(instruction.GetRMEffectiveAddress());
-							else Console.Write("r{0}", modRM.GetRM());
+							Console.Write(" /{0} ", modRM.GetReg() + (instruction.Xex.ModRegExtension ? 8 : 0));
+							if (modRM.IsMemoryRM())
+							{
+								var effectiveAddress = instruction.GetRMEffectiveAddress();
+								Console.Write(effectiveAddress.ToString(
+									vectorSib: false, rip: sectionBaseAddress + (ulong)codeOffset));
+							}
+							else Console.Write("r{0}", modRM.GetRM() + (instruction.Xex.BaseRegExtension ? 8 : 0));
 						}
 
 						Console.WriteLine();

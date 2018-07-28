@@ -136,20 +136,20 @@ namespace Asmuth.X86
 				string name = GetBaseName(index);
 				if (index < 8)
 				{
-					if (part == GprPart.Byte) name += "L";
-					else if (part == GprPart.HighByte) name += "H";
+					if (part == GprPart.Byte) name += "l";
+					else if (part == GprPart.HighByte) name += "h";
 					else
 					{
-						if (index < 4) name += "X";
-						if (part == GprPart.Dword) name = "E" + name;
-						else if (part == GprPart.Qword) name = "R" + name;
+						if (index < 4) name += "x";
+						if (part == GprPart.Dword) name = "e" + name;
+						else if (part == GprPart.Qword) name = "r" + name;
 					}
 				}
 				else
 				{
-					if (part == GprPart.Byte) name += "B";
-					else if (part == GprPart.Word) name += "W";
-					else if (part == GprPart.Dword) name += "D";
+					if (part == GprPart.Byte) name += "b";
+					else if (part == GprPart.Word) name += "w";
+					else if (part == GprPart.Dword) name += "d";
 				}
 
 				return name;
@@ -198,14 +198,14 @@ namespace Asmuth.X86
 		public static string GetBaseName(int index)
 		{
 			Contract.Requires(index >= 0 && index < 0x10);
-			if (index < 4) return "ACDB"[index].ToString();
-			if (index >= 10) return "R1" + "012345"[index - 10];
-			if (index == 4) return "SP";
-			if (index == 5) return "BP";
-			if (index == 6) return "SI";
-			if (index == 7) return "DI";
-			if (index == 8) return "R8";
-			if (index == 9) return "R9";
+			if (index < 4) return "acdb"[index].ToString();
+			if (index >= 10) return "r1" + "012345"[index - 10];
+			if (index == 4) return "sp";
+			if (index == 5) return "bp";
+			if (index == 6) return "si";
+			if (index == 7) return "di";
+			if (index == 8) return "r8";
+			if (index == 9) return "r9";
 			throw new UnreachableException();
 		}
 
