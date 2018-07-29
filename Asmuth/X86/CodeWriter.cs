@@ -49,9 +49,9 @@ namespace Asmuth.X86
 
 			switch (displacementSize)
 			{
-				case DisplacementSize._8: Write((sbyte)encoding.Displacement); break;
-				case DisplacementSize._16: Write((short)encoding.Displacement); break;
-				case DisplacementSize._32: Write(encoding.Displacement); break;
+				case DisplacementSize._8Bits: Write((sbyte)encoding.Displacement); break;
+				case DisplacementSize._16Bits: Write((short)encoding.Displacement); break;
+				case DisplacementSize._32Bits: Write(encoding.Displacement); break;
 			}
 		}
 

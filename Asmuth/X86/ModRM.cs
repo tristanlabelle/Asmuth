@@ -12,26 +12,25 @@ namespace Asmuth.X86
 	public enum ModRM : byte
 	{
 		RM_Shift = 0,
-		RM_0 = 0 << RM_Shift,
-		RM_1 = 1 << RM_Shift,
-		RM_2 = 2 << RM_Shift,
-		RM_3 = 3 << RM_Shift,
-		RM_4 = 4 << RM_Shift,
-		RM_5 = 5 << RM_Shift,
-		RM_6 = 6 << RM_Shift,
-		RM_7 = 7 << RM_Shift,
+		RM_0 = 0 << RM_Shift, RM_GprA = RM_0,
+		RM_1 = 1 << RM_Shift, RM_GprC = RM_1,
+		RM_2 = 2 << RM_Shift, RM_GprD = RM_2,
+		RM_3 = 3 << RM_Shift, RM_GprB = RM_3,
+		RM_4 = 4 << RM_Shift, RM_Sib = RM_4,
+		RM_5 = 5 << RM_Shift, RM_GprBP = RM_5,
+		RM_6 = 6 << RM_Shift, RM_GprSI = RM_6,
+		RM_7 = 7 << RM_Shift, RM_GprDI = RM_7,
 		RM_Mask = 7 << RM_Shift,
-		RM_Sib = RM_4,
 
 		Reg_Shift = 3,
-		Reg_0 = 0 << Reg_Shift,
-		Reg_1 = 1 << Reg_Shift,
-		Reg_2 = 2 << Reg_Shift,
-		Reg_3 = 3 << Reg_Shift,
-		Reg_4 = 4 << Reg_Shift,
-		Reg_5 = 5 << Reg_Shift,
-		Reg_6 = 6 << Reg_Shift,
-		Reg_7 = 7 << Reg_Shift,
+		Reg_0 = 0 << Reg_Shift, Reg_GprA = Reg_0,
+		Reg_1 = 1 << Reg_Shift, Reg_GprC = Reg_1,
+		Reg_2 = 2 << Reg_Shift, Reg_GprD = Reg_2,
+		Reg_3 = 3 << Reg_Shift, Reg_GprB = Reg_3,
+		Reg_4 = 4 << Reg_Shift, Reg_GprSP = Reg_4,
+		Reg_5 = 5 << Reg_Shift, Reg_GprBP = Reg_5,
+		Reg_6 = 6 << Reg_Shift, Reg_GprSI = Reg_6,
+		Reg_7 = 7 << Reg_Shift, Reg_GprDI = Reg_7,
 		Reg_Mask = 7 << Reg_Shift,
 
 		Mod_Shift = 6,
@@ -91,20 +90,20 @@ namespace Asmuth.X86
 			switch (modRM & ModRM.Mod_Mask)
 			{
 				case ModRM.Mod_IndirectDisplacement8:
-					return DisplacementSize._8;
+					return DisplacementSize._8Bits;
 				case ModRM.Mod_IndirectLongDisplacement:
-					return addressSize == AddressSize._16 ? DisplacementSize._16 : DisplacementSize._32;
+					return addressSize == AddressSize._16 ? DisplacementSize._16Bits : DisplacementSize._32Bits;
 				case ModRM.Mod_Direct: return 0;
 			}
 
 			// Mod = 0
 			if (addressSize == AddressSize._16)
-				return GetRM(modRM) == 6 ? DisplacementSize._16 : DisplacementSize._0;
+				return GetRM(modRM) == 6 ? DisplacementSize._16Bits : DisplacementSize.None;
 
-			if (GetRM(modRM) == 5) return DisplacementSize._32;
+			if (GetRM(modRM) == 5) return DisplacementSize._32Bits;
 
 			// 32-bit mode, mod = 0, RM = 6 (sib byte)
-			return (sib & Sib.Base_Mask) == Sib.Base_Special ? DisplacementSize._32 : DisplacementSize._0;
+			return (sib & Sib.Base_Mask) == Sib.Base_Special ? DisplacementSize._32Bits : DisplacementSize.None;
 		}
 
 		[Pure]

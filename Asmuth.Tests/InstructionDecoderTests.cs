@@ -58,7 +58,7 @@ namespace Asmuth.X86
 				else if (xex.OpcodeMap == OpcodeMap.Default && opcode == 0xF7)
 				{
 					// TEST: F7 /0 imm(16|32)
-					// MUL: F7 /4
+					// NEG: F7 /3
 					hasModRM = true;
 
 					if (!modReg.HasValue)
@@ -73,7 +73,7 @@ namespace Asmuth.X86
 						immediateSizeInBytes = codeSegmentType.GetWordOrDwordImmediateSize(
 							legacyPrefixes, xex).InBytes();
 					}
-					else if (modReg == 4)
+					else if (modReg == 3)
 					{
 						immediateSizeInBytes = 0;
 					}
@@ -140,20 +140,36 @@ namespace Asmuth.X86
 					length == 2 || length == 6 || length == 9,
 					instruction.LegacyPrefixes.Count == 1);
 				Assert.AreEqual(length >= 5 && length != 7, instruction.Sib.HasValue);
-				Assert.AreEqual(length <= 3, instruction.DisplacementSize == DisplacementSize._0);
-				Assert.AreEqual(length >= 4 && length <= 6, instruction.DisplacementSize == DisplacementSize._8);
-				Assert.AreEqual(length >= 7, instruction.DisplacementSize == DisplacementSize._32);
+				Assert.AreEqual(length <= 3, instruction.DisplacementSize == DisplacementSize.None);
+				Assert.AreEqual(length >= 4 && length <= 6, instruction.DisplacementSize == DisplacementSize._8Bits);
+				Assert.AreEqual(length >= 7, instruction.DisplacementSize == DisplacementSize._32Bits);
 			}
+		}
+
+		[TestMethod]
+		public void TestSib()
+		{
+			// F7 /3 NEG 
+			AssertModRMSibRoundTrip(
+				ModRM.Mod_Indirect | ModRM.Reg_3 | ModRM.RM_Sib,
+				Sib.Base_A | Sib.Index_A | Sib.Scale_1);
+		}
+
+		private static void AssertModRMSibRoundTrip(ModRM modRM, Sib sib)
+		{
+			var instruction = DecodeSingle_32Bits(0xF7, (byte)modRM, (byte)sib);
+			Assert.AreEqual(modRM, instruction.ModRM);
+			Assert.AreEqual(sib, instruction.Sib);
 		}
 
 		[TestMethod]
 		public void TestDisplacementSizes()
 		{
-			Assert.AreEqual(DisplacementSize._0, DecodeSingle_32Bits(0x0F, 0x1F, (byte)ModRM.Mod_Direct).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._8, DecodeSingle_32Bits(0x0F, 0x1F, (byte)ModRM.Mod_IndirectDisplacement8, 0x00).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._16, DecodeSingle_32Bits(0x67, 0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._32, DecodeSingle_32Bits(0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._32, DecodeSingle_64Bits(0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize.None, DecodeSingle_32Bits(0x0F, 0x1F, (byte)ModRM.Mod_Direct).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._8Bits, DecodeSingle_32Bits(0x0F, 0x1F, (byte)ModRM.Mod_IndirectDisplacement8, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._16Bits, DecodeSingle_32Bits(0x67, 0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._32Bits, DecodeSingle_32Bits(0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._32Bits, DecodeSingle_64Bits(0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
 		}
 
 		[TestMethod]
@@ -179,9 +195,9 @@ namespace Asmuth.X86
 		public void TestModRMRequiredForImmediateSize()
 		{
 			// TEST: F7 /0 imm(16|32)
-			// MUL: F7 /4
+			// NEG: F7 /3
 			Assert.AreEqual(4, DecodeSingle_32Bits(0xF7, ModRM_Reg(0), 0x00, 0x01, 0x02, 0x03).ImmediateSizeInBytes);
-			Assert.AreEqual(0, DecodeSingle_32Bits(0xF7, ModRM_Reg(4)).ImmediateSizeInBytes);
+			Assert.AreEqual(0, DecodeSingle_32Bits(0xF7, ModRM_Reg(3)).ImmediateSizeInBytes);
 		}
 
 		[TestMethod]

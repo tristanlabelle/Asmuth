@@ -16,20 +16,16 @@ namespace Asmuth.X86
 		{
 			ExceptionAssert.Throws<ArgumentException>(() =>
 			{
-				EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding
-				{
-					ModRM = ModRMEnum.FromComponents(mod: 3, reg: 0, rm: GprCode.DX)
-				});
+				EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding(
+					ModRMEnum.FromComponents(mod: 3, reg: 0, rm: GprCode.DX)));
 			});
 		}
 
 		[TestMethod]
 		public void FromEncoding_Indirect()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding
-			{
-				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: GprCode.DX)
-			});
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding(
+				ModRMEnum.FromComponents(mod: 0, reg: 0, rm: GprCode.DX)));
 			
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
 			Assert.AreEqual(AddressBaseRegister.D, effectiveAddress.Base);
@@ -39,10 +35,8 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Indirect16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding
-			{
-				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 7)
-			});
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding(
+				ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 7)));
 			
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
 			Assert.AreEqual(AddressBaseRegister.B, effectiveAddress.Base);
@@ -52,10 +46,8 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Indexed16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding
-			{
-				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: (byte)0)
-			});
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding(
+				ModRMEnum.FromComponents(mod: 0, reg: 0, rm: (byte)0)));
 			
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
 			Assert.AreEqual(AddressBaseRegister.B, effectiveAddress.Base);
@@ -65,11 +57,8 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Absolute16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding
-			{
-				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 6),
-				Displacement = short.MaxValue
-			});
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding(
+				ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 6), (Sib?)null, short.MaxValue));
 			
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
 			Assert.IsFalse(effectiveAddress.Base.HasValue);
@@ -80,11 +69,8 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_Absolute32()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding
-			{
-				ModRM = ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 5),
-				Displacement = int.MaxValue
-			});
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding(
+				ModRMEnum.FromComponents(mod: 0, reg: 0, rm: 5), (Sib?)null, int.MaxValue));
 			
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
 			Assert.IsFalse(effectiveAddress.Base.HasValue);
@@ -95,11 +81,8 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_IndirectWithDisplacement8()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding
-			{
-				ModRM = ModRMEnum.FromComponents(mod: 1, reg: 0, rm: GprCode.D),
-				Displacement = sbyte.MaxValue
-			});
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding(
+				ModRMEnum.FromComponents(mod: 1, reg: 0, rm: GprCode.D), (Sib?)null, sbyte.MaxValue));
 			
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
 			Assert.AreEqual(AddressBaseRegister.D, effectiveAddress.Base);
@@ -110,11 +93,8 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_IndirectWithDisplacement16()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding
-			{
-				ModRM = ModRMEnum.FromComponents(mod: 2, reg: 0, rm: 7),
-				Displacement = short.MaxValue
-			});
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._16Bits, new EffectiveAddress.Encoding(
+				ModRMEnum.FromComponents(mod: 2, reg: 0, rm: 7), (Sib?)null, short.MaxValue));
 			
 			Assert.AreEqual(AddressSize._16, effectiveAddress.AddressSize);
 			Assert.AreEqual(AddressBaseRegister.B, effectiveAddress.Base);
@@ -125,16 +105,38 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_IndirectWithDisplacement32()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding
-			{
-				ModRM = ModRMEnum.FromComponents(mod: 2, reg: 0, rm: GprCode.D),
-				Displacement = int.MaxValue
-			});
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._32Bits, new EffectiveAddress.Encoding(
+				ModRMEnum.FromComponents(mod: 2, reg: 0, rm: GprCode.D), (Sib?)null, int.MaxValue));
 			
 			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
 			Assert.AreEqual(AddressBaseRegister.D, effectiveAddress.Base);
 			Assert.IsFalse(effectiveAddress.IndexAsGprCode.HasValue);
 			Assert.AreEqual(int.MaxValue, effectiveAddress.Displacement);
+		}
+		
+		[TestMethod]
+		public void FromEncoding_SibZeroIndex()
+		{
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._64Bits, new EffectiveAddress.Encoding(
+				ModRM.Mod_Indirect | ModRM.Reg_0 | ModRM.RM_Sib,
+				Sib.Base_B | Sib.Scale_1 | Sib.Index_Zero));
+
+			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
+			Assert.AreEqual(AddressBaseRegister.B + 8, effectiveAddress.Base);
+			Assert.AreEqual(null, effectiveAddress.IndexAsGprCode);
+		}
+
+		[TestMethod]
+		public void FromEncoding_RegExtensions()
+		{
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._64Bits, new EffectiveAddress.Encoding(
+				EffectiveAddress.EncodingFlags.BaseRegExtension | EffectiveAddress.EncodingFlags.IndexRegExtension,
+				ModRM.Mod_Indirect | ModRM.Reg_0 | ModRM.RM_Sib,
+				Sib.Base_B | Sib.Scale_1 | Sib.Index_C));
+
+			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
+			Assert.AreEqual(AddressBaseRegister.B + 8, effectiveAddress.Base);
+			Assert.AreEqual(GprCode.C + 8, effectiveAddress.IndexAsGprCode);
 		}
 	}
 }

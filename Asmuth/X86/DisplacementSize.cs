@@ -9,10 +9,10 @@ namespace Asmuth.X86
 {
 	public enum DisplacementSize
 	{
-		_0,
-		_8,
-		_16, // 16-bit effective address size only
-		_32 // 32/64-bit effective address sizes only
+		None,
+		_8Bits,
+		_16Bits, // 16-bit effective address size only
+		_32Bits // 32/64-bit effective address sizes only
 	}
 
 	public static class DisplacementSizeEnum
@@ -22,35 +22,35 @@ namespace Asmuth.X86
 		{
 			switch (size)
 			{
-				case DisplacementSize._0: return 0;
-				case DisplacementSize._8: return 1;
-				case DisplacementSize._16: return 2;
-				case DisplacementSize._32: return 4;
+				case DisplacementSize.None: return 0;
+				case DisplacementSize._8Bits: return 1;
+				case DisplacementSize._16Bits: return 2;
+				case DisplacementSize._32Bits: return 4;
 				default: throw new ArgumentOutOfRangeException(nameof(size));
 			}
 		}
 
 		[Pure]
 		public static bool IsLong(this DisplacementSize size)
-			=> size >= DisplacementSize._16;
+			=> size >= DisplacementSize._16Bits;
 
 		[Pure]
 		public static DisplacementSize GetMaximum(AddressSize addressSize)
-			=> addressSize == AddressSize._16 ? DisplacementSize._16 : DisplacementSize._32;
+			=> addressSize == AddressSize._16 ? DisplacementSize._16Bits : DisplacementSize._32Bits;
 
 		[Pure]
 		public static bool IsEncodable(this DisplacementSize size, AddressSize addressSize)
-			=> (size == DisplacementSize._16) == (addressSize == AddressSize._16);
+			=> (size == DisplacementSize._16Bits) == (addressSize == AddressSize._16);
 
 		[Pure]
 		public static bool CanEncodeValue(this DisplacementSize size, int displacement)
 		{
 			switch (size)
 			{
-				case DisplacementSize._0: return displacement == 0;
-				case DisplacementSize._8: return unchecked((sbyte)displacement) == displacement;
-				case DisplacementSize._16: return unchecked((short)displacement) == displacement;
-				case DisplacementSize._32: return true;
+				case DisplacementSize.None: return displacement == 0;
+				case DisplacementSize._8Bits: return unchecked((sbyte)displacement) == displacement;
+				case DisplacementSize._16Bits: return unchecked((short)displacement) == displacement;
+				case DisplacementSize._32Bits: return true;
 				default: throw new ArgumentOutOfRangeException(nameof(size));
 			}
 		}

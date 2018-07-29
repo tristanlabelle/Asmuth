@@ -35,56 +35,93 @@ namespace Asmuth.X86
 	public readonly struct EffectiveAddress
 	{
 		#region Encoding struct
-		public struct Encoding
+		public enum EncodingFlags : byte
 		{
-			public SegmentRegister? Segment { get; set; }
-			public bool AddressSizeOverride { get; set; }
-			public bool BaseRegExtension { get; set; }
-			public bool IndexRegExtension { get; set; }
-			public ModRM ModRM { get; set; }
-			public Sib? Sib { get; set; }
-			public int Displacement { get; set; }
+			None = 0,
+			AddressSizeOverride = 1 << 0,
+			BaseRegExtension = 1 << 1,
+			IndexRegExtension = 1 << 2,
+			Mask = 0b111
+		}
+
+		public readonly struct Encoding
+		{
+			// Matches EncodingFlags
+			private enum FlagsEx : byte
+			{
+				None = 0,
+				AddressSizeOverride = 1 << 0,
+				BaseRegExtension = 1 << 1,
+				IndexRegExtension = 1 << 2,
+				SegmentOverride = 1 << 3,
+				Sib = 1 << 4,
+			}
+
+			private readonly FlagsEx flagsEx;
+			private readonly SegmentRegister segmentOverride; // If flag set
+			private readonly ModRM modRM;
+			private readonly Sib sib; // If flag set
+			private readonly int displacement;
 
 			public Encoding(ModRM modRM, Sib? sib = null, int displacement = 0)
 			{
-				this.Segment = null;
-				this.AddressSizeOverride = false;
-				this.BaseRegExtension = false;
-				this.IndexRegExtension = false;
-				this.ModRM = modRM;
-				this.Sib = sib;
-				this.Displacement = displacement;
+				this.flagsEx = sib.HasValue ? FlagsEx.Sib : FlagsEx.None;
+				this.segmentOverride = default;
+				this.modRM = modRM;
+				this.sib = sib.GetValueOrDefault();
+				this.displacement = displacement;
+			}
+			
+			public Encoding(EncodingFlags flags, ModRM modRM, Sib? sib = null, int displacement = 0)
+			{
+				this.flagsEx = (FlagsEx)(byte)(flags & EncodingFlags.Mask);
+				if (sib.HasValue) this.flagsEx |= FlagsEx.Sib;
+				this.segmentOverride = default;
+				this.modRM = modRM;
+				this.sib = sib.GetValueOrDefault();
+				this.displacement = displacement;
+			}
+
+			public Encoding(EncodingFlags flags, SegmentRegister? segmentOverride,
+				ModRM modRM, Sib? sib = null, int displacement = 0)
+			{
+				this.flagsEx = (FlagsEx)(byte)(flags & EncodingFlags.Mask);
+				if (sib.HasValue) this.flagsEx |= FlagsEx.Sib;
+				if (segmentOverride.HasValue) this.flagsEx |= FlagsEx.SegmentOverride;
+				this.segmentOverride = segmentOverride.GetValueOrDefault();
+				this.modRM = modRM;
+				this.sib = sib.GetValueOrDefault();
+				this.displacement = displacement;
 			}
 
 			public Encoding(ImmutableLegacyPrefixList legacyPrefixes, Xex xex,
 				ModRM modRM, Sib? sib = null, int displacement = 0)
 			{
-				this.Segment = legacyPrefixes.SegmentOverride;
-				this.AddressSizeOverride = legacyPrefixes.HasAddressSizeOverride;
-				this.BaseRegExtension = xex.BaseRegExtension;
-				this.IndexRegExtension = xex.IndexRegExtension;
-				this.ModRM = modRM;
-				this.Sib = sib;
-				this.Displacement = displacement;
+				this.flagsEx = FlagsEx.None;
+				if (legacyPrefixes.SegmentOverride.HasValue) this.flagsEx |= FlagsEx.SegmentOverride;
+				if (legacyPrefixes.HasAddressSizeOverride) this.flagsEx |= FlagsEx.AddressSizeOverride;
+				if (xex.BaseRegExtension) this.flagsEx |= FlagsEx.BaseRegExtension;
+				if (xex.IndexRegExtension) this.flagsEx |= FlagsEx.IndexRegExtension;
+				if (sib.HasValue) this.flagsEx |= FlagsEx.Sib;
+				this.segmentOverride = legacyPrefixes.SegmentOverride.GetValueOrDefault();
+				this.modRM = modRM;
+				this.sib = sib.GetValueOrDefault();
+				this.displacement = displacement;
 			}
 
-			public void SetLegacyPrefixes(ImmutableLegacyPrefixList prefixes)
-			{
-				Segment = prefixes.SegmentOverride;
-				AddressSizeOverride = prefixes.HasAddressSizeOverride;
-			}
+			public Encoding(ImmutableLegacyPrefixList legacyPrefixes, Rex rex,
+				ModRM modRM, Sib? sib = null, int displacement = 0)
+				: this(legacyPrefixes, new Xex(rex), modRM, sib, displacement) { }
 
-			public void SetRex(Rex rex)
-			{
-				BaseRegExtension = (rex & Rex.BaseRegExtension) != 0;
-				IndexRegExtension = (rex & Rex.IndexRegExtension) != 0;
-			}
-
-			public void SetXex(Xex xex)
-			{
-				BaseRegExtension = xex.BaseRegExtension;
-				IndexRegExtension = xex.IndexRegExtension;
-			}
+			public EncodingFlags Flags => (EncodingFlags)(byte)flagsEx & EncodingFlags.Mask;
+			public SegmentRegister? SegmentOverride
+				=> (flagsEx & FlagsEx.SegmentOverride) != 0 ? (SegmentRegister?)segmentOverride : null;
+			public bool AddressSizeOverride => (flagsEx & FlagsEx.AddressSizeOverride) != 0;
+			public bool BaseRegExtension => (flagsEx & FlagsEx.BaseRegExtension) != 0;
+			public bool IndexRegExtension => (flagsEx & FlagsEx.IndexRegExtension) != 0;
+			public ModRM ModRM => modRM;
+			public Sib? Sib => (flagsEx & FlagsEx.Sib) != 0 ? (Sib?)sib : null;
+			public int Displacement => displacement;
 		}
 		#endregion
 
@@ -233,6 +270,7 @@ namespace Asmuth.X86
 			if (index.HasValue)
 			{
 				// Swap eax and esp (esp meaning "none")
+				Contract.Assert(index.Value != GprCode.Esp);
 				if (index.Value == GprCode.Eax) flags |= Flags.IndexReg_Eax;
 				else flags |= (Flags)((int)index.Value << (int)Flags.IndexReg_Shift);
 			}
@@ -312,14 +350,15 @@ namespace Asmuth.X86
 				int displacementSize = encoding.ModRM.GetMod();
 				Contract.Assert(displacementSize != 0 || encoding.Displacement == 0);
 				Contract.Assert(displacementSize != 1 || unchecked((sbyte)encoding.Displacement) == encoding.Displacement);
-				return FromIndirect16Encoding(encoding.Segment, encoding.ModRM.GetRM(), (short)encoding.Displacement);
+				return FromIndirect16Encoding(encoding.SegmentOverride,
+					encoding.ModRM.GetRM(), (short)encoding.Displacement);
 			}
 			else
 			{
 				if (encoding.ModRM.GetMod() == 0 && encoding.ModRM.GetRM() == 5)
 				{
 					return codeSegmentType.IsLongMode()
-						? RipRelative(addressSize, encoding.Segment, encoding.Displacement)
+						? RipRelative(addressSize, encoding.SegmentOverride, encoding.Displacement)
 						: Absolute(addressSize, encoding.Displacement);
 				}
 
@@ -331,7 +370,8 @@ namespace Asmuth.X86
 				if (baseReg != GprCode.Esp)
 				{
 					if (encoding.BaseRegExtension) baseReg += 8;
-					return Indirect(addressSize, encoding.Segment, baseReg.Value, encoding.Displacement);
+					return Indirect(addressSize, encoding.SegmentOverride,
+						baseReg.Value, encoding.Displacement);
 				}
 
 				// Sib byte
@@ -344,7 +384,7 @@ namespace Asmuth.X86
 				var indexReg = sib.GetIndexReg();
 				if (indexReg.HasValue && encoding.IndexRegExtension) indexReg += 8;
 				
-				return Indirect(addressSize, encoding.Segment,
+				return Indirect(addressSize, encoding.SegmentOverride,
 					baseReg, indexReg, (byte)sib.GetScale(), encoding.Displacement);
 			}
 		}
@@ -458,9 +498,9 @@ namespace Asmuth.X86
 
 				// Displacement fits in sbyte, base != none
 				var @base = Base.Value;
-				if (@base == AddressBaseRegister.BP) return DisplacementSize._8;
-				if (@base == AddressBaseRegister.Rip) return DisplacementSize._32;
-				return displacement == 0 ? DisplacementSize._0 : DisplacementSize._8;
+				if (@base == AddressBaseRegister.BP) return DisplacementSize._8Bits;
+				if (@base == AddressBaseRegister.Rip) return DisplacementSize._32Bits;
+				return displacement == 0 ? DisplacementSize.None : DisplacementSize._8Bits;
 			}
 		}
 		#endregion
@@ -481,7 +521,7 @@ namespace Asmuth.X86
 		public bool IsEncodableWithDisplacementSize(DisplacementSize size)
 		{
 			return size >= MinimumDisplacementSize
-				&& (size == DisplacementSize._16) == (AddressSize == AddressSize._16);
+				&& (size == DisplacementSize._16Bits) == (AddressSize == AddressSize._16);
 		}
 
 		public Encoding Encode(CodeSegmentType codeSegmentType, byte modReg, DisplacementSize displacementSize)
@@ -493,22 +533,13 @@ namespace Asmuth.X86
 			if (!IsEncodableWithDisplacementSize(displacementSize))
 				throw new ArgumentOutOfRangeException(nameof(displacementSize));
 
-			var encoding = new Encoding()
-			{
-				Segment = RequiresSegmentOverride ? Segment : (SegmentRegister?)null,
-				AddressSizeOverride = addressSizeOverride,
-				BaseRegExtension = BaseAsGprCode >= GprCode.R8,
-				IndexRegExtension = IndexAsGprCode >= GprCode.R8,
-				Displacement = displacement
-			};
-
 			if (AddressSize == AddressSize._16) throw new NotImplementedException();
 
 			byte mod;
 			switch (displacementSize)
 			{
-				case DisplacementSize._0: mod = 0; break;
-				case DisplacementSize._8: mod = 1; break;
+				case DisplacementSize.None: mod = 0; break;
+				case DisplacementSize._8Bits: mod = 1; break;
 				default: mod = 2; break;
 			}
 
@@ -524,22 +555,30 @@ namespace Asmuth.X86
 			if (@base == AddressBaseRegister.SP || (mod == 0 && @base == AddressBaseRegister.BP))
 				needsSib = true;
 
+			ModRM modRM;
+			Sib? sib = null;
 			if (needsSib)
 			{
 				if (@base == AddressBaseRegister.BP) throw new NotImplementedException();
 
-				encoding.ModRM = ModRMEnum.FromComponents(mod, modReg, 0) | ModRM.RM_Sib;
-				encoding.Sib = SibEnum.FromComponents(
+				modRM = ModRMEnum.FromComponents(mod, modReg, 0) | ModRM.RM_Sib;
+				sib = SibEnum.FromComponents(
 					ss: (byte)((int)(flags & Flags.Scale_Mask) >> (int)Flags.Scale_Shift),
 					index: (IndexAsGprCode ?? GprCode.SP).GetLow3Bits(),
 					@base: (BaseAsGprCode ?? GprCode.BP).GetLow3Bits());
 			}
 			else
 			{
-				encoding.ModRM = ModRMEnum.FromComponents(mod, modReg, (byte)((byte)@base.Value & 0x7));
+				modRM = ModRMEnum.FromComponents(mod, modReg, (byte)((byte)@base.Value & 0x7));
 			}
 
-			return encoding;
+			var encodingFlags = EncodingFlags.None;
+			if (addressSizeOverride) encodingFlags |= EncodingFlags.AddressSizeOverride;
+			if (BaseAsGprCode >= GprCode.R8) encodingFlags |= EncodingFlags.BaseRegExtension;
+			if (IndexAsGprCode >= GprCode.R8) encodingFlags |= EncodingFlags.IndexRegExtension;
+			return new Encoding(encodingFlags,
+				RequiresSegmentOverride ? Segment : (SegmentRegister?)null,
+				modRM, sib, Displacement);
 		}
 
 		public string ToString(bool vectorSib, ulong? rip = null)

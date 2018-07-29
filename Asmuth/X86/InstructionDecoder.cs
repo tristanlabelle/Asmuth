@@ -237,11 +237,11 @@ namespace Asmuth.X86
 					if (substate < displacementSize.InBytes()) return true; // More bytes to come
 
 					// Sign-extend
-					if (displacementSize == DisplacementSize._8)
+					if (displacementSize == DisplacementSize._8Bits)
 						builder.Displacement = unchecked((sbyte)accumulator);
-					else if (displacementSize == DisplacementSize._16)
+					else if (displacementSize == DisplacementSize._16Bits)
 						builder.Displacement = unchecked((short)accumulator);
-					else if (displacementSize == DisplacementSize._32)
+					else if (displacementSize == DisplacementSize._32Bits)
 						builder.Displacement = unchecked((int)accumulator);
 
 					return AdvanceToImmediateOrEnd();
@@ -344,7 +344,7 @@ namespace Asmuth.X86
 			Contract.Requires(State >= InstructionDecodingState.ExpectModRM);
 			Contract.Requires(State < InstructionDecodingState.ExpectDisplacement);
 			
-			return GetDisplacementSize() > DisplacementSize._0
+			return GetDisplacementSize() > DisplacementSize.None
 				? AdvanceTo(InstructionDecodingState.ExpectDisplacement)
 				: AdvanceToImmediateOrEnd();
 		}
