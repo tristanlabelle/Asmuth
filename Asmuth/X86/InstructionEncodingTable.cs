@@ -38,8 +38,8 @@ namespace Asmuth.X86
 					// ALU ops, imm8 and imm16/32 "overloads" + miscs without immediates
 					case 0x00: case 0x10: case 0x20: case 0x30:
 						// ALU ops, imm8 and imm16/32 "overloads" + miscs without immediates
-						if ((opcode & 0xF) == 0x4) return ImmediateSize.Fixed8;
-						if ((opcode & 0xF) == 0x5) return ImmediateSize.Operand16Or32;
+						if ((opcode & 0b111) == 0b100) return ImmediateSize.Fixed8;
+						if ((opcode & 0b111) == 0b101) return ImmediateSize.Operand16Or32;
 						return ImmediateSize.Zero;
 
 					case 0x40: // INC+r/DEC+r/REX
@@ -70,6 +70,28 @@ namespace Asmuth.X86
 
 					case 0xB0: // MOV
 						return opcode < 0xB8 ? ImmediateSize.Fixed8 : ImmediateSize.Operand16Or32Or64;
+
+					case 0xC0:
+						if (opcode <= 0xC1) return ImmediateSize.Fixed8; // Shift group imm8
+						if (opcode == 0xC2) return ImmediateSize.Fixed16; // ret imm16
+						if (opcode == 0xC6) return ImmediateSize.Fixed8; // MOV imm8
+						if (opcode == 0xC7) return ImmediateSize.Operand16Or32; // MOV imm8
+						if (opcode == 0xC8) return ImmediateSize.Fixed24; // ENTER imm16, imm8
+						if (opcode == 0xCA) return ImmediateSize.Fixed16; // FAR RET imm16
+						if (opcode == 0xCD) return ImmediateSize.Fixed8; // INT imm8
+						return ImmediateSize.Zero;
+
+					case 0xD0:
+						// D0-D3: Shift group
+						if (opcode == 0xD4 || opcode == 0xD5) return ImmediateSize.Fixed8; // AAM/AAD
+						return ImmediateSize.Zero; // D6-D7: XLAT, D8-DF: FPU
+
+					case 0xE0:
+						if (opcode <= 0xE7) return ImmediateSize.Fixed8; // LOOP/JCXZ/IN/OUT
+						if (opcode < 0xE9) return ImmediateSize.Operand16Or32; // NEAR CALL/JMP rel*
+						if (opcode == 0xEA) return ImmediateSize.Operand32Or48; // JMP ptr16:16/32
+						if (opcode == 0xEB) return ImmediateSize.Fixed8; // JUMP rel8
+						return ImmediateSize.Zero; // IN/OUT
 
 					case 0xF0:
 						if (opcode < 0xF6) return ImmediateSize.Zero; // LOCK/INT1/REPNE/REP/HLT/CMC
@@ -118,8 +140,7 @@ namespace Asmuth.X86
 			}
 
 			immediateSizeInBytes = immediateSize.Value.InBytes(
-				operandSize: codeSegmentType.GetIntegerOperandSize(legacyPrefixes, xex),
-				addressSize: codeSegmentType.GetEffectiveAddressSize(legacyPrefixes));
+				operandSize: codeSegmentType.GetIntegerOperandSize(legacyPrefixes, xex));
 			return lookupSuccessTag;
 		}
 	}

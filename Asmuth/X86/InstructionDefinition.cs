@@ -216,7 +216,6 @@ namespace Asmuth.X86
 				case ImmediateSize.Fixed64: str.Append(" iq"); break;
 				case ImmediateSize.Operand16Or32: str.Append(" iwd"); break;
 				case ImmediateSize.Operand16Or32Or64: str.Append(" iwdq"); break;
-				case ImmediateSize.Address16Or32: str.Append(" rel"); break;
 				default: throw new ArgumentException(nameof(size));
 			}
 		}

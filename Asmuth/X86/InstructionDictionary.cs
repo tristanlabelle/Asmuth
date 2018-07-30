@@ -89,7 +89,7 @@ namespace Asmuth.X86
 			}
 
 			hasModRM = bestMatch.Encoding.HasModRM();
-			immediateSizeInBytes = bestMatch.Encoding.GetImmediatesSizeInBytes(operandSize, addressSize);
+			immediateSizeInBytes = bestMatch.Encoding.GetImmediatesSizeInBytes(operandSize);
 			return bestMatch;
 		}
 	}

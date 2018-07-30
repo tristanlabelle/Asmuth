@@ -92,12 +92,11 @@ namespace Asmuth.X86
 		}
 
 		[Pure]
-		public static int GetImmediatesSizeInBytes(this InstructionEncoding encoding,
-			OperandSize operandSize, AddressSize addressSize)
+		public static int GetImmediatesSizeInBytes(this InstructionEncoding encoding, OperandSize operandSize)
 		{
 			Contract.Requires(operandSize >= OperandSize.Word && operandSize <= OperandSize.Qword);
-			return GetFirstImmediateSize(encoding).InBytes(operandSize, addressSize)
-				+ GetSecondImmediateSize(encoding).InBytes(operandSize, addressSize);
+			return GetFirstImmediateSize(encoding).InBytes(operandSize)
+				+ GetSecondImmediateSize(encoding).InBytes(operandSize);
 		}
 
 		[Pure]
@@ -147,6 +146,7 @@ namespace Asmuth.X86
 
 		#region With***
 		[Pure]
+		[Obsolete("OperandSizes not up-to-date")]
 		public static InstructionEncoding WithOperandSize(this InstructionEncoding encoding, InstructionEncoding operandSize)
 		{
 			Contract.Requires((operandSize & ~InstructionEncoding.OperandSize_Mask) == 0);

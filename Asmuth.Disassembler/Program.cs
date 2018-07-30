@@ -123,8 +123,8 @@ namespace Asmuth.Disassembler
 
 						Console.WriteLine();
 
-						if (instruction.MainByte == KnownOpcodes.RetNear || instruction.MainByte == KnownOpcodes.RetNearAndPop)
-							break;
+						//if (instruction.MainByte == KnownOpcodes.RetNear || instruction.MainByte == KnownOpcodes.RetNearAndPop)
+						//	break;
 					}
 				}
 			}
