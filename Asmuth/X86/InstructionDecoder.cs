@@ -28,7 +28,7 @@ namespace Asmuth.X86
 		LockAndVex,
 		SimdPrefixAndVex,
 		RexAndVex,
-		DuplicateLegacyPrefixGroup,
+		ConflictingLegacyPrefixes,
 		MultipleXex,
 		UnknownOpcode
 	}
@@ -98,8 +98,13 @@ namespace Asmuth.X86
 					var legacyPrefix = LegacyPrefixEnum.TryFromEncodingByte(@byte);
 					if (legacyPrefix.HasValue)
 					{
+						// Allow duplicate legacy prefixes
+						// write.exe has 66 66 0F 1F 84 00 00 00 00 00 = nop word ptr [rax+rax+0000000000000000h]
+						if (builder.LegacyPrefixes.Contains(legacyPrefix.Value))
+							return true;
+
 						if (builder.LegacyPrefixes.ContainsFromGroup(legacyPrefix.Value.GetGroup()))
-							return AdvanceToError(InstructionDecodingError.DuplicateLegacyPrefixGroup);
+							return AdvanceToError(InstructionDecodingError.ConflictingLegacyPrefixes);
 						
 						builder.LegacyPrefixes = ImmutableLegacyPrefixList.Add(builder.LegacyPrefixes, legacyPrefix.Value);
 						return true;

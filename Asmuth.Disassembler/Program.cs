@@ -77,7 +77,6 @@ namespace Asmuth.Disassembler
 					if ((sectionHeader.Characteristics & IMAGE_SCN_CNT_CODE) == 0) continue;
 
 					var sectionBaseAddress = optionalHeader.ImageBase + sectionHeader.VirtualAddress;
-					Console.Write($"{sectionBaseAddress:X8}");
 					if (sectionHeader.Name.Char0 != 0)
 						Console.Write($" <{sectionHeader.Name}>");
 					Console.WriteLine(":");
@@ -85,24 +84,37 @@ namespace Asmuth.Disassembler
 					long codeOffset = 0;
 					while (true)
 					{
-						Console.Write($"{sectionBaseAddress + (ulong)codeOffset:X}".PadLeft(8));
-						Console.Write(":       ");
+						if (codeOffset == sectionHeader.SizeOfRawData) break;
+
+						ulong codeAddress = sectionBaseAddress + (ulong)codeOffset;
+						Console.Write("0x");
+						Console.Write(is32Bit ? $"{codeAddress:X8}" : $"{codeAddress:X16}");
+						Console.Write(":");
+
+						// Read the instruction bytes
 						while (true)
 						{
+							if (codeOffset >= sectionHeader.SizeOfRawData) throw new InvalidDataException();
 							var @byte = fileViewAccessor.ReadByte(sectionHeader.PointerToRawData + codeOffset);
-							if (instructionDecoder.State != InstructionDecodingState.Initial)
-								Console.Write(' ');
-							Console.Write($"{@byte:X2}");
 							codeOffset++;
 							if (!instructionDecoder.Feed(@byte)) break;
 						}
 
-						while (Console.CursorLeft < 40) Console.Write(' ');
-
 						var instruction = instructionDecoder.GetInstruction();
 						instructionDecoder.Reset();
 
-						Console.Write('\t');
+						Console.Write(' ');
+
+						if (instruction.Xex.Type.AllowsEscapes())
+						{
+							switch (instruction.Xex.OpcodeMap)
+							{
+								case OpcodeMap.Escape0F: Console.Write("0F."); break;
+								case OpcodeMap.Escape0F38: Console.Write("0F3A."); break;
+								case OpcodeMap.Escape0F3A: Console.Write("0F3A."); break;
+							}
+						}
+
 						Console.Write("{0:X2}", instruction.MainByte);
 						
 						if (instruction.ModRM.HasValue)
@@ -122,9 +134,6 @@ namespace Asmuth.Disassembler
 							Console.Write(" {0:X2}", b);
 
 						Console.WriteLine();
-
-						//if (instruction.MainByte == KnownOpcodes.RetNear || instruction.MainByte == KnownOpcodes.RetNearAndPop)
-						//	break;
 					}
 				}
 			}
