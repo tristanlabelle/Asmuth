@@ -109,8 +109,8 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Static Methods
-		// 0, 1, 2, 4, 6, 8
-		public static bool IsValidSize(int size) => unchecked((uint)size) <= 8 && (size & (size - 1)) == 0;
+		// Technically there are no 5 or 7-byte immediates, but allow them
+		public static bool IsValidSize(int size) => unchecked((uint)size) <= 8;
 
 		public static bool Equals(Immediate lhs, Immediate rhs) => lhs.Equals(rhs);
 
