@@ -4,7 +4,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Asmuth.X86
+namespace Asmuth.X86.Asm
 {
 	public enum RegisterNamespace : byte
 	{
