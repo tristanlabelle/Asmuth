@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Nasm
+namespace Asmuth.X86.Asm.Nasm
 {
 	public enum NasmInstructionFlag : byte
 	{

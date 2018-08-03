@@ -57,7 +57,7 @@ namespace Asmuth.X86
 
 		[Pure]
 		public static byte GetBase(this Sib sib)
-			=> (byte)((uint)(sib & Sib.Base_Mask) << (int)Sib.Base_Shift);
+			=> (byte)((uint)(sib & Sib.Base_Mask) >> (int)Sib.Base_Shift);
 
 		[Pure]
 		public static GprCode? GetBaseReg(this Sib sib, ModRM modRM)
@@ -69,7 +69,7 @@ namespace Asmuth.X86
 
 		[Pure]
 		public static byte GetIndex(this Sib sib)
-			=> (byte)((uint)(sib & Sib.Index_Mask) << (int)Sib.Index_Shift);
+			=> (byte)((uint)(sib & Sib.Index_Mask) >> (int)Sib.Index_Shift);
 
 		[Pure]
 		public static GprCode? GetIndexReg(this Sib sib)
@@ -80,10 +80,10 @@ namespace Asmuth.X86
 
 		[Pure]
 		public static byte GetSS(this Sib sib)
-			=> (byte)((uint)(sib & Sib.Scale_Mask) << (int)Sib.Scale_Shift);
+			=> (byte)((uint)(sib & Sib.Scale_Mask) >> (int)Sib.Scale_Shift);
 
 		[Pure]
 		public static byte GetScale(this Sib sib)
-			=> (byte)(1 << GetSS(sib));
+			=> (byte)(1 >> GetSS(sib));
 	}
 }

@@ -29,7 +29,7 @@ namespace Asmuth.X86
 			}
 		}
 
-		public static ImmediateSize? GetImmediateSize(OpcodeMap opcodeMap, byte opcode, byte? modReg)
+		public static ImmediateSize? GetImmediateSize(OpcodeMap opcodeMap, byte opcode, ModRM? modRM)
 		{
 			if (opcodeMap == OpcodeMap.Default)
 			{
@@ -98,7 +98,8 @@ namespace Asmuth.X86
 						if (opcode < 0xF8)
 						{
 							// Unary group 3: TEST/???/NOT/NEG/MUL/IMUL/DIV/IDIV
-							if (!modReg.HasValue) return null;
+							if (!modRM.HasValue) return null;
+							byte modReg = modRM.Value.GetReg();
 							if (modReg == 1) throw new NotSupportedException();
 							if (modReg > 1) return ImmediateSize.Zero;
 							return opcode == 0xF6 ? ImmediateSize.Fixed8 : ImmediateSize.Operand16Or32;
@@ -124,17 +125,17 @@ namespace Asmuth.X86
 		}
 		
 		public object TryLookup(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode, byte? modReg,
+			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode, ModRM? modRM,
 			out bool hasModRM, out int immediateSizeInBytes)
 		{
 			hasModRM = HasModRM(xex.OpcodeMap, opcode);
-			if (!hasModRM && modReg.HasValue) throw new ArgumentException();
+			if (!hasModRM && modRM.HasValue) throw new ArgumentException();
 
-			ImmediateSize? immediateSize = GetImmediateSize(xex.OpcodeMap, opcode, modReg);
+			ImmediateSize? immediateSize = GetImmediateSize(xex.OpcodeMap, opcode, modRM);
 			if (!immediateSize.HasValue)
 			{
 				// We need to read the ModRM byte
-				Contract.Assert(hasModRM && modReg == null);
+				Contract.Assert(hasModRM && modRM == null);
 				immediateSizeInBytes = -1;
 				return null;
 			}

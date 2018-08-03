@@ -121,8 +121,8 @@ namespace Asmuth.X86
 				ModRM.Mod_Indirect | ModRM.Reg_0 | ModRM.RM_Sib,
 				Sib.Base_B | Sib.Scale_1 | Sib.Index_Zero));
 
-			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
-			Assert.AreEqual(AddressBaseRegister.B + 8, effectiveAddress.Base);
+			Assert.AreEqual(AddressSize._64, effectiveAddress.AddressSize);
+			Assert.AreEqual(AddressBaseRegister.B, effectiveAddress.Base);
 			Assert.AreEqual(null, effectiveAddress.IndexAsGprCode);
 		}
 
@@ -134,7 +134,7 @@ namespace Asmuth.X86
 				ModRM.Mod_Indirect | ModRM.Reg_0 | ModRM.RM_Sib,
 				Sib.Base_B | Sib.Scale_1 | Sib.Index_C));
 
-			Assert.AreEqual(AddressSize._32, effectiveAddress.AddressSize);
+			Assert.AreEqual(AddressSize._64, effectiveAddress.AddressSize);
 			Assert.AreEqual(AddressBaseRegister.B + 8, effectiveAddress.Base);
 			Assert.AreEqual(GprCode.C + 8, effectiveAddress.IndexAsGprCode);
 		}

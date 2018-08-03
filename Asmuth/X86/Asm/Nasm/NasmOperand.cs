@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Nasm
+namespace Asmuth.X86.Asm.Nasm
 {
 	public readonly struct NasmOperand : IEquatable<NasmOperand>
 	{
@@ -17,7 +17,7 @@ namespace Asmuth.X86.Nasm
 			this.Type = type;
 		}
 
-		public OperandDefinition ToOperandDefinition()
+		public OperandFormat ToOperandFormat()
 		{
 			throw new NotImplementedException();
 		}

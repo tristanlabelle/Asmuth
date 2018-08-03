@@ -190,7 +190,7 @@ namespace Asmuth.X86
 					builder.OpcodeByte = @byte;
 						
 					lookupTag = lookup.TryLookup(CodeSegmentType,
-						builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modReg: null,
+						builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modRM: null,
 						out bool hasModRM, out immediateSizeInBytes);
 
 					if (lookupTag == null)
@@ -216,7 +216,7 @@ namespace Asmuth.X86
 					if (lookupTag == null)
 					{
 						lookupTag = lookup.TryLookup(CodeSegmentType,
-							builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modReg: builder.ModRM?.GetReg(),
+							builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modRM: builder.ModRM,
 							out bool hasModRM, out immediateSizeInBytes);
 						if (!hasModRM) throw new NotSupportedException("Contradictory lookup result.");
 

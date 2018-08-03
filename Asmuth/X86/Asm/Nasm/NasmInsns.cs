@@ -8,7 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Nasm
+namespace Asmuth.X86.Asm.Nasm
 {
 	/// <summary>
 	/// Provides methods for manipulating instruction definitions in NASM's insns.dat format.
@@ -174,12 +174,12 @@ namespace Asmuth.X86.Nasm
 			var tokens = str.ToLowerInvariant().Split('.');
 			int tokenIndex = 0;
 
-			VexOpcodeEncoding encoding = 0;
+			VexEncoding encoding = 0;
 			switch (tokens[tokenIndex++])
 			{
-				case "vex": encoding |= VexOpcodeEncoding.Type_Vex; break;
-				case "xop": encoding |= VexOpcodeEncoding.Type_Xop; break;
-				case "evex": encoding |= VexOpcodeEncoding.Type_EVex; break;
+				case "vex": encoding |= VexEncoding.Type_Vex; break;
+				case "xop": encoding |= VexEncoding.Type_Xop; break;
+				case "evex": encoding |= VexEncoding.Type_EVex; break;
 				default: throw new FormatException();
 			}
 
@@ -210,81 +210,81 @@ namespace Asmuth.X86.Nasm
 			entryBuilder.VexEncoding = encoding;
 		}
 
-		private static void ParseVex_Vvvv(ref VexOpcodeEncoding encoding, string[] tokens, ref int tokenIndex)
+		private static void ParseVex_Vvvv(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
 		{
 			switch (tokens[tokenIndex])
 			{
-				case "nds": encoding |= VexOpcodeEncoding.NonDestructiveReg_Source; break;
-				case "ndd": encoding |= VexOpcodeEncoding.NonDestructiveReg_Dest; break;
-				case "dds": encoding |= VexOpcodeEncoding.NonDestructiveReg_SecondSource; break;
-				default: encoding |= VexOpcodeEncoding.NonDestructiveReg_Invalid; return;
+				case "nds": encoding |= VexEncoding.NonDestructiveReg_Source; break;
+				case "ndd": encoding |= VexEncoding.NonDestructiveReg_Dest; break;
+				case "dds": encoding |= VexEncoding.NonDestructiveReg_SecondSource; break;
+				default: encoding |= VexEncoding.NonDestructiveReg_Invalid; return;
 			}
 
 			++tokenIndex;
 		}
 
-		private static void ParseVex_VectorLength(ref VexOpcodeEncoding encoding, string[] tokens, ref int tokenIndex)
+		private static void ParseVex_VectorLength(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
 		{
 			switch (tokens[tokenIndex])
 			{
-				case "lz": case "l0": case "128": encoding |= VexOpcodeEncoding.VectorLength_0; break;
-				case "l1": case "256": encoding |= VexOpcodeEncoding.VectorLength_1; break;
-				case "512": encoding |= VexOpcodeEncoding.VectorLength_2; break;
-				case "lig": encoding |= VexOpcodeEncoding.VectorLength_Ignored; break;
-				default: encoding |= VexOpcodeEncoding.VectorLength_Ignored; return;
+				case "lz": case "l0": case "128": encoding |= VexEncoding.VectorLength_0; break;
+				case "l1": case "256": encoding |= VexEncoding.VectorLength_1; break;
+				case "512": encoding |= VexEncoding.VectorLength_2; break;
+				case "lig": encoding |= VexEncoding.VectorLength_Ignored; break;
+				default: encoding |= VexEncoding.VectorLength_Ignored; return;
 			}
 
 			++tokenIndex;
 		}
 
-		private static void ParseVex_SimdPrefix_IntelStyle(ref VexOpcodeEncoding encoding, string[] tokens, ref int tokenIndex)
+		private static void ParseVex_SimdPrefix_IntelStyle(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
 		{
 			switch (tokens[tokenIndex])
 			{
-				case "66": encoding |= VexOpcodeEncoding.SimdPrefix_66; break;
-				case "f2": encoding |= VexOpcodeEncoding.SimdPrefix_F2; break;
-				case "f3": encoding |= VexOpcodeEncoding.SimdPrefix_F3; break;
-				default: encoding |= VexOpcodeEncoding.SimdPrefix_None; return;
+				case "66": encoding |= VexEncoding.SimdPrefix_66; break;
+				case "f2": encoding |= VexEncoding.SimdPrefix_F2; break;
+				case "f3": encoding |= VexEncoding.SimdPrefix_F3; break;
+				default: encoding |= VexEncoding.SimdPrefix_None; return;
 			}
 
 			++tokenIndex;
 		}
 
-		private static void ParseVex_SimdPrefix_AmdStyle(ref VexOpcodeEncoding encoding, string[] tokens, ref int tokenIndex)
+		private static void ParseVex_SimdPrefix_AmdStyle(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
 		{
 			switch (tokens[tokenIndex])
 			{
-				case "p0": encoding |= VexOpcodeEncoding.SimdPrefix_None; break;
-				case "p1": encoding |= VexOpcodeEncoding.SimdPrefix_66; break;
-				default: encoding |= VexOpcodeEncoding.SimdPrefix_None; return;
+				case "p0": encoding |= VexEncoding.SimdPrefix_None; break;
+				case "p1": encoding |= VexEncoding.SimdPrefix_66; break;
+				default: encoding |= VexEncoding.SimdPrefix_None; return;
 			}
 
 			++tokenIndex;
 		}
 
-		private static void ParseVex_Map(ref VexOpcodeEncoding encoding, string[] tokens, ref int tokenIndex)
+		private static void ParseVex_Map(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
 		{
 			switch (tokens[tokenIndex++]) // Mandatory
 			{
-				case "0f": encoding |= VexOpcodeEncoding.Map_0F; break;
-				case "0f38": encoding |= VexOpcodeEncoding.Map_0F38; break;
-				case "m3": case "0f3a": encoding |= VexOpcodeEncoding.Map_0F3A; break;
-				case "m8": encoding |= VexOpcodeEncoding.Map_Xop8; break;
-				case "m9": encoding |= VexOpcodeEncoding.Map_Xop9; break;
-				case "m10": encoding |= VexOpcodeEncoding.Map_Xop10; break;
+				case "0f": encoding |= VexEncoding.Map_0F; break;
+				case "0f38": encoding |= VexEncoding.Map_0F38; break;
+				case "m3": case "0f3a": encoding |= VexEncoding.Map_0F3A; break;
+				case "m8": encoding |= VexEncoding.Map_Xop8; break;
+				case "m9": encoding |= VexEncoding.Map_Xop9; break;
+				case "m10": encoding |= VexEncoding.Map_Xop10; break;
 				default: throw new FormatException();
 			}
 		}
 
-		private static void ParseVex_RexW(ref VexOpcodeEncoding encoding, string[] tokens, ref int tokenIndex)
+		private static void ParseVex_RexW(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
 		{
 			if (tokenIndex == tokens.Length) return;
 			switch (tokens[tokenIndex++])
 			{
-				case "w0": encoding |= VexOpcodeEncoding.RexW_0; break;
-				case "w1": encoding |= VexOpcodeEncoding.RexW_1; break;
-				case "wig": encoding |= VexOpcodeEncoding.RexW_Ignored; break;
-				default: encoding |= VexOpcodeEncoding.RexW_Ignored; return;
+				case "w0": encoding |= VexEncoding.RexW_0; break;
+				case "w1": encoding |= VexEncoding.RexW_1; break;
+				case "wig": encoding |= VexEncoding.RexW_Ignored; break;
+				default: encoding |= VexEncoding.RexW_Ignored; return;
 			}
 		}
 		#endregion

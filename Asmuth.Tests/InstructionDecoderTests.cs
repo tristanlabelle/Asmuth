@@ -14,7 +14,7 @@ namespace Asmuth.X86
 			public static readonly InstructionLookup Instance = new InstructionLookup();
 
 			public object TryLookup(CodeSegmentType codeSegmentType,
-				ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode, byte? modReg,
+				ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode, ModRM? modRM,
 				out bool hasModRM, out int immediateSizeInBytes)
 			{
 				if (xex.OpcodeMap == OpcodeMap.Default && opcode == 0x90)
@@ -61,13 +61,14 @@ namespace Asmuth.X86
 					// NEG: F7 /3
 					hasModRM = true;
 
-					if (!modReg.HasValue)
+					if (!modRM.HasValue)
 					{
 						// We need the ModRM byte to report the immediate size
 						immediateSizeInBytes = -1;
 						return null;
 					}
 
+					var modReg = modRM.Value.GetReg();
 					if (modReg == 0)
 					{
 						immediateSizeInBytes = codeSegmentType.GetWordOrDwordImmediateSize(

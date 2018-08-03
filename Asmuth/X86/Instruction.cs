@@ -71,7 +71,6 @@ namespace Asmuth.X86
 		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
 		public Xex Xex => xex;
 		public OpcodeMap OpcodeMap => xex.OpcodeMap;
-		public Opcode OpcodeLookupKey => OpcodeEnum.MakeLookupKey(SimdPrefix, OpcodeMap, MainByte);
 		public byte MainByte => mainByte;
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;
 		public bool HasMemoryRM => ModRM.HasValue && ModRM.Value.IsMemoryRM();
@@ -134,17 +133,6 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Methods
-		public Opcode GetOpcode()
-		{
-			return default(Opcode)
-				.WithSimdPrefix(SimdPrefix)
-				.WithRexW(xex.OperandSize64)
-				.WithVectorSize(xex.VectorSize)
-				.WithMap(OpcodeMap)
-				.WithMainByte(MainByte)
-				.WithExtraByte((byte)modRM);
-		}
-
 		public EffectiveAddress GetRMEffectiveAddress()
 		{
 			Contract.Requires(ModRM.HasValue);

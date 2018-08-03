@@ -12,7 +12,7 @@ namespace Asmuth.X86
 	[Flags]
 	public enum OperandField : byte
 	{
-		ModReg, // ModRM.Reg
+		ModReg, // 80+r or ModRM.Reg
 		BaseReg, // ModRM.RM / SIB.Base
 		IndexReg, // SIB.Index
 		NonDestructiveReg, // Vex.vvvv

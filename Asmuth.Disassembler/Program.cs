@@ -1,5 +1,5 @@
 ﻿using Asmuth.X86;
-using Asmuth.X86.Nasm;
+using Asmuth.X86.Asm.Nasm;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;

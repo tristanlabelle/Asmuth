@@ -33,10 +33,7 @@ namespace Asmuth.X86
 		[Pure]
 		public static OperandSize GetDefaultOperandSize(this CodeSegmentType type)
 			=> type == CodeSegmentType._16Bits ? OperandSize.Word : OperandSize.Dword;
-
-		// The "integer operand size" is also known as the "effective operand size",
-		// but non-integer instructions might have a different logic to determine
-		// the operand size.
+		
 		[Pure]
 		public static OperandSize GetIntegerOperandSize(this CodeSegmentType type,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex)

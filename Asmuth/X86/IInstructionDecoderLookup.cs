@@ -14,7 +14,7 @@ namespace Asmuth.X86
 	{
 		object TryLookup(CodeSegmentType codeSegmentType,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex,
-			byte opcode, byte? modReg,
+			byte opcode, ModRM? modRM,
 			out bool hasModRM, // If true and null return, must lookup again after reading modRM
 			out int immediateSizeInBytes); // Only valid on non-null return
 	}

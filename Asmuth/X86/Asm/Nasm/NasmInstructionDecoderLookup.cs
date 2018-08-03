@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Nasm
+namespace Asmuth.X86.Asm.Nasm
 {
 	public sealed class NasmInstructionDecoderLookup : IInstructionDecoderLookup
 	{
@@ -16,7 +16,7 @@ namespace Asmuth.X86.Nasm
 		}
 
 		public object TryLookup(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode, byte? modReg,
+			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode, ModRM? modRM,
 			out bool hasModRM, out int immediateSizeInBytes)
 		{
 			hasModRM = false;

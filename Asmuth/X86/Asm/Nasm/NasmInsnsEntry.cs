@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Nasm
+namespace Asmuth.X86.Asm.Nasm
 {
 	/// <summary>
 	/// An entry in NASM's insns.dat file.
@@ -19,7 +19,7 @@ namespace Asmuth.X86.Nasm
 		private IList<NasmOperand> operands;
 		private IList<NasmEncodingToken> encodingTokens;
 		private ICollection<NasmInstructionFlag> flags;
-		private VexOpcodeEncoding vexEncoding;
+		private VexEncoding vexEncoding;
 		private NasmOperandFlags operandFlags;
 		private NasmEVexTupleType evexTupleType; 
 		#endregion
@@ -31,7 +31,7 @@ namespace Asmuth.X86.Nasm
 		public string Mnemonic => mnemonic;
 		public IReadOnlyList<NasmOperand> Operands => (IReadOnlyList<NasmOperand>)operands;
 		public IReadOnlyList<NasmEncodingToken> EncodingTokens => (IReadOnlyList<NasmEncodingToken>)encodingTokens;
-		public VexOpcodeEncoding VexEncoding => vexEncoding;
+		public VexEncoding VexEncoding => vexEncoding;
 		public NasmOperandFlags OperandFlags => operandFlags;
 		public NasmEVexTupleType EVexTupleType => evexTupleType;
 		public IReadOnlyCollection<NasmInstructionFlag> Flags => (IReadOnlyCollection<NasmInstructionFlag>)flags;
@@ -47,7 +47,7 @@ namespace Asmuth.X86.Nasm
 			{
 				if (str.Length > 0) str.Append(' ');
 				if (token.Type == NasmEncodingTokenType.Vex)
-					str.Append(vexEncoding.ToIntelStyleString(vexOnly: true));
+					str.Append(vexEncoding.ToIntelStyleString());
 				else
 					str.Append(token.ToString());
 			}
@@ -76,7 +76,7 @@ namespace Asmuth.X86.Nasm
 			public IList<NasmEncodingToken> EncodingTokens => entry.encodingTokens;
 			public ICollection<NasmInstructionFlag> Flags => entry.flags;
 
-			public VexOpcodeEncoding VexEncoding
+			public VexEncoding VexEncoding
 			{
 				get { return entry.vexEncoding; }
 				set { entry.vexEncoding = value; }
@@ -109,11 +109,12 @@ namespace Asmuth.X86.Nasm
 
 			private static NasmInsnsEntry CreateEmptyEntry()
 			{
-				var entry = new NasmInsnsEntry();
-				entry.flags = new HashSet<NasmInstructionFlag>();
-				entry.operands = new List<NasmOperand>();
-				entry.encodingTokens = new List<NasmEncodingToken>();
-				return entry;
+				return new NasmInsnsEntry
+				{
+					flags = new HashSet<NasmInstructionFlag>(),
+					operands = new List<NasmOperand>(),
+					encodingTokens = new List<NasmEncodingToken>()
+				};
 			}
 			#endregion
 		}
