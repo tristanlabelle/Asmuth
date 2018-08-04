@@ -1,4 +1,5 @@
 ﻿using Asmuth.X86;
+using Asmuth.X86.Asm;
 using Asmuth.X86.Asm.Nasm;
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,18 @@ namespace Asmuth.Disassembler
 	{
 		static void Main(string[] args)
 		{
-			var filePath = Path.GetFullPath(args[0]);
+			// Load instruction definitions from NASM's insns.dat file
+			var instructionDictionary = new InstructionDictionary();
+			foreach (var insnsEntry in NasmInsns.Read(new StreamReader(args[0])))
+			{
+				if (!insnsEntry.CanConvertToOpcodeEncoding) continue;
+
+				var instructionDefinition = insnsEntry.ToInstructionDefinition();
+				Console.WriteLine(instructionDefinition.ToString());
+				instructionDictionary.Add(instructionDefinition);
+			}
+
+			var filePath = Path.GetFullPath(args[1]);
 			using (var memoryMappedFile = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))
 			using (var fileViewAccessor = memoryMappedFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read))
 			{
@@ -71,7 +83,8 @@ namespace Asmuth.Disassembler
 
 				// Disassemble executable sections
 				var instructionDecoder = new InstructionDecoder(
-					is32Bit ? CodeSegmentType._32Bits : CodeSegmentType._64Bits);
+					is32Bit ? CodeSegmentType._32Bits : CodeSegmentType._64Bits,
+					instructionDictionary);
 				foreach (var sectionHeader in sectionHeaders)
 				{
 					if ((sectionHeader.Characteristics & IMAGE_SCN_CNT_CODE) == 0) continue;

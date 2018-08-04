@@ -179,10 +179,13 @@ namespace Asmuth.X86.Asm.Nasm
 		VectorSib_YmmDwordIndices,
 		[NasmName("vm64y")]
 		VectorSib_YmmQwordIndices,
+
+		[NasmName("vsibx")]
+		VectorSib_Xmm,
 		[NasmName("vsiby")]
-		VectorSib_ZmmDwordIndices,
+		VectorSib_Ymm,
 		[NasmName("vsibz")]
-		VectorSib_ZmmQwordIndices,
+		VectorSib_Zmm,
 
 		[NasmName("wait")]
 		Misc_AssembleWaitPrefix = Category_Misc,

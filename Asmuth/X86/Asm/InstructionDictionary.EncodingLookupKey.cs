@@ -80,8 +80,6 @@ namespace Asmuth.X86.Asm
 			switch (encoding.Flags & OpcodeEncodingFlags.XexType_Mask)
 			{
 				case OpcodeEncodingFlags.XexType_Escapes_RexOpt:
-				case OpcodeEncodingFlags.XexType_Escapes_NoRex:
-				case OpcodeEncodingFlags.XexType_Escapes_WithRex:
 					lookupKey = EncodingLookupKey.XexType_Escapes_MaybeRex;
 					break;
 

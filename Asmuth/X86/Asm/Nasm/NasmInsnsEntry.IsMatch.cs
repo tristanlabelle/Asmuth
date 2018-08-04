@@ -222,8 +222,9 @@ namespace Asmuth.X86.Asm.Nasm
 					case NasmEncodingTokenType.VectorSib_XmmQwordIndices:
 					case NasmEncodingTokenType.VectorSib_YmmDwordIndices:
 					case NasmEncodingTokenType.VectorSib_YmmQwordIndices:
-					case NasmEncodingTokenType.VectorSib_ZmmDwordIndices:
-					case NasmEncodingTokenType.VectorSib_ZmmQwordIndices:
+					case NasmEncodingTokenType.VectorSib_Xmm:
+					case NasmEncodingTokenType.VectorSib_Ymm:
+					case NasmEncodingTokenType.VectorSib_Zmm:
 						if (!instruction.Sib.HasValue) return false;
 						break;
 

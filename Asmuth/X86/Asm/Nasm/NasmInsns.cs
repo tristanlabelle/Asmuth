@@ -98,7 +98,7 @@ namespace Asmuth.X86.Asm.Nasm
 				var evexTupleTypesString = codeStringMatch.Groups["evex_tuple_type"].Value;
 				var encodingString = codeStringMatch.Groups["encoding"].Value;
 
-				ParseCodeString(entryBuilder, encodingString);
+				ParseEncodingString(entryBuilder, encodingString);
 
 				if (evexTupleTypesString.Length > 0)
 				{
@@ -118,7 +118,7 @@ namespace Asmuth.X86.Asm.Nasm
 			return entryBuilder.Build(reuse: false);
 		}
 
-		private static void ParseCodeString(NasmInsnsEntry.Builder entryBuilder, string str)
+		private static void ParseEncodingString(NasmInsnsEntry.Builder entryBuilder, string str)
 		{
 			var tokens = str.Split(' ');
 			int tokenIndex = 0;
@@ -159,7 +159,8 @@ namespace Asmuth.X86.Asm.Nasm
 				if (Regex.IsMatch(token, @"\A(vex|xop|evex)\."))
 				{
 					Contract.Assert(!hasVex);
-					ParseVex(entryBuilder, token);
+					entryBuilder.EncodingTokens.Add(NasmEncodingTokenType.Vex);
+					entryBuilder.VexEncoding = ParseVexEncoding(token);
 					hasVex = true;
 					continue;
 				}
@@ -169,7 +170,7 @@ namespace Asmuth.X86.Asm.Nasm
 		}
 
 		#region ParseVex
-		private static void ParseVex(NasmInsnsEntry.Builder entryBuilder, string str)
+		public static VexEncoding ParseVexEncoding(string str)
 		{
 			var tokens = str.ToLowerInvariant().Split('.');
 			int tokenIndex = 0;
@@ -206,8 +207,7 @@ namespace Asmuth.X86.Asm.Nasm
 				ParseVex_RexW(ref encoding, tokens, ref tokenIndex);
 			}
 
-			entryBuilder.EncodingTokens.Add(NasmEncodingTokenType.Vex);
-			entryBuilder.VexEncoding = encoding;
+			return encoding;
 		}
 
 		private static void ParseVex_Vvvv(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
@@ -333,9 +333,7 @@ namespace Asmuth.X86.Asm.Nasm
 			if (str == "ignore") return;
 			foreach (var flagStr in str.Split(','))
 			{
-				var enumerantName = char.IsDigit(flagStr[0]) ? '_' + flagStr : flagStr;
-				var flag = (NasmInstructionFlag)Enum.Parse(typeof(NasmInstructionFlag), enumerantName, ignoreCase: true);
-				entryBuilder.Flags.Add(flag);
+				entryBuilder.Flags.Add(flagStr);
 			}
 		}
     }

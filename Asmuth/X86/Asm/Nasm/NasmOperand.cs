@@ -19,6 +19,38 @@ namespace Asmuth.X86.Asm.Nasm
 
 		public OperandFormat ToOperandFormat()
 		{
+			switch (Type)
+			{
+				case NasmOperandType.Reg_AL: return OperandFormat.FixedReg.AL;
+				case NasmOperandType.Reg_AX: return OperandFormat.FixedReg.AX;
+				case NasmOperandType.Reg_Eax: return OperandFormat.FixedReg.Eax;
+				case NasmOperandType.Reg_Rax: return OperandFormat.FixedReg.Rax;
+				case NasmOperandType.Reg8: return OperandFormat.Reg.Gpr8;
+				case NasmOperandType.Reg16: return OperandFormat.Reg.Gpr16;
+				case NasmOperandType.Reg32: return OperandFormat.Reg.Gpr32;
+				case NasmOperandType.Reg64: return OperandFormat.Reg.Gpr64;
+				case NasmOperandType.FpuReg: return OperandFormat.Reg.X87;
+				case NasmOperandType.RM8: return OperandFormat.RegOrMem.RM8;
+				case NasmOperandType.RM16: return OperandFormat.RegOrMem.RM16;
+				case NasmOperandType.RM32: return OperandFormat.RegOrMem.RM32;
+				case NasmOperandType.RM64: return OperandFormat.RegOrMem.RM64;
+				// TODO: SizeMatch
+				case NasmOperandType.Mem: return OperandFormat.Mem.M;
+				case NasmOperandType.Mem8: return OperandFormat.Mem.M8;
+				case NasmOperandType.Mem16: return OperandFormat.Mem.M16;
+				case NasmOperandType.Mem32: return OperandFormat.Mem.M32;
+				case NasmOperandType.Mem64: return OperandFormat.Mem.M64;
+				case NasmOperandType.Imm:
+				case NasmOperandType.Imm8:
+				case NasmOperandType.Imm16:
+				case NasmOperandType.Imm32:
+				case NasmOperandType.Imm64:
+				case NasmOperandType.SByteWord:
+				case NasmOperandType.SByteWord16:
+				case NasmOperandType.SByteDword:
+				case NasmOperandType.SByteDword32:
+				case NasmOperandType.SByteDword64: return new OperandFormat.Imm();
+			}
 			throw new NotImplementedException();
 		}
 
@@ -61,16 +93,16 @@ namespace Asmuth.X86.Asm.Nasm
 
 		Size_Shift = RegClass_Shift + RegClass_Bits,
 		Size_Bits = 4,
-		Size_Undefined = 0 << (int)Size_Bits,
-		Size_8 = 1 << (int)Size_Bits,
-		Size_16 = 2 << (int)Size_Bits,
-		Size_32 = 3 << (int)Size_Bits,
-		Size_64 = 4 << (int)Size_Bits,
-		Size_80 = 5 << (int)Size_Bits,
-		Size_128 = 6 << (int)Size_Bits,
-		Size_256 = 7 << (int)Size_Bits,
-		Size_512 = 8 << (int)Size_Bits,
-		Size_Mask = ((1 << (int)Size_Bits) - 1) << (int)Size_Shift,
+		Size_Undefined = 0 << (int)Size_Shift,
+		Size_8 = 1 << (int)Size_Shift,
+		Size_16 = 2 << (int)Size_Shift,
+		Size_32 = 3 << (int)Size_Shift,
+		Size_64 = 4 << (int)Size_Shift,
+		Size_80 = 5 << (int)Size_Shift,
+		Size_128 = 6 << (int)Size_Shift,
+		Size_256 = 7 << (int)Size_Shift,
+		Size_512 = 8 << (int)Size_Shift,
+		Size_Mask = ((1 << (int)Size_Shift) - 1) << (int)Size_Shift,
 
 		Value_Shift = Size_Shift + Size_Bits,
 		Value_Bits = 3,
@@ -109,6 +141,7 @@ namespace Asmuth.X86.Asm.Nasm
 		UDword = OpType_Immediate | Size_32 | (4 << (int)Variant_Shift),
 		SDword = OpType_Immediate | Size_32 | (5 << (int)Variant_Shift),
 
+		Reg = OpType_Register | RegClass_GeneralPurpose | Size_Undefined,
 		Reg8 = OpType_Register | RegClass_GeneralPurpose | Size_8,
 		Reg16 = OpType_Register | RegClass_GeneralPurpose | Size_16,
 		Reg32 = OpType_Register | RegClass_GeneralPurpose | Size_32,
@@ -169,6 +202,7 @@ namespace Asmuth.X86.Asm.Nasm
 		Xmm0 = OpType_Register | RegClass_Xmm | Value_0,
 		XmmReg = OpType_Register | RegClass_Xmm,
 		XmmRM = OpType_RegisterOrMemory | RegClass_Xmm,
+		XmmRM8 = OpType_RegisterOrMemory | RegClass_Xmm | Size_8,
 		XmmRM16 = OpType_RegisterOrMemory | RegClass_Xmm | Size_16,
 		XmmRM32 = OpType_RegisterOrMemory | RegClass_Xmm | Size_32,
 		XmmRM64 = OpType_RegisterOrMemory | RegClass_Xmm | Size_64,
@@ -182,7 +216,10 @@ namespace Asmuth.X86.Asm.Nasm
 		ZmmRM512 = OpType_RegisterOrMemory | RegClass_Zmm | Size_512,
 		
 		KReg = OpType_Register | RegClass_Opmask,
+		KRM8 = OpType_RegisterOrMemory | RegClass_Opmask | Size_8,
 		KRM16 = OpType_RegisterOrMemory | RegClass_Opmask | Size_16,
+		KRM32 = OpType_RegisterOrMemory | RegClass_Opmask | Size_32,
+		KRM64 = OpType_RegisterOrMemory | RegClass_Opmask | Size_64,
 
 		BndReg = OpType_Register | RegClass_Bound,
 	}

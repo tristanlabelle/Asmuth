@@ -258,7 +258,7 @@ namespace Asmuth.X86
 
 		private static Instruction[] Decode(CodeSegmentType codeSegmentType, params byte[] bytes)
 		{
-			var decoder = new InstructionDecoder(InstructionLookup.Instance, codeSegmentType);
+			var decoder = new InstructionDecoder(codeSegmentType, InstructionLookup.Instance);
 			var instructions = new List<Instruction>();
 			for (int i = 0; i < bytes.Length; ++i)
 			{

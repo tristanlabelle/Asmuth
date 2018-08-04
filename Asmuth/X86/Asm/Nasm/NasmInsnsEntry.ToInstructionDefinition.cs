@@ -10,9 +10,20 @@ namespace Asmuth.X86.Asm.Nasm
 {
 	partial class NasmInsnsEntry
 	{
+		public bool CanConvertToOpcodeEncoding
+		{
+			get
+			{
+				return !IsPseudo
+					&& !IsAssembleOnly
+					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_NoOverride)
+					&& !encodingTokens.Contains(NasmEncodingTokenType.OperandSize_NoOverride);
+			}
+		}
+		
 		public InstructionDefinition ToInstructionDefinition()
 		{
-			if (IsPseudo) throw new InvalidOperationException();
+			if (!CanConvertToOpcodeEncoding) throw new InvalidOperationException();
 
 			var data = new InstructionDefinition.Data
 			{
@@ -95,12 +106,13 @@ namespace Asmuth.X86.Asm.Nasm
 							SetRexW(true);
 							break;
 							
+						// TODO: Not too clear what this means/implies
 						case NasmEncodingTokenType.OperandSize_64WithoutW:
 							SetLongCodeSegment(true);
-							throw new NotImplementedException();
+							break;
 
 						case NasmEncodingTokenType.OperandSize_NoOverride:
-							throw new NotImplementedException();
+							throw new FormatException();
 
 						// Legacy prefixes
 						case NasmEncodingTokenType.LegacyPrefix_F2:
@@ -231,7 +243,14 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						case NasmEncodingTokenType.Immediate_RelativeOffset:
-							throw new NotImplementedException();
+							if ((flags & OpcodeEncodingFlags.CodeSegment_Mask) == OpcodeEncodingFlags.CodeSegment_Long
+								|| (flags & OpcodeEncodingFlags.OperandSize_Mask) == OpcodeEncodingFlags.OperandSize_Dword)
+								AddImmediateWithSizeInBytes(sizeof(int));
+							else if ((flags & OpcodeEncodingFlags.OperandSize_Mask) == OpcodeEncodingFlags.OperandSize_Word)
+								AddImmediateWithSizeInBytes(sizeof(short));
+							else
+								throw new FormatException();
+							break;
 
 						// Jump, it's not clear what additional info these provides so skip
 						case NasmEncodingTokenType.Jump_8:
@@ -244,8 +263,9 @@ namespace Asmuth.X86.Asm.Nasm
 						case NasmEncodingTokenType.VectorSib_XmmQwordIndices:
 						case NasmEncodingTokenType.VectorSib_YmmDwordIndices:
 						case NasmEncodingTokenType.VectorSib_YmmQwordIndices:
-						case NasmEncodingTokenType.VectorSib_ZmmDwordIndices:
-						case NasmEncodingTokenType.VectorSib_ZmmQwordIndices:
+						case NasmEncodingTokenType.VectorSib_Xmm:
+						case NasmEncodingTokenType.VectorSib_Ymm:
+						case NasmEncodingTokenType.VectorSib_Zmm:
 							break; // doesn't impact encoding
 
 						case NasmEncodingTokenType.Misc_NoHigh8Register:
@@ -283,22 +303,12 @@ namespace Asmuth.X86.Asm.Nasm
 				if (set)
 				{
 					SetLongCodeSegment(true);
-
-					// XexType must hence be Rex
-					switch (flags & OpcodeEncodingFlags.XexType_Mask)
-					{
-						case OpcodeEncodingFlags.XexType_Escapes_RexOpt:
-							flags &= ~OpcodeEncodingFlags.XexType_Mask;
-							flags |= OpcodeEncodingFlags.XexType_Escapes_WithRex;
-							break;
-
-						case OpcodeEncodingFlags.XexType_Escapes_WithRex: break;
-
-						default: throw new FormatException();
-					}
+					flags |= OpcodeEncodingFlags.RexW_1;
 				}
-
-				flags |= set ? OpcodeEncodingFlags.RexW_1 : OpcodeEncodingFlags.RexW_0;
+				else
+				{
+					flags |= OpcodeEncodingFlags.RexW_0;
+				}
 			}
 
 			private void SetVex(VexEncoding vexEncoding)

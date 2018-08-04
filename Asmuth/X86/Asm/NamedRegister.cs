@@ -8,8 +8,7 @@ namespace Asmuth.X86.Asm
 {
 	public enum RegisterNamespace : byte
 	{
-		Gpr8_Low, // AL, CL, DL, BL, SPL ... R8b ... R15b
-		Gpr8_High, // 4-7: AH, CH, DH, BH
+		Gpr8, // AL, CL, DL, BL, SPL ... R8b ... R15b, 20-23: AH, CH, DH, BH
 		Gpr16, // AX ... R15W
 		Gpr32, // EAX ... R15D
 		Gpr64, // RAX ... R15
@@ -70,18 +69,18 @@ namespace Asmuth.X86.Asm
 		public static bool operator ==(NamedRegister lhs, NamedRegister rhs) => Equals(lhs, rhs);
 		public static bool operator !=(NamedRegister lhs, NamedRegister rhs) => !Equals(lhs, rhs);
 
-		public static readonly NamedRegister AL = new NamedRegister(RegisterNamespace.Gpr8_Low, 0);
-		public static readonly NamedRegister CL = new NamedRegister(RegisterNamespace.Gpr8_Low, 1);
-		public static readonly NamedRegister DL = new NamedRegister(RegisterNamespace.Gpr8_Low, 2);
-		public static readonly NamedRegister BL = new NamedRegister(RegisterNamespace.Gpr8_Low, 3);
-		public static readonly NamedRegister Spl = new NamedRegister(RegisterNamespace.Gpr8_Low, 4);
-		public static readonly NamedRegister Bpl = new NamedRegister(RegisterNamespace.Gpr8_Low, 5);
-		public static readonly NamedRegister Sil = new NamedRegister(RegisterNamespace.Gpr8_Low, 6);
-		public static readonly NamedRegister Dil = new NamedRegister(RegisterNamespace.Gpr8_Low, 7);
-		public static readonly NamedRegister AH = new NamedRegister(RegisterNamespace.Gpr8_High, 4);
-		public static readonly NamedRegister CH = new NamedRegister(RegisterNamespace.Gpr8_High, 5);
-		public static readonly NamedRegister DH = new NamedRegister(RegisterNamespace.Gpr8_High, 6);
-		public static readonly NamedRegister BH = new NamedRegister(RegisterNamespace.Gpr8_High, 7);
+		public static readonly NamedRegister AL = new NamedRegister(RegisterNamespace.Gpr8, 0);
+		public static readonly NamedRegister CL = new NamedRegister(RegisterNamespace.Gpr8, 1);
+		public static readonly NamedRegister DL = new NamedRegister(RegisterNamespace.Gpr8, 2);
+		public static readonly NamedRegister BL = new NamedRegister(RegisterNamespace.Gpr8, 3);
+		public static readonly NamedRegister Spl = new NamedRegister(RegisterNamespace.Gpr8, 4);
+		public static readonly NamedRegister Bpl = new NamedRegister(RegisterNamespace.Gpr8, 5);
+		public static readonly NamedRegister Sil = new NamedRegister(RegisterNamespace.Gpr8, 6);
+		public static readonly NamedRegister Dil = new NamedRegister(RegisterNamespace.Gpr8, 7);
+		public static readonly NamedRegister AH = new NamedRegister(RegisterNamespace.Gpr8, 0x14);
+		public static readonly NamedRegister CH = new NamedRegister(RegisterNamespace.Gpr8, 0x15);
+		public static readonly NamedRegister DH = new NamedRegister(RegisterNamespace.Gpr8, 0x16);
+		public static readonly NamedRegister BH = new NamedRegister(RegisterNamespace.Gpr8, 0x17);
 
 		public static readonly NamedRegister AX = new NamedRegister(RegisterNamespace.Gpr16, 0);
 		public static readonly NamedRegister CX = new NamedRegister(RegisterNamespace.Gpr16, 1);
@@ -92,22 +91,31 @@ namespace Asmuth.X86.Asm
 		public static readonly NamedRegister SI = new NamedRegister(RegisterNamespace.Gpr16, 6);
 		public static readonly NamedRegister DI = new NamedRegister(RegisterNamespace.Gpr16, 7);
 
-		public static readonly NamedRegister EAX = new NamedRegister(RegisterNamespace.Gpr32, 0);
-		public static readonly NamedRegister ECX = new NamedRegister(RegisterNamespace.Gpr32, 1);
-		public static readonly NamedRegister EDX = new NamedRegister(RegisterNamespace.Gpr32, 2);
-		public static readonly NamedRegister EBX = new NamedRegister(RegisterNamespace.Gpr32, 3);
-		public static readonly NamedRegister ESP = new NamedRegister(RegisterNamespace.Gpr32, 4);
-		public static readonly NamedRegister EBP = new NamedRegister(RegisterNamespace.Gpr32, 5);
-		public static readonly NamedRegister ESI = new NamedRegister(RegisterNamespace.Gpr32, 6);
-		public static readonly NamedRegister EDI = new NamedRegister(RegisterNamespace.Gpr32, 7);
+		public static readonly NamedRegister Eax = new NamedRegister(RegisterNamespace.Gpr32, 0);
+		public static readonly NamedRegister Ecx = new NamedRegister(RegisterNamespace.Gpr32, 1);
+		public static readonly NamedRegister Edx = new NamedRegister(RegisterNamespace.Gpr32, 2);
+		public static readonly NamedRegister Ebx = new NamedRegister(RegisterNamespace.Gpr32, 3);
+		public static readonly NamedRegister Esp = new NamedRegister(RegisterNamespace.Gpr32, 4);
+		public static readonly NamedRegister Ebp = new NamedRegister(RegisterNamespace.Gpr32, 5);
+		public static readonly NamedRegister Esi = new NamedRegister(RegisterNamespace.Gpr32, 6);
+		public static readonly NamedRegister Edi = new NamedRegister(RegisterNamespace.Gpr32, 7);
 
-		public static readonly NamedRegister RAX = new NamedRegister(RegisterNamespace.Gpr64, 0);
-		public static readonly NamedRegister RCX = new NamedRegister(RegisterNamespace.Gpr64, 1);
-		public static readonly NamedRegister RDX = new NamedRegister(RegisterNamespace.Gpr64, 2);
-		public static readonly NamedRegister RBX = new NamedRegister(RegisterNamespace.Gpr64, 3);
-		public static readonly NamedRegister RSP = new NamedRegister(RegisterNamespace.Gpr64, 4);
-		public static readonly NamedRegister RBP = new NamedRegister(RegisterNamespace.Gpr64, 5);
-		public static readonly NamedRegister RSI = new NamedRegister(RegisterNamespace.Gpr64, 6);
-		public static readonly NamedRegister RDI = new NamedRegister(RegisterNamespace.Gpr64, 7);
+		public static readonly NamedRegister Rax = new NamedRegister(RegisterNamespace.Gpr64, 0);
+		public static readonly NamedRegister Rcx = new NamedRegister(RegisterNamespace.Gpr64, 1);
+		public static readonly NamedRegister Rdx = new NamedRegister(RegisterNamespace.Gpr64, 2);
+		public static readonly NamedRegister Rbx = new NamedRegister(RegisterNamespace.Gpr64, 3);
+		public static readonly NamedRegister Rsp = new NamedRegister(RegisterNamespace.Gpr64, 4);
+		public static readonly NamedRegister Rbp = new NamedRegister(RegisterNamespace.Gpr64, 5);
+		public static readonly NamedRegister Rsi = new NamedRegister(RegisterNamespace.Gpr64, 6);
+		public static readonly NamedRegister Rdi = new NamedRegister(RegisterNamespace.Gpr64, 7);
+
+		public static readonly NamedRegister ST0 = new NamedRegister(RegisterNamespace.X87, 0);
+		public static readonly NamedRegister ST1 = new NamedRegister(RegisterNamespace.X87, 1);
+		public static readonly NamedRegister ST2 = new NamedRegister(RegisterNamespace.X87, 2);
+		public static readonly NamedRegister ST3 = new NamedRegister(RegisterNamespace.X87, 3);
+		public static readonly NamedRegister ST4 = new NamedRegister(RegisterNamespace.X87, 4);
+		public static readonly NamedRegister ST5 = new NamedRegister(RegisterNamespace.X87, 5);
+		public static readonly NamedRegister ST6 = new NamedRegister(RegisterNamespace.X87, 6);
+		public static readonly NamedRegister ST7 = new NamedRegister(RegisterNamespace.X87, 7);
 	}
 }

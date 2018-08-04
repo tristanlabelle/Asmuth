@@ -158,7 +158,13 @@ namespace Asmuth.X86.Asm
 				default: throw new NotImplementedException();
 			}
 
-			// TODO: REX.W; W0, W1, WIG
+			switch (Flags & OpcodeEncodingFlags.RexW_Mask)
+			{
+				case OpcodeEncodingFlags.RexW_Ignored: str.Append(".WIG"); break;
+				case OpcodeEncodingFlags.RexW_0: str.Append(".W0"); break;
+				case OpcodeEncodingFlags.RexW_1: str.Append(".W1"); break;
+				default: throw new UnreachableException();
+			}
 
 			str.Append(' ');
 		}
@@ -177,8 +183,6 @@ namespace Asmuth.X86.Asm
 
 			if ((Flags & OpcodeEncodingFlags.RexW_Mask) == OpcodeEncodingFlags.RexW_1)
 				str.Append("REX.W ");
-			else if ((Flags & OpcodeEncodingFlags.XexType_Mask) == OpcodeEncodingFlags.XexType_Escapes_WithRex)
-				str.Append("REX ");
 
 			switch (Flags.GetMap())
 			{
@@ -219,15 +223,13 @@ namespace Asmuth.X86.Asm
 		// The instruction's xex type
 		XexType_Shift = CodeSegment_Shift + 2,
 		XexType_Escapes_RexOpt = 0 << (int)XexType_Shift,
-		XexType_Escapes_NoRex = 1 << (int)XexType_Shift, // r/m8 with AH...
-		XexType_Escapes_WithRex = 2 << (int)XexType_Shift, // r/m8 with SIL...
-		XexType_Vex = 3 << (int)XexType_Shift,
-		XexType_Xop = 4 << (int)XexType_Shift,
-		XexType_EVex = 5 << (int)XexType_Shift,
-		XexType_Mask = 7 << (int)XexType_Shift,
+		XexType_Vex = 1 << (int)XexType_Shift,
+		XexType_Xop = 2 << (int)XexType_Shift,
+		XexType_EVex = 3 << (int)XexType_Shift,
+		XexType_Mask = 3 << (int)XexType_Shift,
 
 		// The instruction's operand sizes
-		OperandSize_Shift = XexType_Shift + 3,
+		OperandSize_Shift = XexType_Shift + 2,
 		OperandSize_Ignored = 0 << (int)OperandSize_Shift,
 		OperandSize_Word = 1 << (int)OperandSize_Shift,
 		OperandSize_Dword = 2 << (int)OperandSize_Shift,
@@ -311,8 +313,6 @@ namespace Asmuth.X86.Asm
 			switch (flags & OpcodeEncodingFlags.XexType_Mask)
 			{
 				case OpcodeEncodingFlags.XexType_Escapes_RexOpt: return xexType.AllowsEscapes();
-				case OpcodeEncodingFlags.XexType_Escapes_NoRex: return xexType == XexType.Escapes;
-				case OpcodeEncodingFlags.XexType_Escapes_WithRex: return xexType == XexType.RexAndEscapes;
 				case OpcodeEncodingFlags.XexType_Vex: return xexType.IsVex();
 				case OpcodeEncodingFlags.XexType_Xop: return xexType == XexType.Xop;
 				case OpcodeEncodingFlags.XexType_EVex: return xexType == XexType.EVex;
@@ -355,6 +355,17 @@ namespace Asmuth.X86.Asm
 
 		public static OpcodeEncodingFlags WithSimdPrefix(this OpcodeEncodingFlags flags, SimdPrefix simdPrefix)
 			=> With(flags, OpcodeEncodingFlags.SimdPrefix_Mask, (int)OpcodeEncodingFlags.SimdPrefix_Shift, (uint)simdPrefix);
+
+		public static bool? HasRexW(this OpcodeEncodingFlags flags)
+		{
+			switch (flags & OpcodeEncodingFlags.RexW_Mask)
+			{
+				case OpcodeEncodingFlags.RexW_Ignored: return null;
+				case OpcodeEncodingFlags.RexW_0: return false;
+				case OpcodeEncodingFlags.RexW_1: return true;
+				default: throw new ArgumentOutOfRangeException(nameof(flags));
+			}
+		}
 
 		public static OpcodeMap GetMap(this OpcodeEncodingFlags flags)
 			=> (OpcodeMap)((uint)(flags & OpcodeEncodingFlags.Map_Mask) >> (int)OpcodeEncodingFlags.Map_Shift);

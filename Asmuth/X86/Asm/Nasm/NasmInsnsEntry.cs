@@ -18,7 +18,7 @@ namespace Asmuth.X86.Asm.Nasm
 		private string mnemonic;
 		private IList<NasmOperand> operands;
 		private IList<NasmEncodingToken> encodingTokens;
-		private ICollection<NasmInstructionFlag> flags;
+		private ICollection<string> flags;
 		private VexEncoding vexEncoding;
 		private NasmOperandFlags operandFlags;
 		private NasmEVexTupleType evexTupleType; 
@@ -34,8 +34,9 @@ namespace Asmuth.X86.Asm.Nasm
 		public VexEncoding VexEncoding => vexEncoding;
 		public NasmOperandFlags OperandFlags => operandFlags;
 		public NasmEVexTupleType EVexTupleType => evexTupleType;
-		public IReadOnlyCollection<NasmInstructionFlag> Flags => (IReadOnlyCollection<NasmInstructionFlag>)flags;
-		public bool IsAssembleOnly => flags.Contains(NasmInstructionFlag.ND);
+		public IReadOnlyCollection<string> Flags => (IReadOnlyCollection<string>)flags;
+		public bool IsAssembleOnly => flags.Contains(NasmInstructionFlags.AssemblerOnly);
+		public bool IsFuture => flags.Contains(NasmInstructionFlags.Future);
 		public bool IsPseudo => encodingTokens.Count == 0 || (encodingTokens.Count == 1 && encodingTokens[0].Type == NasmEncodingTokenType.Misc_Resb);
 		#endregion
 
@@ -74,7 +75,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 			public IList<NasmOperand> Operands => entry.operands;
 			public IList<NasmEncodingToken> EncodingTokens => entry.encodingTokens;
-			public ICollection<NasmInstructionFlag> Flags => entry.flags;
+			public ICollection<string> Flags => entry.flags;
 
 			public VexEncoding VexEncoding
 			{
@@ -111,7 +112,7 @@ namespace Asmuth.X86.Asm.Nasm
 			{
 				return new NasmInsnsEntry
 				{
-					flags = new HashSet<NasmInstructionFlag>(),
+					flags = new HashSet<string>(),
 					operands = new List<NasmOperand>(),
 					encodingTokens = new List<NasmEncodingToken>()
 				};

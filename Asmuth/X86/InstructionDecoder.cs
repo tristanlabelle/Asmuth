@@ -49,7 +49,7 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Constructors
-		public InstructionDecoder(IInstructionDecoderLookup lookup, CodeSegmentType codeSegmentType)
+		public InstructionDecoder(CodeSegmentType codeSegmentType, IInstructionDecoderLookup lookup)
 		{
 			Contract.Requires(lookup != null);
 
@@ -58,7 +58,7 @@ namespace Asmuth.X86
 		}
 
 		public InstructionDecoder(CodeSegmentType codeSegmentType)
-			: this(InstructionEncodingTable.Instance, codeSegmentType) { }
+			: this(codeSegmentType, InstructionEncodingTable.Instance) { }
 		#endregion
 
 		#region Properties
