@@ -9,7 +9,6 @@ namespace Asmuth.X86
 	/// <summary>
 	/// Identifies a fields within an instruction which can encode operands.
 	/// </summary>
-	[Flags]
 	public enum OperandField : byte
 	{
 		ModReg, // 80+r or ModRM.Reg

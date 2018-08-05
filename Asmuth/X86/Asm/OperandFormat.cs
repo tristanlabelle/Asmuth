@@ -14,10 +14,16 @@ namespace Asmuth.X86.Asm
 
 		public abstract override string ToString();
 
+		public interface IWithReg
+		{
+			RegisterNamespace RegisterNamespace { get; }
+		}
+
 		// PUSH CS
-		public sealed class FixedReg : OperandFormat
+		public sealed class FixedReg : OperandFormat, IWithReg
 		{
 			public NamedRegister Register { get; }
+			public RegisterNamespace RegisterNamespace => Register.Namespace;
 
 			public FixedReg(NamedRegister register) => this.Register = register;
 			public FixedReg(RegisterNamespace @namespace, byte index)
@@ -28,14 +34,18 @@ namespace Asmuth.X86.Asm
 			public override string ToString() => Register.ToString();
 
 			public static readonly FixedReg AL = new FixedReg(NamedRegister.AL);
+			public static readonly FixedReg CL = new FixedReg(NamedRegister.CL);
 			public static readonly FixedReg AX = new FixedReg(NamedRegister.AX);
+			public static readonly FixedReg CX = new FixedReg(NamedRegister.CX);
+			public static readonly FixedReg DX = new FixedReg(NamedRegister.DX);
 			public static readonly FixedReg Eax = new FixedReg(NamedRegister.Eax);
+			public static readonly FixedReg Ecx = new FixedReg(NamedRegister.Ecx);
 			public static readonly FixedReg Rax = new FixedReg(NamedRegister.Rax);
 			public static readonly FixedReg ST0 = new FixedReg(NamedRegister.ST0);
 		}
 
 		// PUSH r32
-		public sealed class Reg : OperandFormat
+		public sealed class Reg : OperandFormat, IWithReg
 		{
 			public RegisterNamespace Namespace { get; }
 
@@ -62,6 +72,8 @@ namespace Asmuth.X86.Asm
 					default: throw new NotImplementedException();
 				}
 			}
+			
+			RegisterNamespace IWithReg.RegisterNamespace => Namespace;
 
 			public static readonly Reg Gpr8 = new Reg(RegisterNamespace.Gpr8);
 			public static readonly Reg Gpr16 = new Reg(RegisterNamespace.Gpr16);
@@ -89,10 +101,14 @@ namespace Asmuth.X86.Asm
 			public static readonly Mem I16 = new Mem(OperandDataType.I16);
 			public static readonly Mem I32 = new Mem(OperandDataType.I32);
 			public static readonly Mem I64 = new Mem(OperandDataType.I64);
+			public static readonly Mem M80 = new Mem(OperandDataType.ElementSize_80Bits);
+			public static readonly Mem M128 = new Mem(OperandDataType.ElementSize_128Bits);
+			public static readonly Mem M256 = new Mem(OperandDataType.ElementSize_256Bits);
+			public static readonly Mem M512 = new Mem(OperandDataType.ElementSize_512Bits);
 		}
 
 		// NEG r/m8
-		public sealed class RegOrMem : OperandFormat
+		public sealed class RegOrMem : OperandFormat, IWithReg
 		{
 			public Reg RegSpec { get; }
 			public Mem MemSpec { get; }
@@ -114,6 +130,8 @@ namespace Asmuth.X86.Asm
 				return (RegSpec.Namespace.IsGpr() ? "r" : RegSpec.ToString())
 					+ "/" + MemSpec.ToString();
 			}
+
+			RegisterNamespace IWithReg.RegisterNamespace => RegSpec.Namespace;
 
 			public static readonly RegOrMem RM8 = new RegOrMem(Reg.Gpr8, Mem.I8);
 			public static readonly RegOrMem RM16 = new RegOrMem(Reg.Gpr16, Mem.I16);

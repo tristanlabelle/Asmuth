@@ -39,6 +39,11 @@ namespace Asmuth.X86.Asm.Nasm
 
 		public static OperandFormat[] ToOperandFormat(IReadOnlyList<NasmOperand> operands, bool sizeMatch)
 		{
+			// ADD  reg_al,imm      [-i:  04 ib]         8086,SM
+			// ADD  rm8,imm         [mi:  hle 80 / 0 ib] 8086,SM,LOCK
+			// CMP  mem,imm32       [mi:  o32 81 /7 id]  386,SM
+			// IMUL reg64,mem,imm32 [rmi: o64 69 /r id]  X64,SM
+
 			var operandFormats = new OperandFormat[operands.Count];
 			
 			OperandSize? impliedSize = null;
@@ -55,15 +60,10 @@ namespace Asmuth.X86.Asm.Nasm
 					operandFormats[i] = operandFormat;
 
 					// Determine the size we'll match on the second pass
-					if (sizeMatch)
+					if (sizeMatch && !impliedSize.HasValue)
 					{
 						var operandSize = operandFormat.ImpliedIntegerSize;
-						if (operandSize.HasValue)
-						{
-							if (impliedSize.HasValue && operandSize != impliedSize)
-								throw new FormatException(); // Can't size match
-							impliedSize = operandSize;
-						}
+						if (operandSize.HasValue) impliedSize = operandSize;
 					}
 				}
 			}
@@ -99,8 +99,12 @@ namespace Asmuth.X86.Asm.Nasm
 			switch (type)
 			{
 				case NasmOperandType.Reg_AL: return OperandFormat.FixedReg.AL;
+				case NasmOperandType.Reg_CL: return OperandFormat.FixedReg.CL;
 				case NasmOperandType.Reg_AX: return OperandFormat.FixedReg.AX;
+				case NasmOperandType.Reg_CX: return OperandFormat.FixedReg.CX;
+				case NasmOperandType.Reg_DX: return OperandFormat.FixedReg.DX;
 				case NasmOperandType.Reg_Eax: return OperandFormat.FixedReg.Eax;
+				case NasmOperandType.Reg_Ecx: return OperandFormat.FixedReg.Ecx;
 				case NasmOperandType.Reg_Rax: return OperandFormat.FixedReg.Rax;
 				case NasmOperandType.Reg8: return OperandFormat.Reg.Gpr8;
 				case NasmOperandType.Reg16: return OperandFormat.Reg.Gpr16;
@@ -128,6 +132,10 @@ namespace Asmuth.X86.Asm.Nasm
 				case NasmOperandType.Mem16: return OperandFormat.Mem.I16;
 				case NasmOperandType.Mem32: return OperandFormat.Mem.I32;
 				case NasmOperandType.Mem64: return OperandFormat.Mem.I64;
+				case NasmOperandType.Mem80: return OperandFormat.Mem.M80;
+				case NasmOperandType.Mem128: return OperandFormat.Mem.M128;
+				case NasmOperandType.Mem256: return OperandFormat.Mem.M256;
+				case NasmOperandType.Mem512: return OperandFormat.Mem.M512;
 
 				case NasmOperandType.Imm:
 				{

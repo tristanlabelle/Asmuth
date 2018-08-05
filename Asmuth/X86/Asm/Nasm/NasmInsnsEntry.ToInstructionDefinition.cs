@@ -16,6 +16,7 @@ namespace Asmuth.X86.Asm.Nasm
 			{
 				return !IsPseudo
 					&& !IsAssembleOnly
+					&& mnemonic != "CALL" && mnemonic != "ENTER" // Can't yet handle imm:imm
 					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_NoOverride)
 					&& !encodingTokens.Contains(NasmEncodingTokenType.OperandSize_NoOverride);
 			}
