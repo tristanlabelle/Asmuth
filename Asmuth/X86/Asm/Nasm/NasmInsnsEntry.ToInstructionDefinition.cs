@@ -24,18 +24,14 @@ namespace Asmuth.X86.Asm.Nasm
 		public InstructionDefinition ToInstructionDefinition()
 		{
 			if (!CanConvertToOpcodeEncoding) throw new InvalidOperationException();
-
+			
 			var data = new InstructionDefinition.Data
 			{
 				Mnemonic = mnemonic,
-				Encoding = EncodingParser.Parse(encodingTokens, vexEncoding)
+				Encoding = EncodingParser.Parse(encodingTokens, vexEncoding),
+				Operands = NasmOperand.ToOperandFormat((IReadOnlyList<NasmOperand>)operands, Flags)
 			};
 
-			var operandFormats = new OperandFormat[operands.Count];
-			for (int i = 0; i < operands.Count; ++i)
-				operandFormats[i] = operands[i].ToOperandFormat();
-
-			data.Operands = operandFormats;
 			return new InstructionDefinition(in data);
 		}
 

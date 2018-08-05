@@ -38,6 +38,19 @@ namespace Asmuth.X86.Asm
 		[Pure]
 		public static bool IsSse(this RegisterNamespace @namespace)
 			=> @namespace >= RegisterNamespace.Xmm && @namespace <= RegisterNamespace.Zmm;
+
+		[Pure]
+		public static OperandSize? TryGetIntegerSize(this RegisterNamespace @namespace)
+		{
+			switch (@namespace)
+			{
+				case RegisterNamespace.Gpr8: return OperandSize.Byte;
+				case RegisterNamespace.Gpr16: return OperandSize.Word;
+				case RegisterNamespace.Gpr32: return OperandSize.Dword;
+				case RegisterNamespace.Gpr64: return OperandSize.Qword;
+				default: return null;
+			}
+		}
 	}
 
 	/// <summary>

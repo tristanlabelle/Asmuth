@@ -9,6 +9,9 @@ namespace Asmuth.X86.Asm
 	{
 		private OperandFormat() { } // Disallow external inheritance
 
+		// Used for NASM's "size match"
+		public abstract OperandSize? ImpliedIntegerSize { get; }
+
 		public abstract override string ToString();
 
 		// PUSH CS
@@ -19,6 +22,8 @@ namespace Asmuth.X86.Asm
 			public FixedReg(NamedRegister register) => this.Register = register;
 			public FixedReg(RegisterNamespace @namespace, byte index)
 				: this(new NamedRegister(@namespace, index)) {}
+
+			public override OperandSize? ImpliedIntegerSize => Register.Namespace.TryGetIntegerSize();
 
 			public override string ToString() => Register.ToString();
 
@@ -38,6 +43,8 @@ namespace Asmuth.X86.Asm
 			{
 				this.Namespace = @namespace;
 			}
+
+			public override OperandSize? ImpliedIntegerSize => Namespace.TryGetIntegerSize();
 
 			public override string ToString()
 			{
@@ -66,21 +73,22 @@ namespace Asmuth.X86.Asm
 		// FDIV m32fp
 		public sealed class Mem : OperandFormat
 		{
-			// TODO: Data type
-			private readonly byte sizeInBytes;
-			public int SizeInBytes => sizeInBytes;
-			public int SizeInBits => (int)sizeInBytes * 8;
+			public OperandDataType DataType { get; }
+			public int SizeInBytes => DataType.GetElementSizeInBytes();
+			public int SizeInBits => DataType.GetElementSizeInBits();
 
-			public Mem(int sizeInBytes) => this.sizeInBytes = checked((byte)sizeInBytes);
+			public Mem(OperandDataType dataType) => this.DataType = dataType;
 
-			public override string ToString() => "m" + SizeInBits.ToString();
+			public override OperandSize? ImpliedIntegerSize => DataType.TryGetIntegerSize();
 
-			public static readonly Mem M = new Mem(0);
-			public static readonly Mem M8 = new Mem(1);
-			public static readonly Mem M16 = new Mem(2);
-			public static readonly Mem M32 = new Mem(4);
-			public static readonly Mem M64 = new Mem(8);
-			public static readonly Mem M128 = new Mem(16);
+			public override string ToString() 
+				=> SizeInBytes == 0 ? "m" : ("m" + SizeInBits.ToString());
+
+			public static readonly Mem M = new Mem(OperandDataType.Unknown);
+			public static readonly Mem I8 = new Mem(OperandDataType.I8);
+			public static readonly Mem I16 = new Mem(OperandDataType.I16);
+			public static readonly Mem I32 = new Mem(OperandDataType.I32);
+			public static readonly Mem I64 = new Mem(OperandDataType.I64);
 		}
 
 		// NEG r/m8
@@ -99,23 +107,39 @@ namespace Asmuth.X86.Asm
 				this.MemSpec = memSpec;
 			}
 
+			public override OperandSize? ImpliedIntegerSize => MemSpec.ImpliedIntegerSize;
+
 			public override string ToString()
 			{
 				return (RegSpec.Namespace.IsGpr() ? "r" : RegSpec.ToString())
 					+ "/" + MemSpec.ToString();
 			}
 
-			public static readonly RegOrMem RM8 = new RegOrMem(Reg.Gpr8, Mem.M8);
-			public static readonly RegOrMem RM16 = new RegOrMem(Reg.Gpr16, Mem.M16);
-			public static readonly RegOrMem RM32 = new RegOrMem(Reg.Gpr32, Mem.M32);
-			public static readonly RegOrMem RM64 = new RegOrMem(Reg.Gpr64, Mem.M64);
+			public static readonly RegOrMem RM8 = new RegOrMem(Reg.Gpr8, Mem.I8);
+			public static readonly RegOrMem RM16 = new RegOrMem(Reg.Gpr16, Mem.I16);
+			public static readonly RegOrMem RM32 = new RegOrMem(Reg.Gpr32, Mem.I32);
+			public static readonly RegOrMem RM64 = new RegOrMem(Reg.Gpr64, Mem.I64);
 		}
 
 		// PUSH imm32 
 		public sealed class Imm : OperandFormat
 		{
-			// TODO: Data type
-			public override string ToString() => "imm";
+			public OperandDataType DataType { get; }
+
+			public Imm(OperandDataType dataType)
+			{
+				Contract.Requires(dataType.GetElementSizeInBytes() > 0);
+				this.DataType = dataType;
+			}
+
+			public override OperandSize? ImpliedIntegerSize => DataType.TryGetIntegerSize();
+
+			public override string ToString() => "imm" + DataType.GetElementSizeInBits();
+
+			public static readonly Imm I8 = new Imm(OperandDataType.I8);
+			public static readonly Imm I16 = new Imm(OperandDataType.I16);
+			public static readonly Imm I32 = new Imm(OperandDataType.I32);
+			public static readonly Imm I64 = new Imm(OperandDataType.I64);
 		}
 
 		// SAL r/m8, 1 
@@ -124,6 +148,8 @@ namespace Asmuth.X86.Asm
 			public sbyte Value { get; }
 
 			public Const(sbyte value) => this.Value = value;
+
+			public override OperandSize? ImpliedIntegerSize => OperandSize.Byte;
 
 			public override string ToString() => Value.ToString();
 
@@ -137,6 +163,8 @@ namespace Asmuth.X86.Asm
 			public OperandSize OffsetSize { get; }
 
 			public Rel(OperandSize offsetSize) => this.OffsetSize = offsetSize;
+
+			public override OperandSize? ImpliedIntegerSize => OffsetSize;
 
 			public override string ToString() => "rel" + OffsetSize.InBits();
 

@@ -16,5 +16,17 @@ namespace Asmuth.X86.Asm.Nasm
 		public static readonly string SizeMatch = "SM";
 		public static readonly string Undocumented = "UNDOC";
 		public static readonly string X64 = "X64";
+
+		public static OperandSize? TryAsUnsizedOperandSize(string flag)
+		{
+			switch (flag)
+			{
+				case "SB": return OperandSize.Byte;
+				case "SW": return OperandSize.Word;
+				case "SD": return OperandSize.Dword;
+				case "SQ": return OperandSize.Qword;
+				default: return null;
+			}
+		}
 	}
 }
