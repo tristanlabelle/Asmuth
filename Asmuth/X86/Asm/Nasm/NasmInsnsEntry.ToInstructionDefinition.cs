@@ -147,7 +147,7 @@ namespace Asmuth.X86.Asm.Nasm
 								}
 							}
 
-							if (state < State.OpcodeMap0F && flags.HasEscapeXex() && token.Byte == 0x0F)
+							if (state < State.OpcodeMap0F && flags.IsEscapeXex() && token.Byte == 0x0F)
 							{
 								flags = flags.WithMap(OpcodeMap.Escape0F);
 								AdvanceTo(State.OpcodeMap0F);

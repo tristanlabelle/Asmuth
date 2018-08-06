@@ -24,17 +24,17 @@ namespace Asmuth.X86.Asm
 			// Default map => no simd prefix
 			Contract.Requires(flags.GetMap() != OpcodeMap.Default || !flags.GetSimdPrefix().HasValue);
 			// Vector Xex => simd prefix
-			Contract.Requires(!flags.HasVectorXex() || flags.GetSimdPrefix().HasValue);
+			Contract.Requires(!flags.IsVectorXex() || flags.GetSimdPrefix().HasValue);
 			// Vector Xex => long mode
-			Contract.Requires(!flags.HasVectorXex() || flags.IsLongMode());
+			Contract.Requires(!flags.IsVectorXex() || flags.IsLongMode());
 			// Escape Xex => ignored VEX.L
-			Contract.Requires(!flags.HasEscapeXex() || (flags & OpcodeEncodingFlags.VexL_Mask) == OpcodeEncodingFlags.VexL_Ignored);
+			Contract.Requires(!flags.IsEscapeXex() || (flags & OpcodeEncodingFlags.VexL_Mask) == OpcodeEncodingFlags.VexL_Ignored);
 			// IA32 mode => no REX.W
 			Contract.Requires(!flags.IsIA32Mode() || flags.GetRexW() == true);
 			// Imm8 ext => imm8
 			Contract.Requires(!flags.HasImm8Ext() || flags.GetImmediateSizeInBytes() == 1);
-			// Vex /is4 => Vex
-			Contract.Requires(!flags.HasVexIS4() || (flags & OpcodeEncodingFlags.XexType_Mask) == OpcodeEncodingFlags.XexType_Vex);
+			// Vex /is4 => Vex or xop
+			Contract.Requires(!flags.HasVexIS4() || flags.IsVex() || flags.IsXop());
 
 			this.Flags = flags;
 			this.MainByte = (byte)(mainByte & flags.GetMainByteMask());
@@ -86,7 +86,7 @@ namespace Asmuth.X86.Asm
 		{
 			var str = new StringBuilder(30);
 
-			if (Flags.HasEscapeXex())
+			if (Flags.IsEscapeXex())
 				AppendEscapeXex(str);
 			else
 				AppendVectorXex(str);
@@ -351,11 +351,20 @@ namespace Asmuth.X86.Asm
 			}
 		}
 
-		public static bool HasEscapeXex(this OpcodeEncodingFlags flags)
+		public static bool IsEscapeXex(this OpcodeEncodingFlags flags)
 			=> (flags & OpcodeEncodingFlags.XexType_Mask) < OpcodeEncodingFlags.XexType_Vex;
 
-		public static bool HasVectorXex(this OpcodeEncodingFlags flags)
+		public static bool IsVectorXex(this OpcodeEncodingFlags flags)
 			=> (flags & OpcodeEncodingFlags.XexType_Mask) >= OpcodeEncodingFlags.XexType_Vex;
+
+		public static bool IsVex(this OpcodeEncodingFlags flags)
+			=> (flags & OpcodeEncodingFlags.XexType_Mask) == OpcodeEncodingFlags.XexType_Vex;
+
+		public static bool IsXop(this OpcodeEncodingFlags flags)
+			=> (flags & OpcodeEncodingFlags.XexType_Vex) == OpcodeEncodingFlags.XexType_Xop;
+
+		public static bool IsEVex(this OpcodeEncodingFlags flags)
+			=> (flags & OpcodeEncodingFlags.XexType_Vex) == OpcodeEncodingFlags.XexType_EVex;
 
 		public static bool AdmitsVectorSize(this OpcodeEncodingFlags flags, OperandSize size)
 		{
