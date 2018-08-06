@@ -86,7 +86,7 @@ namespace Asmuth.X86
 					return found;
 				}
 				else if (xex.OpcodeMap == OpcodeMap.Escape0F
-					&& (xex.SimdPrefix ?? legacyPrefixes.GetSimdPrefix(xex.OpcodeMap)) == SimdPrefix._66
+					&& (xex.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix) == SimdPrefix._66
 					&& opcode == 0x58)
 				{
 					hasModRM = true;
@@ -225,7 +225,7 @@ namespace Asmuth.X86
 			// ADDPD xmm1, xmm2/m128 - 66 0F 58 /r
 			var modRM = ModRMEnum.FromComponents(3, 1, 2);
 			var instruction = DecodeSingle_32Bits(0x66, 0x0F, 0x58, (byte)modRM);
-			Assert.AreEqual(SimdPrefix._66, instruction.SimdPrefix);
+			Assert.AreEqual(SimdPrefix._66, instruction.PotentialSimdPrefix);
 			Assert.AreEqual(XexType.Escapes, instruction.Xex.Type);
 			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
 			Assert.AreEqual(0x58, instruction.MainByte);
@@ -248,7 +248,7 @@ namespace Asmuth.X86
 			Assert.IsFalse(instruction.Xex.ModRegExtension);
 			Assert.IsFalse(instruction.Xex.BaseRegExtension);
 			Assert.IsFalse(instruction.Xex.IndexRegExtension);
-			Assert.AreEqual(SimdPrefix._66, instruction.SimdPrefix);
+			Assert.AreEqual(SimdPrefix._66, instruction.PotentialSimdPrefix);
 			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
 			Assert.AreEqual(0x58, instruction.MainByte);
 			Assert.AreEqual(modRM, instruction.ModRM);

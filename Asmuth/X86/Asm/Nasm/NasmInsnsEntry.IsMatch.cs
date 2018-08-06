@@ -116,7 +116,7 @@ namespace Asmuth.X86.Asm.Nasm
 						break;
 
 					case NasmEncodingTokenType.LegacyPrefix_MustRep:
-						if (instruction.SimdPrefix != SimdPrefix._F3) return false;
+						if (instruction.LegacyPrefixes.Contains(LegacyPrefix.Repeat)) return false;
 						break;
 
 					case NasmEncodingTokenType.LegacyPrefix_NoRep:

@@ -177,8 +177,8 @@ namespace Asmuth.X86.Asm.Nasm
 
 							// Opcode extension byte
 							Contract.Assert(state == State.PostModRM);
-							Contract.Assert((flags & OpcodeEncodingFlags.FixedImm8) == 0);
-							flags |= OpcodeEncodingFlags.FixedImm8;
+							Contract.Assert(!flags.HasImm8Ext());
+							flags |= OpcodeEncodingFlags.Imm8Ext_Fixed;
 							imm8 = token.Byte;
 							AddImmediateWithSizeInBytes(1);
 							break;
@@ -218,7 +218,6 @@ namespace Asmuth.X86.Asm.Nasm
 						case NasmEncodingTokenType.Immediate_Byte_Signed:
 						case NasmEncodingTokenType.Immediate_Byte_Unsigned:
 						case NasmEncodingTokenType.Immediate_RelativeOffset8:
-						case NasmEncodingTokenType.Immediate_Is4:
 							AddImmediateWithSizeInBytes(1);
 							break;
 
@@ -247,6 +246,12 @@ namespace Asmuth.X86.Asm.Nasm
 								AddImmediateWithSizeInBytes(sizeof(short));
 							else
 								throw new FormatException();
+							break;
+
+						case NasmEncodingTokenType.Immediate_Is4:
+							Contract.Assert(!flags.HasImm8Ext());
+							flags |= OpcodeEncodingFlags.Imm8Ext_VexIS4;
+							AddImmediateWithSizeInBytes(1);
 							break;
 
 						// Jump, it's not clear what additional info these provides so skip

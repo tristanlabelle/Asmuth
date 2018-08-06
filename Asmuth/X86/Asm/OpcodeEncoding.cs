@@ -21,14 +21,29 @@ namespace Asmuth.X86.Asm
 
 		public OpcodeEncoding(OpcodeEncodingFlags flags, byte mainByte, byte modRM, byte imm8)
 		{
+			// Default map => no simd prefix
+			Contract.Requires(flags.GetMap() != OpcodeMap.Default || !flags.GetSimdPrefix().HasValue);
+			// Vector Xex => simd prefix
+			Contract.Requires(!flags.HasVectorXex() || flags.GetSimdPrefix().HasValue);
+			// Vector Xex => long mode
+			Contract.Requires(!flags.HasVectorXex() || flags.IsLongMode());
+			// Escape Xex => ignored VEX.L
+			Contract.Requires(!flags.HasEscapeXex() || (flags & OpcodeEncodingFlags.VexL_Mask) == OpcodeEncodingFlags.VexL_Ignored);
+			// IA32 mode => no REX.W
+			Contract.Requires(!flags.IsIA32Mode() || flags.GetRexW() == true);
+			// Imm8 ext => imm8
+			Contract.Requires(!flags.HasImm8Ext() || flags.GetImmediateSizeInBytes() == 1);
+			// Vex /is4 => Vex
+			Contract.Requires(!flags.HasVexIS4() || (flags & OpcodeEncodingFlags.XexType_Mask) == OpcodeEncodingFlags.XexType_Vex);
+
 			this.Flags = flags;
 			this.MainByte = (byte)(mainByte & flags.GetMainByteMask());
 			this.ModRM = modRM;
-			this.Imm8 = (flags & OpcodeEncodingFlags.FixedImm8) == 0 ? (byte)0 : imm8;
+			this.Imm8 = flags.HasFixedImm8() ? imm8 : (byte)0;
 		}
 
 		public bool HasModRM => (Flags & OpcodeEncodingFlags.HasModRM) != 0;
-		public SimdPrefix SimdPrefix => Flags.GetSimdPrefix();
+		public SimdPrefix? SimdPrefix => Flags.GetSimdPrefix();
 		public OpcodeMap Map => Flags.GetMap();
 		public int ImmediateSizeInBytes => Flags.GetImmediateSizeInBytes();
 
@@ -40,7 +55,8 @@ namespace Asmuth.X86.Asm
 			if (!Flags.AdmitsVectorSize(xex.VectorSize)) return false;
 			var integerSize = codeSegmentType.GetIntegerOperandSize(legacyPrefixes.HasOperandSizeOverride, xex.OperandSize64);
 			if (!Flags.AdmitsIntegerSize(integerSize)) return false;
-			if (legacyPrefixes.GetSimdPrefix(xex.OpcodeMap) != Flags.GetSimdPrefix()) return false;
+			var simdPrefix = Flags.GetSimdPrefix();
+			if (simdPrefix.HasValue && legacyPrefixes.PotentialSimdPrefix != simdPrefix.Value) return false;
 			if (xex.OpcodeMap != Flags.GetMap()) return false;
 			if ((opcode & Flags.GetMainByteMask()) != MainByte) return false;
 			return true;
@@ -53,8 +69,8 @@ namespace Asmuth.X86.Asm
 			if (!IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, xex, opcode)) return false;
 			if (modRM.HasValue != ((Flags & OpcodeEncodingFlags.HasModRM) != 0)) return false;
 			if (modRM.HasValue && !Flags.AdmitsModRM(modRM.Value, this.ModRM)) return false;
-			if (imm8.HasValue != ((Flags & OpcodeEncodingFlags.FixedImm8) != 0)) return false;
-			if (imm8.HasValue && imm8.Value != this.Imm8) return false;
+			if (imm8.HasValue != (Flags.GetImmediateSizeInBytes() == 1)) throw new ArgumentException();
+			if (Flags.HasFixedImm8() && imm8.Value != this.Imm8) return false;
 			return true;
 		}
 
@@ -139,12 +155,12 @@ namespace Asmuth.X86.Asm
 				default: throw new NotImplementedException();
 			}
 
-			switch (Flags.GetSimdPrefix())
+			switch (Flags.GetSimdPrefix().Value)
 			{
-				case SimdPrefix.None: break;
-				case SimdPrefix._66: str.Append(".66"); break;
-				case SimdPrefix._F2: str.Append(".F2"); break;
-				case SimdPrefix._F3: str.Append(".F3"); break;
+				case X86.SimdPrefix.None: break;
+				case X86.SimdPrefix._66: str.Append(".66"); break;
+				case X86.SimdPrefix._F2: str.Append(".F2"); break;
+				case X86.SimdPrefix._F3: str.Append(".F3"); break;
 				default: throw new UnreachableException();
 			}
 
@@ -172,13 +188,17 @@ namespace Asmuth.X86.Asm
 		private void AppendEscapeXex(StringBuilder str)
 		{
 			// 66 REX.W 0F 38
-			switch (Flags.GetSimdPrefix())
+			var simdPrefix = Flags.GetSimdPrefix();
+			if (simdPrefix.HasValue)
 			{
-				case SimdPrefix.None: break;
-				case SimdPrefix._66: str.Append("66 "); break;
-				case SimdPrefix._F2: str.Append("F2 "); break;
-				case SimdPrefix._F3: str.Append("F3 "); break;
-				default: throw new UnreachableException();
+				switch (simdPrefix.Value)
+				{
+					case X86.SimdPrefix.None: str.Append("NP "); break;
+					case X86.SimdPrefix._66: str.Append("66 "); break;
+					case X86.SimdPrefix._F2: str.Append("F2 "); break;
+					case X86.SimdPrefix._F3: str.Append("F3 "); break;
+					default: throw new UnreachableException();
+				}
 			}
 
 			if ((Flags & OpcodeEncodingFlags.RexW_Mask) == OpcodeEncodingFlags.RexW_1)
@@ -245,14 +265,15 @@ namespace Asmuth.X86.Asm
 
 		// SimdPrefix
 		SimdPrefix_Shift = VexL_Shift + 2,
-		SimdPrefix_None = 0 << (int)SimdPrefix_Shift,
-		SimdPrefix_66 = 1 << (int)SimdPrefix_Shift,
-		SimdPrefix_F2 = 2 << (int)SimdPrefix_Shift,
-		SimdPrefix_F3 = 3 << (int)SimdPrefix_Shift,
-		SimdPrefix_Mask = 3 << (int)SimdPrefix_Shift,
+		SimdPrefix_Any = 0 << (int)SimdPrefix_Shift, // CMOVA 0F 47 /r
+		SimdPrefix_None = 1 << (int)SimdPrefix_Shift, // ADDPS NP 0F 58 /r
+		SimdPrefix_66 = 2 << (int)SimdPrefix_Shift, // ADDPD 66 0F 58 /r
+		SimdPrefix_F2 = 3 << (int)SimdPrefix_Shift,
+		SimdPrefix_F3 = 4 << (int)SimdPrefix_Shift,
+		SimdPrefix_Mask = 7 << (int)SimdPrefix_Shift,
 
 		// How the REX.W field is used
-		RexW_Shift = SimdPrefix_Shift + 2,
+		RexW_Shift = SimdPrefix_Shift + 3,
 		RexW_Ignored = 0 << (int)VexL_Shift,
 		RexW_0 = 1 << (int)VexL_Shift,
 		RexW_1 = 2 << (int)VexL_Shift,
@@ -286,16 +307,26 @@ namespace Asmuth.X86.Asm
 		ModRM_Fixed = 3 << (int)ModRM_Shift, // FADDP: DE C1
 		ModRM_Mask = 3 << (int)ModRM_Shift,
 
-		FixedImm8_Shift = ModRM_Shift + 2,
-		FixedImm8 = 1 << (int)FixedModReg_Shift, // CMPEQPS: 0FC2 /r 0
+		// Opcode extension in imm8
+		Imm8Ext_Shift = ModRM_Shift + 2,
+		Imm8Ext_None = 0 << (int)Imm8Ext_Shift, 
+		Imm8Ext_Fixed = 1 << (int)Imm8Ext_Shift, // CMPEQPS: 0FC2 /r 0
+		Imm8Ext_VexIS4 = 2 << (int)Imm8Ext_Shift, // VBLENDVPS: VEX.NDS.128.66.0F3A.W0 4A /r /is4
+		Imm8Ext_Mask = 3 << (int)Imm8Ext_Shift,
 
 		// Immediate size
-		ImmediateSize_Shift = FixedImm8_Shift + 1,
+		ImmediateSize_Shift = Imm8Ext_Shift + 2,
 		ImmediateSize_Mask = 0xF << (int)ImmediateSize_Shift,
 	}
 
 	public static class OpcodeEncodingFlagsEnum
 	{
+		public static bool IsIA32Mode(this OpcodeEncodingFlags flags)
+			=> (flags & OpcodeEncodingFlags.CodeSegment_Mask) == OpcodeEncodingFlags.CodeSegment_IA32;
+
+		public static bool IsLongMode(this OpcodeEncodingFlags flags)
+			=> (flags & OpcodeEncodingFlags.CodeSegment_Mask) == OpcodeEncodingFlags.CodeSegment_Long;
+
 		public static bool AdmitsCodeSegmentType(
 			this OpcodeEncodingFlags flags, CodeSegmentType codeSegmentType)
 		{
@@ -349,14 +380,43 @@ namespace Asmuth.X86.Asm
 			}
 		}
 
-		public static SimdPrefix GetSimdPrefix(this OpcodeEncodingFlags flags)
-			=> (SimdPrefix)((uint)(flags & OpcodeEncodingFlags.SimdPrefix_Mask)
-				>> (int)OpcodeEncodingFlags.SimdPrefix_Shift);
+		public static SimdPrefix? GetSimdPrefix(this OpcodeEncodingFlags flags)
+		{
+			switch (flags & OpcodeEncodingFlags.SimdPrefix_Mask)
+			{
+				case OpcodeEncodingFlags.SimdPrefix_Any: return null;
+				case OpcodeEncodingFlags.SimdPrefix_None: return SimdPrefix.None;
+				case OpcodeEncodingFlags.SimdPrefix_66: return SimdPrefix._66;
+				case OpcodeEncodingFlags.SimdPrefix_F2: return SimdPrefix._F2;
+				case OpcodeEncodingFlags.SimdPrefix_F3: return SimdPrefix._F3;
+				default: throw new ArgumentOutOfRangeException(nameof(flags));
+			}
+		}
 
-		public static OpcodeEncodingFlags WithSimdPrefix(this OpcodeEncodingFlags flags, SimdPrefix simdPrefix)
-			=> With(flags, OpcodeEncodingFlags.SimdPrefix_Mask, (int)OpcodeEncodingFlags.SimdPrefix_Shift, (uint)simdPrefix);
+		public static OpcodeEncodingFlags WithSimdPrefix(this OpcodeEncodingFlags flags, SimdPrefix? simdPrefix)
+		{
+			flags &= ~OpcodeEncodingFlags.SimdPrefix_Mask;
 
-		public static bool? HasRexW(this OpcodeEncodingFlags flags)
+			if (simdPrefix.HasValue)
+			{
+				switch (simdPrefix.Value)
+				{
+					case SimdPrefix.None: flags |= OpcodeEncodingFlags.SimdPrefix_None; break;
+					case SimdPrefix._66: flags |= OpcodeEncodingFlags.SimdPrefix_66; break;
+					case SimdPrefix._F2: flags |= OpcodeEncodingFlags.SimdPrefix_F2; break;
+					case SimdPrefix._F3: flags |= OpcodeEncodingFlags.SimdPrefix_F3; break;
+					default: throw new ArgumentOutOfRangeException(nameof(simdPrefix));
+				}
+			}
+			else
+			{
+				flags |= OpcodeEncodingFlags.SimdPrefix_Any;
+			}
+
+			return flags;
+		}
+
+		public static bool? GetRexW(this OpcodeEncodingFlags flags)
 		{
 			switch (flags & OpcodeEncodingFlags.RexW_Mask)
 			{
@@ -395,6 +455,15 @@ namespace Asmuth.X86.Asm
 				default: throw new ArgumentOutOfRangeException(nameof(flags));
 			}
 		}
+
+		public static bool HasImm8Ext(this OpcodeEncodingFlags flags)
+			=> (flags & OpcodeEncodingFlags.Imm8Ext_Mask) != OpcodeEncodingFlags.Imm8Ext_None;
+
+		public static bool HasFixedImm8(this OpcodeEncodingFlags flags)
+			=> (flags & OpcodeEncodingFlags.Imm8Ext_Mask) == OpcodeEncodingFlags.Imm8Ext_Fixed;
+
+		public static bool HasVexIS4(this OpcodeEncodingFlags flags)
+			=> (flags & OpcodeEncodingFlags.Imm8Ext_Mask) == OpcodeEncodingFlags.Imm8Ext_VexIS4;
 
 		public static int GetImmediateSizeInBytes(this OpcodeEncodingFlags flags)
 			=> (int)(flags & OpcodeEncodingFlags.ImmediateSize_Mask) >> (int)OpcodeEncodingFlags.ImmediateSize_Shift;

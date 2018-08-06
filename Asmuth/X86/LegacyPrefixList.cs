@@ -62,24 +62,28 @@ namespace Asmuth.X86
 				}
 			}
 		}
+
+		// Whether a byte actually is a SIMD prefix depends on the specific opcode
+		public SimdPrefix PotentialSimdPrefix
+		{
+			get
+			{
+				if (IsEmpty) return SimdPrefix.None;
+				switch (this[Count - 1])
+				{
+					case LegacyPrefix.OperandSizeOverride: return SimdPrefix._66;
+					case LegacyPrefix.RepeatNotEqual: return SimdPrefix._F2;
+					case LegacyPrefix.RepeatEqual: return SimdPrefix._F3;
+					default: return SimdPrefix.None;
+				}
+			}
+		}
 		#endregion
 
 		public LegacyPrefix this[int index]
 			=> (LegacyPrefix)((storage & 0xFFFFFF) / multiples[index] % legacyPrefixCount);
 
 		#region Methods
-		public SimdPrefix GetSimdPrefix(OpcodeMap map)
-		{
-			if (IsEmpty || map == OpcodeMap.Default) return SimdPrefix.None;
-			switch (this[Count - 1])
-			{
-				case LegacyPrefix.OperandSizeOverride: return SimdPrefix._66;
-				case LegacyPrefix.RepeatNotEqual: return SimdPrefix._F2;
-				case LegacyPrefix.RepeatEqual: return SimdPrefix._F3;
-				default: return SimdPrefix.None;
-			}
-		}
-
 		public bool Contains(LegacyPrefix item) => IndexOf(item) >= 0;
 
 		public bool EndsWith(LegacyPrefix item)

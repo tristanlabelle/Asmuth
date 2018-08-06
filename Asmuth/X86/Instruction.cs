@@ -75,7 +75,7 @@ namespace Asmuth.X86
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;
 		public bool HasMemoryRM => ModRM.HasValue && ModRM.Value.IsMemoryRM();
 
-		public SimdPrefix SimdPrefix
+		public SimdPrefix PotentialSimdPrefix
 		{
 			get
 			{
@@ -84,7 +84,7 @@ namespace Asmuth.X86
 					Contract.Assert(!xex.SimdPrefix.HasValue || xex.SimdPrefix == SimdPrefix.None);
 					return SimdPrefix.None;
 				}
-				return xex.SimdPrefix ?? legacyPrefixes.GetSimdPrefix(xex.OpcodeMap);
+				return xex.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix;
 			}
 		}
 

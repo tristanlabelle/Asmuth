@@ -15,6 +15,7 @@ namespace Asmuth.X86.Asm
 			XexType_EVex = 3 << (int)XexType_Shift,
 
 			SimdPrefix_Shift = XexType_Shift + 2,
+			SimdPrefix_Unknown = 0 << (int)SimdPrefix_Shift, // If XEX is not vector
 			SimdPrefix_None = 0 << (int)SimdPrefix_Shift,
 			SimdPrefix_66 = 1 << (int)SimdPrefix_Shift,
 			SimdPrefix_F2 = 2 << (int)SimdPrefix_Shift,
@@ -38,7 +39,7 @@ namespace Asmuth.X86.Asm
 
 		private static EncodingLookupKey GetEncodingLookupKey(
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode)
-			=> GetEncodingLookupKey(xex.Type, legacyPrefixes.GetSimdPrefix(xex.OpcodeMap),
+			=> GetEncodingLookupKey(xex.Type, legacyPrefixes.PotentialSimdPrefix,
 				xex.OpcodeMap, opcode);
 
 		public static EncodingLookupKey GetEncodingLookupKey(
@@ -50,6 +51,9 @@ namespace Asmuth.X86.Asm
 				case XexType.Escapes:
 				case XexType.RexAndEscapes:
 					lookupKey = EncodingLookupKey.XexType_Escapes_MaybeRex;
+					// We cannot know whether the opcode admits a SIMD prefix or not,
+					// so it cannot be part of the lookup key.
+					simdPrefix = SimdPrefix.None;
 					break;
 
 				case XexType.Vex2:
@@ -77,10 +81,15 @@ namespace Asmuth.X86.Asm
 		private static EncodingLookupKey GetLookupKey(in OpcodeEncoding encoding)
 		{
 			EncodingLookupKey lookupKey;
+			var simdPrefix = encoding.SimdPrefix.GetValueOrDefault();
 			switch (encoding.Flags & OpcodeEncodingFlags.XexType_Mask)
 			{
 				case OpcodeEncodingFlags.XexType_Escapes_RexOpt:
 					lookupKey = EncodingLookupKey.XexType_Escapes_MaybeRex;
+					// The encoding might know that a SIMD prefix is required,
+					// but given a raw instruction, we do not know, so it
+					// cannot be part of the key.
+					simdPrefix = SimdPrefix.None;
 					break;
 
 				case OpcodeEncodingFlags.XexType_Vex:
@@ -99,7 +108,7 @@ namespace Asmuth.X86.Asm
 			}
 
 			return lookupKey | GetEncodingLookupKeyWithoutXexType(
-				encoding.SimdPrefix, encoding.Map, encoding.MainByte);
+				simdPrefix, encoding.Map, encoding.MainByte);
 		}
 	}
 }
