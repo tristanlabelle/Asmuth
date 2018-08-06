@@ -42,24 +42,23 @@ namespace Asmuth.X86
 
 	public static class SibEnum
 	{
-		[Pure]
 		public static Sib FromComponents(byte ss, byte index, byte @base)
 		{
+			if (ss >= 4) throw new ArgumentOutOfRangeException(nameof(ss));
+			if (index >= 8) throw new ArgumentOutOfRangeException(nameof(index));
+			if (@base >= 8) throw new ArgumentOutOfRangeException(nameof(@base));
 			Contract.Requires(ss < 4 && index < 8 && @base < 8);
 			return (Sib)((ss << (int)Sib.Scale_Shift)
 				| (index << (int)Sib.Index_Shift)
 				| (@base << (int)Sib.Base_Shift));
 		}
 
-		[Pure]
 		public static string ToDebugString(this Sib sib)
 			=> $"ss = {GetSS(sib)}, index = {GetIndex(sib)}, base = {GetBase(sib)}";
 
-		[Pure]
 		public static byte GetBase(this Sib sib)
 			=> (byte)((uint)(sib & Sib.Base_Mask) >> (int)Sib.Base_Shift);
 
-		[Pure]
 		public static GprCode? GetBaseReg(this Sib sib, ModRM modRM)
 		{
 			if ((sib & Sib.Base_Mask) == Sib.Base_Special && modRM.GetMod() == 0)
@@ -67,22 +66,18 @@ namespace Asmuth.X86
 			return (GprCode)GetBase(sib);
 		}
 
-		[Pure]
 		public static byte GetIndex(this Sib sib)
 			=> (byte)((uint)(sib & Sib.Index_Mask) >> (int)Sib.Index_Shift);
 
-		[Pure]
 		public static GprCode? GetIndexReg(this Sib sib)
 		{
 			if ((sib & Sib.Index_Mask) == Sib.Index_Zero) return null;
 			return (GprCode)GetIndex(sib);
 		}
 
-		[Pure]
 		public static byte GetSS(this Sib sib)
 			=> (byte)((uint)(sib & Sib.Scale_Mask) >> (int)Sib.Scale_Shift);
 
-		[Pure]
 		public static byte GetScale(this Sib sib)
 			=> (byte)(1 >> GetSS(sib));
 	}

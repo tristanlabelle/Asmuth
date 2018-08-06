@@ -43,48 +43,38 @@ namespace Asmuth.X86
 
 	public static class ModRMEnum
 	{
-		[Pure]
 		public static string ToDebugString(this ModRM modRM)
 			=> $"mod = {GetMod(modRM)}, reg = {GetReg(modRM)}, rm = {GetRM(modRM)}";
 
-		[Pure]
 		public static ModRM FromComponents(byte mod, byte reg, byte rm)
 		{
-			Contract.Requires(mod < 4);
-			Contract.Requires(reg < 8);
-			Contract.Requires(rm < 8);
+			if (mod >= 4) throw new ArgumentOutOfRangeException(nameof(mod));
+			if (reg >= 8) throw new ArgumentOutOfRangeException(nameof(reg));
+			if (rm >= 8) throw new ArgumentOutOfRangeException(nameof(rm));
 			return (ModRM)((mod << 6) | (reg << 3) | rm);
 		}
 
-		[Pure]
 		public static ModRM FromComponents(byte mod, GprCode reg, GprCode rm)
 			=> FromComponents(mod, (byte)reg, (byte)rm);
 
-		[Pure]
 		public static byte GetRM(this ModRM modRM)
 			=> (byte)((byte)(modRM & ModRM.RM_Mask) >> (byte)ModRM.RM_Shift);
 
-		[Pure]
 		public static byte GetReg(this ModRM modRM)
 			=> (byte)((byte)(modRM & ModRM.Reg_Mask) >> (byte)ModRM.Reg_Shift);
 
-		[Pure]
 		public static GprCode GetRegGpr(this ModRM modRM)
 			=> (GprCode)GetReg(modRM);
 
-		[Pure]
 		public static byte GetMod(this ModRM modRM)
 			=> (byte)((byte)(modRM & ModRM.Mod_Mask) >> (byte)ModRM.Mod_Shift);
 
-		[Pure]
 		public static bool IsDirectRM(this ModRM modRM)
 			=> (modRM & ModRM.Mod_Mask) == ModRM.Mod_Direct;
 
-		[Pure]
 		public static bool IsMemoryRM(this ModRM modRM)
 			=> (modRM & ModRM.Mod_Mask) != ModRM.Mod_Direct;
 
-		[Pure]
 		public static DisplacementSize GetDisplacementSize(this ModRM modRM, Sib sib, AddressSize addressSize)
 		{
 			switch (modRM & ModRM.Mod_Mask)
@@ -106,7 +96,6 @@ namespace Asmuth.X86
 			return (sib & Sib.Base_Mask) == Sib.Base_Special ? DisplacementSize._32Bits : DisplacementSize.None;
 		}
 
-		[Pure]
 		public static bool ImpliesSib(this ModRM modRM, AddressSize addressSize)
 			=> addressSize >= AddressSize._32 && GetRM(modRM) == 4 && GetMod(modRM) != 3;
 	}

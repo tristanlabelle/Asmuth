@@ -16,7 +16,7 @@ namespace Asmuth.X86.Asm
 
 		public void Add(InstructionDefinition instruction)
 		{
-			Contract.Requires(instruction != null);
+			if (instruction == null) throw new ArgumentNullException(nameof(instruction));
 			byMnemonic.Add(instruction.Mnemonic, instruction);
 			byEncoding.Add(GetLookupKey(instruction.Encoding), instruction);
 		}

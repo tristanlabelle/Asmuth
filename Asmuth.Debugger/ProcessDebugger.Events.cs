@@ -20,7 +20,7 @@ namespace Asmuth.Debugger
 
 			public DebugStringOutputEventArgs(string str)
 			{
-				Contract.Requires(str != null);
+				if (str == null) throw new ArgumentNullException(nameof(str));
 				this.String = str;
 			}
 		}
@@ -32,7 +32,7 @@ namespace Asmuth.Debugger
 
 			public ThreadCreatedEventArgs(Thread thread, ForeignPtr entryPoint)
 			{
-				Contract.Requires(thread != null);
+				if (thread == null) throw new ArgumentNullException(nameof(thread));
 				this.Thread = thread;
 				this.EntryPoint = entryPoint;
 			}
@@ -45,7 +45,7 @@ namespace Asmuth.Debugger
 
 			public ThreadExitedEventArgs(Thread thread, int exitCode)
 			{
-				Contract.Requires(thread != null);
+				if (thread == null) throw new ArgumentNullException(nameof(thread));
 				this.Thread = thread;
 				this.ExitCode = exitCode;
 			}
@@ -57,7 +57,7 @@ namespace Asmuth.Debugger
 
 			public ModuleEventArgs(Module module)
 			{
-				Contract.Requires(module != null);
+				if (module == null) throw new ArgumentNullException(nameof(module));
 				this.Module = module;
 			}
 		}
@@ -69,8 +69,8 @@ namespace Asmuth.Debugger
 
 			public ExceptionEventArgs(Thread thread, ExceptionRecord record)
 			{
-				Contract.Requires(thread != null);
-				Contract.Requires(record != null);
+				if (thread == null) throw new ArgumentNullException(nameof(thread));
+				if (record == null) throw new ArgumentNullException(nameof(record));
 				this.Thread = thread;
 				this.Record = record;
 			}

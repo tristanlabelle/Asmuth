@@ -51,9 +51,7 @@ namespace Asmuth.X86
 		#region Constructors
 		public InstructionDecoder(CodeSegmentType codeSegmentType, IInstructionDecoderLookup lookup)
 		{
-			Contract.Requires(lookup != null);
-
-			this.lookup = lookup;
+			this.lookup = lookup ?? throw new ArgumentNullException(nameof(lookup));
 			this.builder.CodeSegmentType = codeSegmentType;
 		}
 

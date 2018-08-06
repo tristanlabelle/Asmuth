@@ -115,12 +115,9 @@ namespace Asmuth.X86.Asm
 
 			public RegOrMem(Reg regSpec, Mem memSpec)
 			{
-				Contract.Requires(regSpec != null);
-				Contract.Requires(memSpec != null);
-
 				// TODO: Check matching sizes
-				this.RegSpec = regSpec;
-				this.MemSpec = memSpec;
+				this.RegSpec = regSpec ?? throw new ArgumentNullException(nameof(regSpec));
+				this.MemSpec = memSpec ?? throw new ArgumentNullException(nameof(memSpec));
 			}
 
 			public override OperandSize? ImpliedIntegerSize => MemSpec.ImpliedIntegerSize;
@@ -146,7 +143,8 @@ namespace Asmuth.X86.Asm
 
 			public Imm(OperandDataType dataType)
 			{
-				Contract.Requires(dataType.GetElementSizeInBytes() > 0);
+				if (dataType.GetElementSizeInBytes() == 0)
+					throw new ArgumentException("Immediates cannot be zero-sized", nameof(dataType));
 				this.DataType = dataType;
 			}
 

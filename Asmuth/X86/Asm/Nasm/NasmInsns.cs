@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.IO;
@@ -36,7 +37,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 		public static IEnumerable<NasmInsnsEntry> Read(TextReader textReader)
 		{
-			Contract.Requires(textReader != null);
+			if (textReader == null) throw new ArgumentNullException(nameof(textReader));
 
 			while (true)
 			{
@@ -66,14 +67,14 @@ namespace Asmuth.X86.Asm.Nasm
 
 		public static bool IsIgnoredLine(string line)
 		{
-			Contract.Requires(line != null);
+			if (line == null) throw new ArgumentNullException(nameof(line));
 			// Blank or with comment
 			return Regex.IsMatch(line, @"\A\s*(;.*)?\Z", RegexOptions.CultureInvariant);
 		}
 
 		public static NasmInsnsEntry ParseLine(string line)
 		{
-			Contract.Requires(line != null);
+			if (line == null) throw new ArgumentNullException(nameof(line));
 
 			var columnMatches = instructionLineColumnRegex.Matches(line);
 			if (columnMatches.Count != 4) throw new FormatException();
@@ -158,7 +159,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 				if (Regex.IsMatch(token, @"\A(vex|xop|evex)\."))
 				{
-					Contract.Assert(!hasVex);
+					if (hasVex) throw new FormatException("Multiple vector XEX prefixes.");
 					entryBuilder.EncodingTokens.Add(NasmEncodingTokenType.Vex);
 					entryBuilder.VexEncoding = ParseVexEncoding(token);
 					hasVex = true;
@@ -293,7 +294,7 @@ namespace Asmuth.X86.Asm.Nasm
 		{
 			if (valuesString == "void" || valuesString == "ignore")
 			{
-				Contract.Assert(fieldsString.Length == 0);
+				Debug.Assert(fieldsString.Length == 0);
 				return;
 			}
 
@@ -313,7 +314,8 @@ namespace Asmuth.X86.Asm.Nasm
 				values = new[] { values[0], values[0].Replace("reg", "rm"), values[1] };
 			}
 
-			Contract.Assert(values.Length == fieldsString.Length);
+			if (values.Length != fieldsString.Length)
+				throw new FormatException("Not all operands have associated opcode fields.");
 
 			for (int i = 0; i < values.Length; ++i)
 			{

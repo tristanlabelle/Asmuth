@@ -22,11 +22,8 @@ namespace Asmuth.X86
 
 	public static class ImmediateSizeEnum
 	{
-		[Pure]
 		public static bool IsFixed(this ImmediateSize size)
 			=> size <= ImmediateSize.Fixed64;
-
-		[Pure]
 		public static int InBytes(this ImmediateSize size, OperandSize operandSize)
 		{
 			Contract.Requires(operandSize >= OperandSize.Word && operandSize <= OperandSize.Qword);

@@ -59,7 +59,7 @@ namespace Asmuth.X86.Asm.Nasm
 			public static OpcodeEncoding Parse(
 				IEnumerable<NasmEncodingToken> tokens, VexEncoding vexEncoding)
 			{
-				Contract.Requires(tokens != null);
+				if (tokens == null) throw new ArgumentNullException(nameof(tokens));
 
 				var parser = new EncodingParser();
 				return parser.DoParse(tokens, vexEncoding);

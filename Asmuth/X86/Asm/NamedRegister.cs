@@ -31,15 +31,10 @@ namespace Asmuth.X86.Asm
 
 	public static class RegisterNamespaceEnum
 	{
-		[Pure]
 		public static bool IsGpr(this RegisterNamespace @namespace)
 			=> @namespace <= RegisterNamespace.Gpr64;
-
-		[Pure]
 		public static bool IsSse(this RegisterNamespace @namespace)
 			=> @namespace >= RegisterNamespace.Xmm && @namespace <= RegisterNamespace.Zmm;
-
-		[Pure]
 		public static OperandSize? TryGetIntegerSize(this RegisterNamespace @namespace)
 		{
 			switch (@namespace)

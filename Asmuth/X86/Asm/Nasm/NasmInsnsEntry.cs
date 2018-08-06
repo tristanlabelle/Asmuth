@@ -99,7 +99,7 @@ namespace Asmuth.X86.Asm.Nasm
 			#region Methods
 			public NasmInsnsEntry Build(bool reuse = true)
 			{
-				Contract.Requires(Mnemonic != null);
+				if (Mnemonic == null) throw new ArgumentNullException(nameof(Mnemonic));
 
 				var result = entry;
 				result.operands = result.operands.ToArray();

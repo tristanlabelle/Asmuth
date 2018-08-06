@@ -21,20 +21,20 @@ namespace Asmuth.X86.Asm
 
 		public OpcodeEncoding(OpcodeEncodingFlags flags, byte mainByte, byte modRM, byte imm8)
 		{
-			// Default map => no simd prefix
-			Contract.Requires(flags.GetMap() != OpcodeMap.Default || !flags.GetSimdPrefix().HasValue);
-			// Vector Xex => simd prefix
-			Contract.Requires(!flags.IsVectorXex() || flags.GetSimdPrefix().HasValue);
-			// Vector Xex => long mode
-			Contract.Requires(!flags.IsVectorXex() || flags.IsLongMode());
-			// Escape Xex => ignored VEX.L
-			Contract.Requires(!flags.IsEscapeXex() || (flags & OpcodeEncodingFlags.VexL_Mask) == OpcodeEncodingFlags.VexL_Ignored);
-			// IA32 mode => no REX.W
-			Contract.Requires(!flags.IsIA32Mode() || flags.GetRexW() == true);
-			// Imm8 ext => imm8
-			Contract.Requires(!flags.HasImm8Ext() || flags.GetImmediateSizeInBytes() == 1);
-			// Vex /is4 => Vex or xop
-			Contract.Requires(!flags.HasVexIS4() || flags.IsVex() || flags.IsXop());
+			if (flags.GetMap() == OpcodeMap.Default && flags.GetSimdPrefix().HasValue)
+				throw new ArgumentException("Default opcode map implies no SIMD prefix.");
+			if (flags.IsVectorXex() && !flags.GetSimdPrefix().HasValue)
+				throw new ArgumentException("Vector XEX implies SIMD prefixes.");
+			if (flags.IsVectorXex() && !flags.IsLongMode())
+				throw new ArgumentException("Vector XEX implies long mode.");
+			if (flags.IsEscapeXex() && (flags & OpcodeEncodingFlags.VexL_Mask) != OpcodeEncodingFlags.VexL_Ignored)
+				throw new ArgumentException("Escape XEX implies ignored VEX.L.");
+			if (flags.IsIA32Mode() && !flags.GetRexW().GetValueOrDefault())
+				throw new ArgumentException("IA32 mode implies no REX.W.");
+			if (flags.HasImm8Ext() && flags.GetImmediateSizeInBytes() != 1)
+				throw new ArgumentException("imm8 opcode extension implies 8-bit immediate,");
+			if (flags.HasVexIS4() && !flags.IsVex() && !flags.IsXop())
+				throw new ArgumentException("/is4 implies VEX or XOP.");
 
 			this.Flags = flags;
 			this.MainByte = (byte)(mainByte & flags.GetMainByteMask());

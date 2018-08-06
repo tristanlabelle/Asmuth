@@ -26,8 +26,8 @@ namespace Asmuth.X86.Asm
 		#region Constructor
 		public InstructionDefinition(in Data data)
 		{
-			Contract.Requires(data.Mnemonic != null);
-			Contract.Requires(data.Operands != null);
+			if (data.Mnemonic == null || data.Operands == null)
+				throw new ArgumentException("Some data fields are null.", nameof(data));
 			this.data = data;
 			this.data.Operands = data.Operands.ToArray();
 		}

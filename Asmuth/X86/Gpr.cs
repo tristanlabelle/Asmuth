@@ -38,23 +38,18 @@ namespace Asmuth.X86
 
 	public static class GprEnums
 	{
-		[Pure]
 		public static bool RequiresRexBit(this GprCode code)
 			=> code >= GprCode.R8;
 
-		[Pure]
 		public static byte GetLow3Bits(this GprCode code)
 			=> (byte)((int)code & 0x7);
 
-		[Pure]
 		public static OperandSize GetSize(this GprPart part)
 			=> part == GprPart.HighByte ? OperandSize.Byte : (OperandSize)part;
 
-		[Pure]
 		public static int GetSizeInBytes(this GprPart part)
 			=> part == GprPart.HighByte ? 1 : (1 << (int)part);
 
-		[Pure]
 		public static int GetOffsetInBytes(this GprPart part)
 			=> part == GprPart.HighByte ? 1 : 0;
 	}
@@ -227,7 +222,7 @@ namespace Asmuth.X86
 
 		public static Gpr? TryParse(string str)
 		{
-			Contract.Requires(str != null);
+			if (str == null) throw new ArgumentNullException(nameof(str));
 
 			if (str.Length < 2 || str.Length > 4) return null;
 

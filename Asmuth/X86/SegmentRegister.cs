@@ -19,7 +19,6 @@ namespace Asmuth.X86
 
 	public static class SegmentRegisterEnum
 	{
-		[Pure]
 		public static char GetLetter(this SegmentRegister reg)
 		{
 			return "ECSDFG"[(int)reg];

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -46,7 +47,7 @@ namespace Asmuth.X86
 		#region Constructors
 		private Instruction(Builder builder)
 		{
-			Contract.Requires(builder != null);
+			if (builder == null) throw new ArgumentNullException(nameof(builder));
 
 			legacyPrefixes = builder.LegacyPrefixes;
 			xex = builder.Xex; // Validate if redundant with prefixes
@@ -81,7 +82,7 @@ namespace Asmuth.X86
 			{
 				if (xex.OpcodeMap == OpcodeMap.Default)
 				{
-					Contract.Assert(!xex.SimdPrefix.HasValue || xex.SimdPrefix == SimdPrefix.None);
+					Debug.Assert(!xex.SimdPrefix.HasValue || xex.SimdPrefix == SimdPrefix.None);
 					return SimdPrefix.None;
 				}
 				return xex.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix;
@@ -135,7 +136,7 @@ namespace Asmuth.X86
 		#region Methods
 		public EffectiveAddress GetRMEffectiveAddress()
 		{
-			Contract.Requires(ModRM.HasValue);
+			if (!ModRM.HasValue) throw new InvalidOperationException("A ModRM byte is required for an effective address.");
 			var encoding = new EffectiveAddress.Encoding(legacyPrefixes, xex, modRM, Sib, displacement);
 			return EffectiveAddress.FromEncoding(CodeSegmentType, encoding);
 		}

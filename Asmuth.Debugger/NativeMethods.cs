@@ -787,7 +787,7 @@ namespace Asmuth.Debugger
 
 		public static string GetFinalPathNameByHandle(SafeFileHandle safeHandle, DWORD dwFlags)
 		{
-			Contract.Requires(safeHandle != null);
+			if (safeHandle == null) throw new ArgumentNullException(nameof(safeHandle));
 
 			var rawHandle = safeHandle.DangerousGetHandle();
 			if (safeHandle.IsClosed || safeHandle.IsInvalid) throw new ArgumentException();

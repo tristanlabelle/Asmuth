@@ -17,7 +17,7 @@ namespace Asmuth.Debugger
 			
 			internal MemoryStream(ProcessDebugger debugger)
 			{
-				Contract.Requires(debugger != null);
+				if (debugger == null) throw new ArgumentNullException(nameof(debugger));
 				this.debugger = debugger;
 			}
 

@@ -16,15 +16,10 @@ namespace Asmuth.X86
 
 	public static class AddressSizeEnum
 	{
-		[Pure]
 		public static OperandSize ToOperandSize(this AddressSize size)
 			=> OperandSize.Word + (int)size;
-
-		[Pure]
 		public static int InBytes(this AddressSize size)
 			=> (2 << (int)size);
-
-		[Pure]
 		public static int InBits(this AddressSize size)
 			=> InBytes(size) * 8;
 	}

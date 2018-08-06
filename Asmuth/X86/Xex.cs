@@ -159,18 +159,14 @@ namespace Asmuth.X86
 	public static class XexEnums
 	{
 		#region XexType
-		[Pure]
 		public static bool AllowsEscapes(this XexType xexType) => xexType <= XexType.RexAndEscapes;
 
-		[Pure]
 		public static bool IsVex(this XexType xexType)
 			=> xexType == XexType.Vex2 || xexType == XexType.Vex3;
 
-		[Pure]
 		public static bool IsVex3Xop(this XexType xexType)
 			=> xexType == XexType.Vex3 || xexType == XexType.Xop;
 
-		[Pure]
 		public static XexType GetTypeFromByte(byte value)
 		{
 			switch (value)
@@ -183,7 +179,6 @@ namespace Asmuth.X86
 			}
 		}
 
-		[Pure]
 		public static int GetMinSizeInBytes(this XexType type)
 		{
 			switch (type)
@@ -198,7 +193,6 @@ namespace Asmuth.X86
 			}
 		}
 
-		[Pure]
 		public static bool CanEncodeMap(this XexType type, OpcodeMap map)
 		{
 			switch (type)
@@ -222,50 +216,38 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Vex2
-		[Pure]
 		public static byte GetFirstByte(this Vex2 vex) => (byte)Vex2.FirstByte;
 
-		[Pure]
 		public static byte GetSecondByte(this Vex2 vex) => unchecked((byte)vex);
 
-		[Pure]
 		public static SimdPrefix GetSimdPrefix(this Vex2 vex)
 			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.SimdPrefix_Mask, (int)Vex2.SimdPrefix_Shift);
 
-		[Pure]
 		public static byte GetNonDestructiveReg(this Vex2 vex)
 			=> (byte)(~Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.NotNonDestructiveReg_Mask, (int)Vex2.NotNonDestructiveReg_Shift) & 0xF);
 		#endregion
 
 		#region Vex3
-		[Pure]
 		public static bool IsVex3(this Vex3Xop xop)
 		{
 			var header = (xop & Vex3Xop.Header_Mask);
 			return header == Vex3Xop.Header_Xop || header == 0;
 		}
 
-		[Pure]
 		public static bool IsXop(this Vex3Xop xop) => (xop & Vex3Xop.Header_Mask) == Vex3Xop.Header_Xop;
 
-		[Pure]
 		public static byte GetFirstByte(this Vex3Xop vex) => unchecked((byte)((uint)vex >> 16));
 
-		[Pure]
 		public static byte GetSecondByte(this Vex3Xop vex) => unchecked((byte)((uint)vex >> 8));
 
-		[Pure]
 		public static byte GetThirdByte(this Vex3Xop vex) => unchecked((byte)vex);
 
-		[Pure]
 		public static SimdPrefix GetSimdPrefix(this Vex3Xop vex)
 			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.SimdPrefix_Mask, (int)Vex3Xop.SimdPrefix_Shift);
 
-		[Pure]
 		public static OpcodeMap GetOpcodeMap(this Vex3Xop vex)
 			=> (OpcodeMap)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.OpcodeMap_Mask, (int)Vex3Xop.OpcodeMap_Shift);
 
-		[Pure]
 		public static byte GetNonDestructiveReg(this Vex3Xop vex)
 			=> (byte)(~Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.NotNonDestructiveReg_Mask, (int)Vex3Xop.NotNonDestructiveReg_Shift) & 0xF); 
 		#endregion
@@ -310,13 +292,13 @@ namespace Asmuth.X86
 		#region Constructors
 		public Xex(OpcodeMap escapes)
 		{
-			Contract.Requires(escapes.IsEncodableAsEscapeBytes());
+			if (!escapes.IsEncodableAsEscapeBytes()) throw new ArgumentException();
 			flags = BaseFlags(XexType.Escapes, X86.SimdPrefix.None, escapes);
 		}
 
 		public Xex(Rex rex, OpcodeMap escapes = OpcodeMap.Default)
 		{
-			Contract.Requires(escapes.IsEncodableAsEscapeBytes());
+			if (!escapes.IsEncodableAsEscapeBytes()) throw new ArgumentException();
 			flags = BaseFlags(XexType.Escapes, X86.SimdPrefix.None, escapes);
 			if ((rex & Rex.OperandSize64) != 0) flags |= Flags.OperandSize64;
 			if ((rex & Rex.ModRegExtension) != 0) flags |= Flags.ModRegExtension;
@@ -413,7 +395,7 @@ namespace Asmuth.X86
 		#region Methods
 		public Xex WithOpcodeMap(OpcodeMap map)
 		{
-			Contract.Requires(Type.CanEncodeMap(map));
+			if (!Type.CanEncodeMap(map)) throw new ArgumentException("The current XEX type cannot encode this opcode map.", nameof(map));
 			return new Xex((flags & ~Flags.OpcodeMap_Mask)
 				| (Flags)((uint)map << (int)Flags.OpcodeMap_Shift));
 		}

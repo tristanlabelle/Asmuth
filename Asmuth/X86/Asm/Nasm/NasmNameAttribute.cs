@@ -15,7 +15,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 		public NasmNameAttribute(string name)
 		{
-			Contract.Requires(name != null);
+			if (name == null) throw new ArgumentNullException(nameof(name));
 			this.name = name;
 		}
 
@@ -45,7 +45,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 		public static TEnum GetEnumerantOrDefault(string name)
 		{
-			Contract.Requires(name != null);
+			if (name == null) throw new ArgumentNullException(nameof(name));
 
 			TEnum enumerant;
 			namesToEnumerants.TryGetValue(name, out enumerant);
@@ -54,7 +54,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 		public static TEnum? GetEnumerantOrNull(string name)
 		{
-			Contract.Requires(name != null);
+			if (name == null) throw new ArgumentNullException(nameof(name));
 
 			TEnum enumerant;
 			return namesToEnumerants.TryGetValue(name, out enumerant) ? enumerant : (TEnum?)null;

@@ -20,7 +20,6 @@ namespace Asmuth.X86
 
 	public static class OperandSizeEnum
 	{
-		[Pure]
 		public static AddressSize ToAddressSize(this OperandSize size)
 		{
 			switch (size)
@@ -31,17 +30,9 @@ namespace Asmuth.X86
 				default: throw new ArgumentOutOfRangeException(nameof(size));
 			}
 		}
-
-		[Pure]
 		public static int InBytes(this OperandSize size) => 1 << (int)size;
-
-		[Pure]
 		public static int InBits(this OperandSize size) => InBytes(size) * Bits.PerByte;
-
-		[Pure]
 		public static int InBytes(this OperandSize? size) => size.HasValue ? InBytes(size.Value) : 0;
-
-		[Pure]
 		public static int InBits(this OperandSize? size) => InBytes(size) * Bits.PerByte;
 	}
 }

@@ -48,7 +48,6 @@ namespace Asmuth.X86
 
 	public static class LegacyPrefixEnum
 	{
-		[Pure]
 		public static LegacyPrefix GetSegmentOverride(SegmentRegister segment)
 		{
 			switch (segment)
@@ -62,8 +61,6 @@ namespace Asmuth.X86
 				default: throw new ArgumentOutOfRangeException(nameof(segment));
 			}
 		}
-
-		[Pure]
 		public static LegacyPrefix? TryFromEncodingByte(byte value)
 		{
 			switch (value)
@@ -82,8 +79,6 @@ namespace Asmuth.X86
 				default: return null;
 			}
 		}
-
-		[Pure]
 		public static string TryGetMnemonic(this LegacyPrefix prefix)
 		{
 			switch (prefix)
@@ -100,12 +95,8 @@ namespace Asmuth.X86
 				default: return null;
 			}
 		}
-
-		[Pure]
 		public static string GetMnemonicOrHexValue(this LegacyPrefix prefix)
 			=> TryGetMnemonic(prefix) ?? prefix.GetEncodingByte().ToString("X2", CultureInfo.InvariantCulture);
-
-		[Pure]
 		public static byte GetEncodingByte(this LegacyPrefix prefix)
 		{
 			switch (prefix)
@@ -124,8 +115,6 @@ namespace Asmuth.X86
 				default: throw new ArgumentOutOfRangeException(nameof(prefix));
 			}
 		}
-
-		[Pure]
 		public static LegacyPrefixGroup GetGroup(this LegacyPrefix prefix)
 		{
 			switch (prefix)

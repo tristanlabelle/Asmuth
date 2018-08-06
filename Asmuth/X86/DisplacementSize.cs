@@ -17,7 +17,6 @@ namespace Asmuth.X86
 
 	public static class DisplacementSizeEnum
 	{
-		[Pure]
 		public static int InBytes(this DisplacementSize size)
 		{
 			switch (size)
@@ -29,20 +28,12 @@ namespace Asmuth.X86
 				default: throw new ArgumentOutOfRangeException(nameof(size));
 			}
 		}
-
-		[Pure]
 		public static bool IsLong(this DisplacementSize size)
 			=> size >= DisplacementSize._16Bits;
-
-		[Pure]
 		public static DisplacementSize GetMaximum(AddressSize addressSize)
 			=> addressSize == AddressSize._16 ? DisplacementSize._16Bits : DisplacementSize._32Bits;
-
-		[Pure]
 		public static bool IsEncodable(this DisplacementSize size, AddressSize addressSize)
 			=> (size == DisplacementSize._16Bits) == (addressSize == AddressSize._16);
-
-		[Pure]
 		public static bool CanEncodeValue(this DisplacementSize size, int displacement)
 		{
 			switch (size)

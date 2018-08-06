@@ -19,7 +19,7 @@ namespace Asmuth.Debugger
 			// Called on worker thread
 			internal Thread(ProcessDebugger process, int id)
 			{
-				Contract.Requires(process != null);
+				if (process == null) throw new ArgumentNullException(nameof(process));
 				this.process = process;
 				this.id = id;
 			}

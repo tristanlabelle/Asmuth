@@ -30,11 +30,8 @@ namespace Asmuth.X86
 	public static class CodeSegmentTypeEnum
 	{
 		#region OperandSize
-		[Pure]
 		public static OperandSize GetDefaultOperandSize(this CodeSegmentType type)
 			=> type == CodeSegmentType._16Bits ? OperandSize.Word : OperandSize.Dword;
-		
-		[Pure]
 		public static OperandSize GetIntegerOperandSize(this CodeSegmentType type,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex)
 		{
@@ -42,8 +39,6 @@ namespace Asmuth.X86
 				@override: legacyPrefixes.HasOperandSizeOverride,
 				rexW: xex.OperandSize64);
 		}
-
-		[Pure]
 		public static OperandSize GetIntegerOperandSize(this CodeSegmentType type,
 			bool @override, bool rexW)
 		{
@@ -63,7 +58,6 @@ namespace Asmuth.X86
 		#endregion
 
 		#region OperandSize
-		[Pure]
 		public static OperandSize GetWordOrDwordImmediateSize(this CodeSegmentType type,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex)
 		{
@@ -71,8 +65,6 @@ namespace Asmuth.X86
 				@override: legacyPrefixes.HasOperandSizeOverride,
 				rexW: xex.OperandSize64);
 		}
-
-		[Pure]
 		public static OperandSize GetWordOrDwordImmediateSize(this CodeSegmentType type,
 			bool @override, bool rexW)
 		{
@@ -92,15 +84,10 @@ namespace Asmuth.X86
 		#endregion
 
 		#region AddressSize
-		[Pure]
 		public static AddressSize GetDefaultAddressSize(this CodeSegmentType type)
 			=> (AddressSize)type;
-
-		[Pure]
 		public static AddressSize GetEffectiveAddressSize(this CodeSegmentType type, ImmutableLegacyPrefixList legacyPrefixes)
 			=> GetEffectiveAddressSize(type, @override: legacyPrefixes.HasAddressSizeOverride);
-
-		[Pure]
 		public static AddressSize GetEffectiveAddressSize(this CodeSegmentType type, bool @override)
 		{
 			if (type == CodeSegmentType._16Bits) return @override ? AddressSize._32 : AddressSize._16;
@@ -108,13 +95,9 @@ namespace Asmuth.X86
 			if (type == CodeSegmentType._64Bits) return @override ? AddressSize._32 : AddressSize._64;
 			throw new ArgumentOutOfRangeException(nameof(type));
 		}
-
-		[Pure]
 		public static bool Supports(this CodeSegmentType type, AddressSize addressSize)
 			=> type == CodeSegmentType._64Bits 
 			? (addressSize != AddressSize._16) : (addressSize != AddressSize._64);
-
-		[Pure]
 		public static bool Supports(this CodeSegmentType type, AddressSize addressSize,
 			out bool withOverride)
 		{
@@ -123,8 +106,6 @@ namespace Asmuth.X86
 			return supported;
 		}
 		#endregion
-
-		[Pure]
 		public static bool IsLongMode(this CodeSegmentType type)
 			=> type == CodeSegmentType._64Bits;
 	}

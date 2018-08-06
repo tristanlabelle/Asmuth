@@ -22,7 +22,6 @@ namespace Asmuth.X86
 
 	public static class OpcodeMapEnum
 	{
-		[Pure]
 		public static int GetEscapeByteCount(this OpcodeMap map)
 		{
 			switch (map)
@@ -34,8 +33,6 @@ namespace Asmuth.X86
 				default: throw new ArgumentException(nameof(map));
 			}
 		}
-
-		[Pure]
 		public static bool IsEncodableAsEscapeBytes(this OpcodeMap map)
 			=> map <= OpcodeMap.Escape0F3A;
 	}

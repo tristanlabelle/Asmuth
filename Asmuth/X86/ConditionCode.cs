@@ -77,24 +77,14 @@ namespace Asmuth.X86
 			"O", "NO", "B", "AE", "E", "NE", "BE", "A",
 			"S", "NS", "P", "NP", "L", "GE", "LE", "G"
 		};
-
-		[Pure]
 		public static ConditionCode Negate(this ConditionCode code)
 			=> (ConditionCode)((byte)code ^ 1);
-
-		[Pure]
 		public static Flags GetTestedEflags(this ConditionCode code)
 			=> (Flags)testedEFlags[(int)code];
-
-		[Pure]
 		public static bool IsUnsignedComparison(this ConditionCode code)
 			=> (unsignedComparisonMask & (1 << (int)code)) != 0;
-
-		[Pure]
 		public static bool IsSignedComparison(this ConditionCode code)
 			=> (signedComparisonMask & (1 << (int)code)) != 0;
-
-		[Pure]
 		public static string GetMnemonicSuffix(this ConditionCode code)
 			=> suffixes[(int)code];
 	}

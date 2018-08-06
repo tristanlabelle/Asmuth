@@ -36,7 +36,7 @@ namespace Asmuth.Debugger
 
 		private ProcessDebugger(IProcessDebuggerService service)
 		{
-			Contract.Requires(service != null);
+			if (service == null) throw new ArgumentNullException(nameof(service));
 			this.eventListener = new EventListener(this);
 			this.service = service;
 		}

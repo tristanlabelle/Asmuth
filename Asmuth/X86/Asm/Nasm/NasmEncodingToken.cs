@@ -44,7 +44,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 		public static NasmEncodingTokenType TryParseType(string name)
 		{
-			Contract.Requires(name != null);
+			if (name == null) throw new ArgumentNullException(nameof(name));
 			return NasmEnum<NasmEncodingTokenType>.GetEnumerantOrDefault(name);
 		}
 

@@ -15,7 +15,8 @@ namespace Asmuth.X86
 
 		public CodeWriter(Stream stream, CodeSegmentType codeSegmentType)
 		{
-			Contract.Requires(stream != null && stream.CanWrite);
+			if (stream == null) throw new ArgumentNullException(nameof(stream));
+			if (!stream.CanWrite) throw new ArgumentException("Target stream must be writable.", nameof(stream));
 			this.stream = stream;
 			this.codeSegmentType = codeSegmentType;
 		}
