@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -813,7 +813,7 @@ namespace Asmuth.Debugger
 
 		public static Exception GetWin32Exception(int errorCode)
 		{
-			Contract.Requires(errorCode >= 0 && errorCode < 0x10000);
+			Debug.Assert(errorCode >= 0 && errorCode < 0x10000);
 			if (errorCode == 0) return null;
 
 			var hr = 0x80070000 | (uint)errorCode;

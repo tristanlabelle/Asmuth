@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -57,7 +57,7 @@ namespace Asmuth
 				if (!dictionary.items.TryGetValue(key, out values))
 				{
 					values = dictionary.valueCollectionFactory();
-					Contract.Assert(values is IReadOnlyCollection<TValue>);
+					Debug.Assert(values is IReadOnlyCollection<TValue>);
 					dictionary.items.Add(key, values);
 				}
 				values.Add(value);

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -43,12 +42,12 @@ namespace Asmuth.Debugger
 		{
 			get
 			{
-				Contract.Requires(IsEntered);
+				if (!IsEntered) throw new InvalidOperationException();
 				return value;
 			}
 			set
 			{
-				Contract.Requires(IsEntered);
+				if (!IsEntered) throw new InvalidOperationException();
 				this.value = value;
 			}
 		}

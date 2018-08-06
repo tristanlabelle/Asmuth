@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -105,8 +104,9 @@ namespace Asmuth.X86
 
 		public Gpr(int index, GprPart part)
 		{
-			Contract.Requires(index >= 0 && index < 0x10);
-			Contract.Requires(part != GprPart.HighByte || index < 4);
+			if (unchecked((uint)index) >= 0x10) throw new ArgumentOutOfRangeException(nameof(index));
+			if (part == GprPart.HighByte && unchecked((uint)index) >= 4)
+				throw new ArgumentException("Illegal high byte GPR index.");
 			value = unchecked((byte)(index | ((int)part << 4)));
 		}
 
@@ -192,7 +192,8 @@ namespace Asmuth.X86
 		#region Static parsing
 		public static string GetBaseName(int index)
 		{
-			Contract.Requires(index >= 0 && index < 0x10);
+			if (unchecked((uint)index) >= 0x10)
+				throw new ArgumentOutOfRangeException(nameof(index));
 			if (index < 4) return "acdb"[index].ToString();
 			if (index >= 10) return "r1" + "012345"[index - 10];
 			if (index == 4) return "sp";

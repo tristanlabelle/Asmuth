@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -47,7 +46,7 @@ namespace Asmuth.X86
 			if (ss >= 4) throw new ArgumentOutOfRangeException(nameof(ss));
 			if (index >= 8) throw new ArgumentOutOfRangeException(nameof(index));
 			if (@base >= 8) throw new ArgumentOutOfRangeException(nameof(@base));
-			Contract.Requires(ss < 4 && index < 8 && @base < 8);
+			
 			return (Sib)((ss << (int)Sib.Scale_Shift)
 				| (index << (int)Sib.Index_Shift)
 				| (@base << (int)Sib.Base_Shift));

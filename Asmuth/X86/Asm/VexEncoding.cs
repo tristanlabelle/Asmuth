@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -82,7 +81,7 @@ namespace Asmuth.X86.Asm
 		
 		public static OpcodeEncodingFlags AsOpcodeEncodingFlags(this VexEncoding vexEncoding)
 		{
-			OpcodeEncodingFlags flags = OpcodeEncodingFlags.CodeSegment_Long;
+			OpcodeEncodingFlags flags = OpcodeEncodingFlags.CodeSegmentType_Long;
 
 			var vexType = vexEncoding & VexEncoding.Type_Mask;
 			switch (vexType)

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -76,7 +75,8 @@ namespace Asmuth.X86
 		{
 			get
 			{
-				Contract.Requires(State > InstructionDecodingState.ExpectOpcode && State != InstructionDecodingState.Error);
+				if (state != InstructionDecodingState.Completed)
+					throw new InvalidOperationException();
 				return lookupTag;
 			}
 		}
@@ -199,7 +199,7 @@ namespace Asmuth.X86
 						return AdvanceToError(InstructionDecodingError.UnknownOpcode);
 					}
 
-					Contract.Assert(immediateSizeInBytes >= 0);
+					Debug.Assert(immediateSizeInBytes >= 0);
 					
 					return hasModRM
 						? AdvanceTo(InstructionDecodingState.ExpectModRM)
@@ -306,13 +306,16 @@ namespace Asmuth.X86
 
 		private AddressSize GetEffectiveAddressSize()
 		{
-			Contract.Requires(state > InstructionDecodingState.ExpectPrefixOrOpcode);
+			Debug.Assert(state > InstructionDecodingState.ExpectPrefixOrOpcode);
 			return CodeSegmentType.GetEffectiveAddressSize(builder.LegacyPrefixes);
 		}
 
 		private DisplacementSize GetDisplacementSize()
 		{
-			Contract.Requires(state > InstructionDecodingState.ExpectSib);
+			Debug.Assert(state >= InstructionDecodingState.ExpectModRM);
+			Debug.Assert(!builder.ModRM.HasValue
+				|| !builder.ModRM.Value.ImpliesSib(GetEffectiveAddressSize())
+				|| state >= InstructionDecodingState.ExpectSib);
 			if (!builder.ModRM.HasValue) return 0;
 
 			return builder.ModRM.Value.GetDisplacementSize(
@@ -322,7 +325,7 @@ namespace Asmuth.X86
 		#region AdvanceTo***
 		private bool AdvanceTo(InstructionDecodingState newState, byte substate = 0)
 		{
-			Contract.Requires(newState > State);
+			Debug.Assert(newState > State);
 			this.state = newState;
 			this.substate = substate;
 			return newState != InstructionDecodingState.Completed && newState != InstructionDecodingState.Error;
@@ -335,7 +338,7 @@ namespace Asmuth.X86
 
 		private bool AdvanceToSibOrFurther()
 		{
-			Contract.Requires(State == InstructionDecodingState.ExpectModRM);
+			Debug.Assert(State == InstructionDecodingState.ExpectModRM);
 			
 			return builder.ModRM.Value.ImpliesSib(GetEffectiveAddressSize())
 				? AdvanceTo(InstructionDecodingState.ExpectSib)
@@ -344,8 +347,8 @@ namespace Asmuth.X86
 
 		private bool AdvanceToDisplacementOrFurther()
 		{
-			Contract.Requires(State >= InstructionDecodingState.ExpectModRM);
-			Contract.Requires(State < InstructionDecodingState.ExpectDisplacement);
+			Debug.Assert(State >= InstructionDecodingState.ExpectModRM);
+			Debug.Assert(State < InstructionDecodingState.ExpectDisplacement);
 			
 			return GetDisplacementSize() > DisplacementSize.None
 				? AdvanceTo(InstructionDecodingState.ExpectDisplacement)
@@ -354,8 +357,8 @@ namespace Asmuth.X86
 
 		private bool AdvanceToImmediateOrEnd()
 		{
-			Contract.Requires(State >= InstructionDecodingState.ExpectOpcode);
-			Contract.Requires(State < InstructionDecodingState.ExpectImmediate);
+			Debug.Assert(State >= InstructionDecodingState.ExpectOpcode);
+			Debug.Assert(State < InstructionDecodingState.ExpectImmediate);
 			
 			return immediateSizeInBytes > 0
 				? AdvanceTo(InstructionDecodingState.ExpectImmediate)

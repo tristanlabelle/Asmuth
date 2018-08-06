@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -76,16 +76,17 @@ namespace Asmuth.X86.Asm.Nasm
 					switch (token.Type)
 					{
 						case NasmEncodingTokenType.Vex:
-							Contract.Assert(flags == 0); // Should be the first thing we encounter
-							SetVex(vexEncoding);
+							if (flags != 0) throw new FormatException("VEX may only be the first token.");
+							flags |= vexEncoding.AsOpcodeEncodingFlags();
+							AdvanceTo(State.PostOpcodeMap);
 							break;
 
 						case NasmEncodingTokenType.AddressSize_Fixed16:
 						case NasmEncodingTokenType.AddressSize_Fixed32:
 						case NasmEncodingTokenType.AddressSize_Fixed64:
 						case NasmEncodingTokenType.AddressSize_NoOverride:
-							Contract.Assert(state == State.Prefixes);
-							Contract.Assert(addressSize == 0);
+							if (state != State.Prefixes) throw new FormatException("Out-of-order address size token.");
+							if (addressSize != 0) throw new FormatException("Multiple address size tokens.");
 							addressSize = token.Type;
 							break;
 
@@ -176,15 +177,15 @@ namespace Asmuth.X86.Asm.Nasm
 							}
 
 							// Opcode extension byte
-							Contract.Assert(state == State.PostModRM);
-							Contract.Assert(!flags.HasImm8Ext());
+							Debug.Assert(state == State.PostModRM);
+							if (flags.HasImm8Ext()) throw new FormatException("Multiple imm8 extension bytes.");
 							flags |= OpcodeEncodingFlags.Imm8Ext_Fixed;
 							imm8 = token.Byte;
 							AddImmediateWithSizeInBytes(1);
 							break;
 
 						case NasmEncodingTokenType.Byte_PlusRegister:
-							Contract.Assert((token.Byte & 7) == 0);
+							Debug.Assert((token.Byte & 7) == 0);
 							if (state < State.PostOpcode)
 							{
 								SetOpcode(token.Byte, plusR: false);
@@ -202,7 +203,8 @@ namespace Asmuth.X86.Asm.Nasm
 
 						case NasmEncodingTokenType.Byte_PlusConditionCode:
 							// TODO: figure out what this means: [i:	71+c jlen e9 rel]
-							Contract.Assert(state < State.PostOpcode);
+							if (state >= State.PostOpcode)
+								throw new FormatException("Out-of-order opcode byte.");
 							throw new NotImplementedException();
 
 						case NasmEncodingTokenType.ModRM:
@@ -239,17 +241,18 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						case NasmEncodingTokenType.Immediate_RelativeOffset:
-							if ((flags & OpcodeEncodingFlags.CodeSegment_Mask) == OpcodeEncodingFlags.CodeSegment_Long
+							if ((flags & OpcodeEncodingFlags.CodeSegmentType_Mask) == OpcodeEncodingFlags.CodeSegmentType_Long
 								|| (flags & OpcodeEncodingFlags.OperandSize_Mask) == OpcodeEncodingFlags.OperandSize_Dword)
 								AddImmediateWithSizeInBytes(sizeof(int));
 							else if ((flags & OpcodeEncodingFlags.OperandSize_Mask) == OpcodeEncodingFlags.OperandSize_Word)
 								AddImmediateWithSizeInBytes(sizeof(short));
 							else
-								throw new FormatException();
+								throw new FormatException("Ambiguous relative offset size.");
 							break;
 
 						case NasmEncodingTokenType.Immediate_Is4:
-							Contract.Assert(!flags.HasImm8Ext());
+							if (flags.GetImmediateSizeInBytes() > 0)
+								throw new FormatException("Imm8 extension must be the only immediate.");
 							flags |= OpcodeEncodingFlags.Imm8Ext_VexIS4;
 							AddImmediateWithSizeInBytes(1);
 							break;
@@ -285,22 +288,25 @@ namespace Asmuth.X86.Asm.Nasm
 
 			private void SetLongCodeSegment(bool @long)
 			{
-				Contract.Assert((this.flags & OpcodeEncodingFlags.CodeSegment_Mask)
-					!= (@long ? OpcodeEncodingFlags.CodeSegment_IA32 : OpcodeEncodingFlags.CodeSegment_Long));
-				flags |= @long ? OpcodeEncodingFlags.CodeSegment_Long : OpcodeEncodingFlags.CodeSegment_IA32;
+				if ((this.flags & OpcodeEncodingFlags.CodeSegmentType_Mask)
+					== (@long ? OpcodeEncodingFlags.CodeSegmentType_IA32 : OpcodeEncodingFlags.CodeSegmentType_Long))
+					throw new FormatException("Conflicting code segment type.");
+				flags |= @long ? OpcodeEncodingFlags.CodeSegmentType_Long : OpcodeEncodingFlags.CodeSegmentType_IA32;
 			}
 
 			private void SetOperandSize(OpcodeEncodingFlags flags)
 			{
-				Contract.Assert(state <= State.PostSimdPrefix);
-				Contract.Assert((this.flags & OpcodeEncodingFlags.OperandSize_Mask) == 0);
+				if (state > State.PostSimdPrefix) throw new FormatException("Out-of-order operand size prefix.");
+				if ((this.flags & OpcodeEncodingFlags.OperandSize_Mask) != 0)
+					throw new FormatException("Multiple operand size prefixes.");
 				this.flags |= flags;
 			}
 
 			private void SetRexW(bool set)
 			{
-				Contract.Assert((this.flags & OpcodeEncodingFlags.RexW_Mask)
-					!= (set ? OpcodeEncodingFlags.RexW_0 : OpcodeEncodingFlags.RexW_1));
+				if ((this.flags & OpcodeEncodingFlags.RexW_Mask)
+					== (set ? OpcodeEncodingFlags.RexW_0 : OpcodeEncodingFlags.RexW_1))
+					throw new FormatException("Conflicting REX.W encoding.");
 
 				if (set)
 				{
@@ -313,23 +319,17 @@ namespace Asmuth.X86.Asm.Nasm
 				}
 			}
 
-			private void SetVex(VexEncoding vexEncoding)
-			{
-				Contract.Assert(flags == 0);
-				flags |= vexEncoding.AsOpcodeEncodingFlags();
-				AdvanceTo(State.PostOpcodeMap);
-			}
-
 			private void SetSimdPrefix(SimdPrefix prefix)
 			{
-				Contract.Requires(flags.GetSimdPrefix() == SimdPrefix.None);
+				if (state >= State.PostSimdPrefix) throw new FormatException("Out-of-order SIMD prefix.");
+				Debug.Assert(flags.GetSimdPrefix() == SimdPrefix.None);
 				flags = flags.WithSimdPrefix(prefix);
 				AdvanceTo(State.PostSimdPrefix);
 			}
 
 			private void SetOpcode(byte @byte, bool plusR)
 			{
-				Contract.Requires(this.mainByte == 0);
+				if (state >= State.PostOpcode) throw new FormatException("Out-of-order opcode token.");
 				this.mainByte = @byte;
 				if (plusR) this.flags |= OpcodeEncodingFlags.MainByteHasEmbeddedReg;
 				AdvanceTo(State.PostOpcode);
@@ -337,9 +337,9 @@ namespace Asmuth.X86.Asm.Nasm
 
 			private void SetModRM(OpcodeEncodingFlags flags, byte @byte = 0)
 			{
-				Contract.Requires(state == State.PostOpcode);
-				Contract.Requires((this.flags & OpcodeEncodingFlags.HasModRM) == 0);
-				Contract.Requires((flags & ~(OpcodeEncodingFlags.FixedModReg | OpcodeEncodingFlags.ModRM_Mask)) == 0);
+				if (state != State.PostOpcode) throw new FormatException("Out-of-order ModRM token.");
+				Debug.Assert((this.flags & OpcodeEncodingFlags.HasModRM) == 0);
+				Debug.Assert((flags & ~(OpcodeEncodingFlags.FixedModReg | OpcodeEncodingFlags.ModRM_Mask)) == 0);
 				this.flags |= OpcodeEncodingFlags.HasModRM | flags;
 				this.modRM = @byte;
 				AdvanceTo(State.PostModRM);
@@ -347,16 +347,15 @@ namespace Asmuth.X86.Asm.Nasm
 
 			private void AddImmediateWithSizeInBytes(int count)
 			{
-				Contract.Requires(state >= State.PostOpcode);
+				if (state < State.PostOpcode) throw new FormatException("Out-of-order immediate token.");
 
-				flags = flags.WithImmediateSizeInBytes(
-					flags.GetImmediateSizeInBytes() + count);
+				flags = flags.WithImmediateSizeInBytes(flags.GetImmediateSizeInBytes() + count);
 				AdvanceTo(State.Immediates);
 			}
 
 			private void AdvanceTo(State newState)
 			{
-				Contract.Requires(newState >= state);
+				Debug.Assert(newState >= state);
 				state = newState;
 			}
 			#endregion

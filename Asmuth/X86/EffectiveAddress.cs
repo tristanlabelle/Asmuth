@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -212,13 +212,15 @@ namespace Asmuth.X86
 
 		public static EffectiveAddress Absolute(AddressSize size, int address)
 		{
-			Contract.Requires(size > AddressSize._16 || (short)address == address);
+			if (size == AddressSize._16 && (short)address != address)
+				throw new ArgumentOutOfRangeException(nameof(address), "The address cannot be encoded with the given address size.");
 			return new EffectiveAddress(BaseFlags(size) | Flags.BaseReg_None | Flags.IndexReg_None, address);
 		}
 
 		public static EffectiveAddress Absolute(AddressSize size, SegmentRegister segment, int address)
 		{
-			Contract.Requires(size > AddressSize._16 || (short)address == address);
+			if (size == AddressSize._16 && (short)address != address)
+				throw new ArgumentOutOfRangeException(nameof(address), "The address cannot be encoded with the given address size.");
 			return new EffectiveAddress(BaseFlags(size, segment) | Flags.BaseReg_None | Flags.IndexReg_None, address);
 		}
 
@@ -226,36 +228,37 @@ namespace Asmuth.X86
 			AddressSize addressSize, SegmentRegister? segment, 
 			AddressBaseRegister? @base, GprCode? index = null, byte scale = 1, int displacement = 0)
 		{
-			Contract.Requires(scale == 1 || scale == 2 || scale == 4 || scale == 8
-				|| (scale == 0 && !index.HasValue));
-			Contract.Requires(@base != AddressBaseRegister.Rip || (addressSize != AddressSize._16 && index.HasValue));
+			if (scale != 1 && scale != 2 && scale != 4 && scale != 8 && (scale != 0 || !index.HasValue))
+				throw new ArgumentOutOfRangeException(nameof(scale));
+			if (@base == AddressBaseRegister.Rip && (addressSize == AddressSize._16 || index.HasValue))
+				throw new ArgumentException("IP-relative addressing is incompatible with 16-bit addresses or indexed forms.");
 			if (addressSize == AddressSize._16)
 			{
-				Contract.Requires(!(@base >= AddressBaseRegister.R8));
-				Contract.Requires(!(index >= GprCode.R8));
-				Contract.Requires((short)displacement == displacement);
+				if (@base.GetValueOrDefault() >= AddressBaseRegister.R8 || index.GetValueOrDefault() >= GprCode.R8)
+					throw new ArgumentException("16-bit effective addresses cannot reference registers R8-R15.");
+				if ((short)displacement != displacement)
+					throw new ArgumentException("Displacement too big for 16-bit effective address.");
 				if (@base.HasValue)
 				{
 					if (index.HasValue)
 					{
-						Contract.Requires(@base == AddressBaseRegister.B || @base == AddressBaseRegister.BP);
-						Contract.Requires(index.Value == GprCode.SI || index.Value == GprCode.DI);
+						if (@base.Value != AddressBaseRegister.B && @base.Value != AddressBaseRegister.BP)
+							throw new ArgumentException("Only B and BP are valid bases for 16-bit indexed effective addresses.");
+						if (index.Value != GprCode.SI && index.Value != GprCode.DI)
+							throw new ArgumentException("Only SI and DI are valid indices for 16-bit indexed effective addresses.");
 					}
 					else
 					{
-						Contract.Requires(@base == AddressBaseRegister.SI || @base == AddressBaseRegister.DI
-							|| @base == AddressBaseRegister.BP || @base == AddressBaseRegister.B);
+						if (@base != AddressBaseRegister.SI && @base != AddressBaseRegister.DI
+							&& @base != AddressBaseRegister.BP && @base != AddressBaseRegister.B)
+							throw new ArgumentException("Invalid base for 16-bit effective address.");
 					}
 				}
-				else
-				{
-					Contract.Requires(!index.HasValue);
-				}
+				else if (index.HasValue)
+					throw new ArgumentException("16-bit indexed addressing only possible with a base register.");
 			}
-			else
-			{
-				Contract.Requires(index != GprCode.Esp);
-			}
+			else if (index == GprCode.Esp)
+				throw new ArgumentException("ESP cannot be used as an effective addressing index.");
 
 			// Segment defaults to D, or S if we are using a stack-pointing register
 			if (!segment.HasValue)
@@ -270,7 +273,7 @@ namespace Asmuth.X86
 			if (index.HasValue)
 			{
 				// Swap eax and esp (esp meaning "none")
-				Contract.Assert(index.Value != GprCode.Esp);
+				Debug.Assert(index.Value != GprCode.Esp);
 				if (index.Value == GprCode.Eax) flags |= Flags.IndexReg_Eax;
 				else flags |= (Flags)((int)index.Value << (int)Flags.IndexReg_Shift);
 			}
@@ -299,13 +302,15 @@ namespace Asmuth.X86
 		public static EffectiveAddress RipRelative(
 			AddressSize addressSize, SegmentRegister? segment, int displacement)
 		{
-			Contract.Requires(addressSize != AddressSize._16);
+			if (addressSize == AddressSize._16)
+				throw new ArgumentException("16-bit SIB cannot encode rip-relative effective addresses.", nameof(addressSize));
 			return Indirect(addressSize, segment, AddressBaseRegister.Rip, displacement);
 		}
 
 		public static EffectiveAddress Indirect(Gpr @base, int displacement = 0)
 		{
-			Contract.Assert(@base.Size != OperandSize.Byte);
+			if (@base.Size == OperandSize.Byte)
+				throw new ArgumentException("Byte register cannot be used as indirect bases.", nameof(@base));
 			return Indirect(@base.Size.ToAddressSize(), null, @base.Code, null, 1, displacement);
 		}
 
@@ -343,13 +348,14 @@ namespace Asmuth.X86
 			// Mod in { 0, 1, 2 }
 			if (addressSize == AddressSize._16)
 			{
-				Contract.Assert(unchecked((short)encoding.Displacement) == encoding.Displacement);
+				if ((short)encoding.Displacement != encoding.Displacement)
+					throw new ArgumentException("Displacement too big for 16-bit effective address.");
 				if (encoding.ModRM.GetMod() == 0 && encoding.ModRM.GetRM() == 6)
 					return Absolute(addressSize, encoding.Displacement);
 
 				int displacementSize = encoding.ModRM.GetMod();
-				Contract.Assert(displacementSize != 0 || encoding.Displacement == 0);
-				Contract.Assert(displacementSize != 1 || unchecked((sbyte)encoding.Displacement) == encoding.Displacement);
+				Debug.Assert(displacementSize != 0 || encoding.Displacement == 0);
+				Debug.Assert(displacementSize != 1 || unchecked((sbyte)encoding.Displacement) == encoding.Displacement);
 				return FromIndirect16Encoding(encoding.SegmentOverride,
 					encoding.ModRM.GetRM(), (short)encoding.Displacement);
 			}
@@ -363,7 +369,7 @@ namespace Asmuth.X86
 				}
 
 				var displacementSize = encoding.ModRM.GetDisplacementSize(encoding.Sib.GetValueOrDefault(), addressSize);
-				Contract.Assert(displacementSize.CanEncodeValue(encoding.Displacement));
+				Debug.Assert(displacementSize.CanEncodeValue(encoding.Displacement));
 
 				GprCode? baseReg = (GprCode)encoding.ModRM.GetRM();
 

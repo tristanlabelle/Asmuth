@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -45,7 +44,7 @@ namespace Asmuth.Debugger
 				var thread = owner.FindThread(threadID);
 				if (thread == null)
 				{
-					Contract.Assert(false, "Received exception from unknown thread.");
+					Debug.Fail("Received exception from unknown thread.");
 					return DebugEventResponse.ContinueUnhandled;
 				}
 
@@ -76,7 +75,7 @@ namespace Asmuth.Debugger
 				}
 				else
 				{
-					Contract.Assert(false, "Mismatched unload dll message.");
+					Debug.Fail("Mismatched unload dll message.");
 					return DebugEventResponse.ContinueUnhandled;
 				}
 			}
@@ -99,7 +98,7 @@ namespace Asmuth.Debugger
 			{
 				var thread = new Thread(owner, threadID);
 				bool added = owner.threadsByID.TryAdd(threadID, thread);
-				Contract.Assert(added);
+				Debug.Assert(added);
 				return owner.RaiseEvent(owner.ThreadCreated, new ThreadCreatedEventArgs(thread, entryPoint));
 			}
 
@@ -107,7 +106,7 @@ namespace Asmuth.Debugger
 			{
 				Thread thread;
 				bool removed = owner.threadsByID.TryRemove(threadID, out thread);
-				Contract.Assert(removed);
+				Debug.Assert(removed);
 				return owner.RaiseEvent(owner.ThreadExited, new ThreadExitedEventArgs(thread, exitCode));
 			}
 		}

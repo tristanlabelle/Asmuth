@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -21,8 +20,8 @@ namespace Asmuth.X86
 		#region Constructor
 		public CpuidQuery(uint function, byte? inputEcx, GprCode outputGpr, uint mask)
 		{
-			Contract.Requires(outputGpr >= 0 && (int)outputGpr < 4);
-			Contract.Requires(Bits.IsContiguous(mask));
+			if ((int)outputGpr >= 4) throw new ArgumentOutOfRangeException(nameof(outputGpr));
+			if (!Bits.IsContiguous(mask)) throw new ArgumentOutOfRangeException(nameof(mask));
 
 			this.function = function;
 			this.inputEcx = inputEcx.GetValueOrDefault();
@@ -33,8 +32,8 @@ namespace Asmuth.X86
 
 		public CpuidQuery(uint function, GprCode outputGpr, uint mask)
 		{
-			Contract.Requires(outputGpr >= 0 && (int)outputGpr < 4);
-			Contract.Requires(Bits.IsContiguous(mask));
+			if ((int)outputGpr >= 4) throw new ArgumentOutOfRangeException(nameof(outputGpr));
+			if (!Bits.IsContiguous(mask)) throw new ArgumentOutOfRangeException(nameof(mask));
 
 			this.function = function;
 			this.inputEcx = 0;
@@ -44,7 +43,7 @@ namespace Asmuth.X86
 
 		public CpuidQuery(uint function, GprCode outputGpr)
 		{
-			Contract.Requires(outputGpr >= 0 && (int)outputGpr < 4);
+			if ((int)outputGpr >= 4) throw new ArgumentOutOfRangeException(nameof(outputGpr));
 
 			this.function = function;
 			this.inputEcx = 0;
@@ -55,7 +54,7 @@ namespace Asmuth.X86
 
 		public static CpuidQuery FromBit(uint function, GprCode outputGpr, int bitIndex)
 		{
-			Contract.Requires(bitIndex >= 0 && bitIndex < 32);
+			if (unchecked((uint)bitIndex) >= 32) throw new ArgumentOutOfRangeException(nameof(bitIndex));
 			return new CpuidQuery(function, outputGpr, 1U << bitIndex);
 		}
 		#endregion

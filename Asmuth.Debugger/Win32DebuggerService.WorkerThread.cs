@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32.SafeHandles;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -8,8 +9,6 @@ using System.Threading.Tasks;
 
 namespace Asmuth.Debugger
 {
-	using Microsoft.Win32.SafeHandles;
-	using System.Diagnostics.Contracts;
 	using static Kernel32;
 	using static NativeMethods;
 

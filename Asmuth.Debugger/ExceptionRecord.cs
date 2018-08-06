@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Asmuth.Debugger
 {
-	using System.Diagnostics.Contracts;
-	using System.Runtime.InteropServices;
 	using static Kernel32;
 
 	public sealed class ExceptionRecord
@@ -34,7 +33,7 @@ namespace Asmuth.Debugger
 
 		internal static ExceptionRecord FromStruct(ref EXCEPTION_RECORD32 record)
 		{
-			Contract.Requires(IntPtr.Size == sizeof(int));
+			if (IntPtr.Size != sizeof(int)) throw new NotSupportedException();
 
 			ExceptionRecord child = null;
 			if (record.ExceptionRecord != 0)
@@ -50,7 +49,7 @@ namespace Asmuth.Debugger
 
 		internal static ExceptionRecord FromStruct(ref EXCEPTION_RECORD64 record)
 		{
-			Contract.Requires(IntPtr.Size == sizeof(long));
+			if (IntPtr.Size != sizeof(long)) throw new NotSupportedException();
 
 			ExceptionRecord child = null;
 			if (record.ExceptionRecord != 0)

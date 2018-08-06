@@ -1,7 +1,7 @@
 ﻿using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -19,7 +19,7 @@ namespace Asmuth.Debugger
 
 			internal Module(ForeignPtr @base, SafeFileHandle handle)
 			{
-				Contract.Assert(@base.Address> 0);
+				Debug.Assert(@base.Address> 0);
 				this.@base = @base;
 				this.handle = handle;
 

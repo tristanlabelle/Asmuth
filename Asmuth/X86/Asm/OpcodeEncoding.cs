@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -234,14 +233,14 @@ namespace Asmuth.X86.Asm
 	public enum OpcodeEncodingFlags : uint
 	{
 		// The types of code segments in which this opcode can be encoded
-		CodeSegment_Shift = 0,
-		CodeSegment_Any = 0 << (int)CodeSegment_Shift,
-		CodeSegment_IA32 = 1 << (int)CodeSegment_Shift, // 16 or 32 bits
-		CodeSegment_Long = 2 << (int)CodeSegment_Shift,
-		CodeSegment_Mask = 3 << (int)CodeSegment_Shift,
+		CodeSegmentType_Shift = 0,
+		CodeSegmentType_Any = 0 << (int)CodeSegmentType_Shift,
+		CodeSegmentType_IA32 = 1 << (int)CodeSegmentType_Shift, // 16 or 32 bits
+		CodeSegmentType_Long = 2 << (int)CodeSegmentType_Shift,
+		CodeSegmentType_Mask = 3 << (int)CodeSegmentType_Shift,
 
 		// The instruction's xex type
-		XexType_Shift = CodeSegment_Shift + 2,
+		XexType_Shift = CodeSegmentType_Shift + 2,
 		XexType_Escapes_RexOpt = 0 << (int)XexType_Shift,
 		XexType_Vex = 1 << (int)XexType_Shift,
 		XexType_Xop = 2 << (int)XexType_Shift,
@@ -322,19 +321,19 @@ namespace Asmuth.X86.Asm
 	public static class OpcodeEncodingFlagsEnum
 	{
 		public static bool IsIA32Mode(this OpcodeEncodingFlags flags)
-			=> (flags & OpcodeEncodingFlags.CodeSegment_Mask) == OpcodeEncodingFlags.CodeSegment_IA32;
+			=> (flags & OpcodeEncodingFlags.CodeSegmentType_Mask) == OpcodeEncodingFlags.CodeSegmentType_IA32;
 
 		public static bool IsLongMode(this OpcodeEncodingFlags flags)
-			=> (flags & OpcodeEncodingFlags.CodeSegment_Mask) == OpcodeEncodingFlags.CodeSegment_Long;
+			=> (flags & OpcodeEncodingFlags.CodeSegmentType_Mask) == OpcodeEncodingFlags.CodeSegmentType_Long;
 
 		public static bool AdmitsCodeSegmentType(
 			this OpcodeEncodingFlags flags, CodeSegmentType codeSegmentType)
 		{
-			switch (flags & OpcodeEncodingFlags.CodeSegment_Mask)
+			switch (flags & OpcodeEncodingFlags.CodeSegmentType_Mask)
 			{
-				case OpcodeEncodingFlags.CodeSegment_Any: return true;
-				case OpcodeEncodingFlags.CodeSegment_IA32: return codeSegmentType != CodeSegmentType._64Bits;
-				case OpcodeEncodingFlags.CodeSegment_Long: return codeSegmentType == CodeSegmentType._64Bits;
+				case OpcodeEncodingFlags.CodeSegmentType_Any: return true;
+				case OpcodeEncodingFlags.CodeSegmentType_IA32: return codeSegmentType != CodeSegmentType._64Bits;
+				case OpcodeEncodingFlags.CodeSegmentType_Long: return codeSegmentType == CodeSegmentType._64Bits;
 				default: throw new ArgumentOutOfRangeException(nameof(flags));
 			}
 		}

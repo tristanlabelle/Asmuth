@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,9 +23,11 @@ namespace Asmuth.X86
 	{
 		public static bool IsFixed(this ImmediateSize size)
 			=> size <= ImmediateSize.Fixed64;
+
 		public static int InBytes(this ImmediateSize size, OperandSize operandSize)
 		{
-			Contract.Requires(operandSize >= OperandSize.Word && operandSize <= OperandSize.Qword);
+			if (operandSize < OperandSize.Word || operandSize > OperandSize.Qword)
+				throw new ArgumentOutOfRangeException(nameof(operandSize));
 			switch (size)
 			{
 				case ImmediateSize.Zero: return 0;

@@ -3,7 +3,6 @@ using Asmuth.X86.Asm;
 using Asmuth.X86.Asm.Nasm;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
@@ -12,6 +11,7 @@ using System.Text;
 
 namespace Asmuth.Disassembler
 {
+	using System.Diagnostics;
 	using static WinNT;
 
 	class Program
@@ -70,7 +70,7 @@ namespace Asmuth.Disassembler
 						ntHeaderPosition + IMAGE_NT_HEADERS.OptionalHeaderOffset);
 				}
 
-				Contract.Assert(optionalHeader.NumberOfRvaAndSizes == IMAGE_NUMBEROF_DIRECTORY_ENTRIES);
+				Debug.Assert(optionalHeader.NumberOfRvaAndSizes == IMAGE_NUMBEROF_DIRECTORY_ENTRIES);
 
 				// Sections
 				var sectionHeaders = new IMAGE_SECTION_HEADER[fileHeader.NumberOfSections];

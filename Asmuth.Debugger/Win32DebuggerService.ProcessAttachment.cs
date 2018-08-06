@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,6 +7,7 @@ using System.Threading.Tasks;
 namespace Asmuth.Debugger
 {
 	using System.Collections.Concurrent;
+	using System.Diagnostics;
 	using Microsoft.Win32.SafeHandles;
 	using static Kernel32;
 	using static NativeMethods;
@@ -112,7 +112,7 @@ namespace Asmuth.Debugger
 			internal DebugEventResponse OnThreadCreated(int threadID, CREATE_THREAD_DEBUG_INFO debugInfo)
 			{
 				bool added = threadIDsToHandles.TryAdd(threadID, debugInfo.hThread);
-				Contract.Assert(added);
+				Debug.Assert(added);
 				return listener.OnThreadCreated(threadID, new ForeignPtr((ulong)debugInfo.lpStartAddress));
 			}
 
@@ -120,7 +120,7 @@ namespace Asmuth.Debugger
 			{
 				IntPtr handle;
 				bool removed = threadIDsToHandles.TryRemove(threadID, out handle);
-				Contract.Assert(removed);
+				Debug.Assert(removed);
 
 				return listener.OnThreadExited(threadID, unchecked((int)debugInfo.dwExitCode));
 			}

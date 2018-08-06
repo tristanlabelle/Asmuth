@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Text;
 
 namespace Asmuth.X86
@@ -135,7 +135,7 @@ namespace Asmuth.X86
 			if (!immediateSize.HasValue)
 			{
 				// We need to read the ModRM byte
-				Contract.Assert(hasModRM && modRM == null);
+				Debug.Assert(hasModRM && modRM == null);
 				immediateSizeInBytes = -1;
 				return null;
 			}
