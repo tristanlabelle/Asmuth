@@ -42,22 +42,22 @@ namespace Asmuth.X86
 	{
 		private static readonly ushort[] testedEFlags = 
 		{
-			(ushort)Flags.Overflow, // Overflow
-			(ushort)Flags.Overflow, // Not overflow
-			(ushort)Flags.Carry, // Below
-			(ushort)Flags.Carry, // Above or equal
-			(ushort)Flags.Zero, // Equal
-			(ushort)Flags.Zero, // Not equal
-			(ushort)(Flags.Carry | Flags.Zero), // Below or equal
-			(ushort)(Flags.Carry | Flags.Zero), // Above
-			(ushort)Flags.Sign, // Sign
-			(ushort)Flags.Sign, // Not sign
-			(ushort)Flags.Parity, // Parity even
-			(ushort)Flags.Parity, // Parity odd
-			(ushort)Flags.Sign, // Less ?
-			(ushort)Flags.Sign, // Greater or equal ?
-			(ushort)(Flags.Zero | Flags.Sign | Flags.Overflow), // Less or equal
-			(ushort)(Flags.Zero | Flags.Sign | Flags.Overflow) // Greater
+			(ushort)EFlags.Overflow, // Overflow
+			(ushort)EFlags.Overflow, // Not overflow
+			(ushort)EFlags.Carry, // Below
+			(ushort)EFlags.Carry, // Above or equal
+			(ushort)EFlags.Zero, // Equal
+			(ushort)EFlags.Zero, // Not equal
+			(ushort)(EFlags.Carry | EFlags.Zero), // Below or equal
+			(ushort)(EFlags.Carry | EFlags.Zero), // Above
+			(ushort)EFlags.Sign, // Sign
+			(ushort)EFlags.Sign, // Not sign
+			(ushort)EFlags.Parity, // Parity even
+			(ushort)EFlags.Parity, // Parity odd
+			(ushort)EFlags.Sign, // Less ?
+			(ushort)EFlags.Sign, // Greater or equal ?
+			(ushort)(EFlags.Zero | EFlags.Sign | EFlags.Overflow), // Less or equal
+			(ushort)(EFlags.Zero | EFlags.Sign | EFlags.Overflow) // Greater
 		};
 
 		private const ushort unsignedComparisonMask
@@ -78,8 +78,8 @@ namespace Asmuth.X86
 		};
 		public static ConditionCode Negate(this ConditionCode code)
 			=> (ConditionCode)((byte)code ^ 1);
-		public static Flags GetTestedEflags(this ConditionCode code)
-			=> (Flags)testedEFlags[(int)code];
+		public static EFlags GetTestedEflags(this ConditionCode code)
+			=> (EFlags)testedEFlags[(int)code];
 		public static bool IsUnsignedComparison(this ConditionCode code)
 			=> (unsignedComparisonMask & (1 << (int)code)) != 0;
 		public static bool IsSignedComparison(this ConditionCode code)

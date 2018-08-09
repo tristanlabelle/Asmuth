@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Asmuth.X86
 {
 	[Flags]
-	public enum Flags : uint
+	public enum EFlags : uint
 	{
 		None = 0,
 

@@ -15,7 +15,7 @@ namespace Asmuth.X86.Asm
 			public IReadOnlyList<OperandFormat> Operands;
 			public OpcodeEncoding Encoding;
 			public CpuidFeatureFlags RequiredFeatureFlags;
-			public Flags? AffectedFlags;
+			public EFlags? AffectedFlags;
 		}
 
 		#region Fields
@@ -37,7 +37,7 @@ namespace Asmuth.X86.Asm
 		public IReadOnlyList<OperandFormat> Operands => data.Operands;
 		public OpcodeEncoding Encoding => data.Encoding;
 		public CpuidFeatureFlags RequiredFeatureFlags => data.RequiredFeatureFlags;
-		public Flags? AffectedFlags => data.AffectedFlags;
+		public EFlags? AffectedFlags => data.AffectedFlags;
 		#endregion
 
 		#region Methods
