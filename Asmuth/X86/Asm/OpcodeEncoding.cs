@@ -24,12 +24,8 @@ namespace Asmuth.X86.Asm
 				throw new ArgumentException("Default opcode map implies no SIMD prefix.");
 			if (flags.IsVectorXex() && !flags.GetSimdPrefix().HasValue)
 				throw new ArgumentException("Vector XEX implies SIMD prefixes.");
-			if (flags.IsVectorXex() && !flags.IsLongMode())
-				throw new ArgumentException("Vector XEX implies long mode.");
 			if (flags.IsEscapeXex() && (flags & OpcodeEncodingFlags.VexL_Mask) != OpcodeEncodingFlags.VexL_Ignored)
 				throw new ArgumentException("Escape XEX implies ignored VEX.L.");
-			if (flags.IsIA32Mode() && !flags.GetRexW().GetValueOrDefault())
-				throw new ArgumentException("IA32 mode implies no REX.W.");
 			if (flags.HasImm8Ext() && flags.GetImmediateSizeInBytes() != 1)
 				throw new ArgumentException("imm8 opcode extension implies 8-bit immediate,");
 			if (flags.HasVexIS4() && !flags.IsVex() && !flags.IsXop())
@@ -94,7 +90,7 @@ namespace Asmuth.X86.Asm
 
 			// The opcode itself
 			str.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", MainByte);
-			if ((Flags & OpcodeEncodingFlags.MainByteHasEmbeddedReg) != 0)
+			if ((Flags & OpcodeEncodingFlags.HasMainByteReg) != 0)
 				str.Append("+r");
 
 			if ((Flags & OpcodeEncodingFlags.HasModRM) != 0)
@@ -273,10 +269,10 @@ namespace Asmuth.X86.Asm
 
 		// How the REX.W field is used
 		RexW_Shift = SimdPrefix_Shift + 3,
-		RexW_Ignored = 0 << (int)VexL_Shift,
-		RexW_0 = 1 << (int)VexL_Shift,
-		RexW_1 = 2 << (int)VexL_Shift,
-		RexW_Mask = 3 << (int)VexL_Shift,
+		RexW_Ignored = 0 << (int)RexW_Shift,
+		RexW_0 = 1 << (int)RexW_Shift,
+		RexW_1 = 2 << (int)RexW_Shift,
+		RexW_Mask = 3 << (int)RexW_Shift,
 
 		// Opcode map, specified by escape bytes, in VEX, XOP or EVEX
 		Map_Shift = RexW_Shift + 2,
@@ -290,10 +286,10 @@ namespace Asmuth.X86.Asm
 		Map_Mask = 0xF << (int)Map_Shift,
 
 		// How the opcode, ModRM and imm8 fields encode the opcode
-		MainByteHasEmbeddedReg_Shift = Map_Shift + 4,
-		MainByteHasEmbeddedReg = 1 << (int)MainByteHasEmbeddedReg_Shift, // PUSH: 50+r
+		HasMainByteReg_Shift = Map_Shift + 4,
+		HasMainByteReg = 1 << (int)HasMainByteReg_Shift, // PUSH: 50+r
 
-		HasModRM_Shift = MainByteHasEmbeddedReg_Shift + 1,
+		HasModRM_Shift = HasMainByteReg_Shift + 1,
 		HasModRM = 1 << (int)HasModRM_Shift,
 
 		FixedModReg_Shift = HasModRM_Shift + 1,
@@ -315,6 +311,10 @@ namespace Asmuth.X86.Asm
 
 		// Immediate size
 		ImmediateSize_Shift = Imm8Ext_Shift + 2,
+		ImmediateSize_8 = 1 << (int)ImmediateSize_Shift,
+		ImmediateSize_16 = 2 << (int)ImmediateSize_Shift,
+		ImmediateSize_32 = 4 << (int)ImmediateSize_Shift,
+		ImmediateSize_64 = 8 << (int)ImmediateSize_Shift,
 		ImmediateSize_Mask = 0xF << (int)ImmediateSize_Shift,
 	}
 
@@ -442,7 +442,7 @@ namespace Asmuth.X86.Asm
 			=> With(flags, OpcodeEncodingFlags.Map_Mask, (int)OpcodeEncodingFlags.Map_Shift, (uint)map);
 
 		public static byte GetMainByteMask(this OpcodeEncodingFlags flags)
-			=> (flags & OpcodeEncodingFlags.MainByteHasEmbeddedReg) == 0 ? (byte)0xFF : (byte)0xF8;
+			=> (flags & OpcodeEncodingFlags.HasMainByteReg) == 0 ? (byte)0xFF : (byte)0xF8;
 
 		public static bool AdmitsModRM(this OpcodeEncodingFlags flags, ModRM modRM, byte reference)
 		{

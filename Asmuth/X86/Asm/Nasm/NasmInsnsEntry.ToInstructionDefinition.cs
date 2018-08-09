@@ -29,11 +29,34 @@ namespace Asmuth.X86.Asm.Nasm
 			var data = new InstructionDefinition.Data
 			{
 				Mnemonic = mnemonic,
-				Encoding = EncodingParser.Parse(encodingTokens, vexEncoding),
+				Encoding = ToOpcodeEncoding(encodingTokens, vexEncoding, GetLongMode(flags.Contains)),
 				Operands = NasmOperand.ToOperandFormat((IReadOnlyList<NasmOperand>)operands, Flags)
 			};
 
 			return new InstructionDefinition(in data);
+		}
+
+		public static bool? GetLongMode(Predicate<string> flagTester)
+		{
+			var longMode = flagTester(NasmInstructionFlags.LongMode);
+			var noLongMode = flagTester(NasmInstructionFlags.NoLongMode);
+			if (longMode && noLongMode) throw new FormatException("Long and no-long mode specified.");
+			if (noLongMode) return false;
+			if (longMode) return true;
+			return null;
+		}
+
+		public static OpcodeEncoding ToOpcodeEncoding(
+			IEnumerable<NasmEncodingToken> encodingTokens, VexEncoding? vexEncoding, bool? longMode)
+		{
+			if (encodingTokens == null) throw new ArgumentNullException(nameof(encodingTokens));
+			
+			OpcodeEncodingFlags encodingFlags = OpcodeEncodingFlags.CodeSegmentType_Any;
+			if (longMode.HasValue)
+				encodingFlags = longMode.Value ? OpcodeEncodingFlags.CodeSegmentType_Long : OpcodeEncodingFlags.CodeSegmentType_IA32;
+
+			var parser = new EncodingParser();
+			return parser.Parse(encodingTokens, vexEncoding.GetValueOrDefault(), encodingFlags);
 		}
 
 		private struct EncodingParser
@@ -55,19 +78,11 @@ namespace Asmuth.X86.Asm.Nasm
 			private byte modRM;
 			private byte imm8;
 			private State state;
-
-			public static OpcodeEncoding Parse(
-				IEnumerable<NasmEncodingToken> tokens, VexEncoding vexEncoding)
+			
+			public OpcodeEncoding Parse(IEnumerable<NasmEncodingToken> tokens, VexEncoding vexEncoding,
+				OpcodeEncodingFlags codeSegmentTypeFlags)
 			{
-				if (tokens == null) throw new ArgumentNullException(nameof(tokens));
-
-				var parser = new EncodingParser();
-				return parser.DoParse(tokens, vexEncoding);
-			}
-
-			#region ConvertEncodingTokens
-			private OpcodeEncoding DoParse(IEnumerable<NasmEncodingToken> tokens, VexEncoding vexEncoding)
-			{
+				codeSegmentTypeFlags &= OpcodeEncodingFlags.CodeSegmentType_Mask;
 				state = State.Prefixes;
 				
 				NasmEncodingTokenType addressSize = 0;
@@ -113,6 +128,10 @@ namespace Asmuth.X86.Asm.Nasm
 							throw new FormatException();
 
 						// Legacy prefixes
+						case NasmEncodingTokenType.LegacyPrefix_NoSimd:
+							SetSimdPrefix(SimdPrefix.None);
+							continue;
+
 						case NasmEncodingTokenType.LegacyPrefix_F2:
 							SetSimdPrefix(SimdPrefix._F2);
 							continue;
@@ -122,7 +141,6 @@ namespace Asmuth.X86.Asm.Nasm
 							SetSimdPrefix(SimdPrefix._F3);
 							continue;
 
-						case NasmEncodingTokenType.LegacyPrefix_NoSimd:
 						case NasmEncodingTokenType.LegacyPrefix_NoF3:
 						case NasmEncodingTokenType.LegacyPrefix_HleAlways:
 						case NasmEncodingTokenType.LegacyPrefix_HleWithLock:
@@ -188,7 +206,7 @@ namespace Asmuth.X86.Asm.Nasm
 							Debug.Assert((token.Byte & 7) == 0);
 							if (state < State.PostOpcode)
 							{
-								SetOpcode(token.Byte, plusR: false);
+								SetOpcode(token.Byte, plusR: true);
 								continue;
 							}
 
@@ -322,7 +340,7 @@ namespace Asmuth.X86.Asm.Nasm
 			private void SetSimdPrefix(SimdPrefix prefix)
 			{
 				if (state >= State.PostSimdPrefix) throw new FormatException("Out-of-order SIMD prefix.");
-				Debug.Assert(flags.GetSimdPrefix() == SimdPrefix.None);
+				Debug.Assert(!flags.GetSimdPrefix().HasValue);
 				flags = flags.WithSimdPrefix(prefix);
 				AdvanceTo(State.PostSimdPrefix);
 			}
@@ -331,7 +349,7 @@ namespace Asmuth.X86.Asm.Nasm
 			{
 				if (state >= State.PostOpcode) throw new FormatException("Out-of-order opcode token.");
 				this.mainByte = @byte;
-				if (plusR) this.flags |= OpcodeEncodingFlags.MainByteHasEmbeddedReg;
+				if (plusR) this.flags |= OpcodeEncodingFlags.HasMainByteReg;
 				AdvanceTo(State.PostOpcode);
 			}
 
@@ -358,7 +376,6 @@ namespace Asmuth.X86.Asm.Nasm
 				Debug.Assert(newState >= state);
 				state = newState;
 			}
-			#endregion
 		}
 	}
 }

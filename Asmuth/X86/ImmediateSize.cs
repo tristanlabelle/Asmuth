@@ -13,6 +13,7 @@ namespace Asmuth.X86
 		Fixed16,
 		Fixed24, // ENTER: C8 imm16, imm8
 		Fixed32,
+		Fixed48, // JMP: EA ptr16:32
 		Fixed64,
 		Operand16Or32, // imm16/32, rel16/32
 		Operand16Or32Or64, // MOV: B8+r imm16/32/64
@@ -35,6 +36,7 @@ namespace Asmuth.X86
 				case ImmediateSize.Fixed16: return 2;
 				case ImmediateSize.Fixed24: return 3;
 				case ImmediateSize.Fixed32: return 4;
+				case ImmediateSize.Fixed48: return 6;
 				case ImmediateSize.Fixed64: return 8;
 				case ImmediateSize.Operand16Or32: return operandSize == OperandSize.Word ? 2 : 4;
 				case ImmediateSize.Operand16Or32Or64: return operandSize.InBytes();

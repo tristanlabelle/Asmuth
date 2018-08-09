@@ -60,9 +60,9 @@ namespace Asmuth.X86.Asm
 
 		// 2 bits
 		RexW_Shift = 10,
-		RexW_0 = 0 << (int)RexW_Shift,
-		RexW_1 = 1 << (int)RexW_Shift,
-		RexW_Ignored = 2 << (int)RexW_Shift,
+		RexW_Ignored = 0 << (int)RexW_Shift,
+		RexW_0 = 1 << (int)RexW_Shift,
+		RexW_1 = 2 << (int)RexW_Shift,
 		RexW_Mask = 3 << (int)RexW_Shift,
 	}
 
@@ -81,7 +81,7 @@ namespace Asmuth.X86.Asm
 		
 		public static OpcodeEncodingFlags AsOpcodeEncodingFlags(this VexEncoding vexEncoding)
 		{
-			OpcodeEncodingFlags flags = OpcodeEncodingFlags.CodeSegmentType_Long;
+			OpcodeEncodingFlags flags = default;
 
 			var vexType = vexEncoding & VexEncoding.Type_Mask;
 			switch (vexType)
@@ -98,15 +98,16 @@ namespace Asmuth.X86.Asm
 				case VexEncoding.SimdPrefix_66: flags |= OpcodeEncodingFlags.SimdPrefix_66; break;
 				case VexEncoding.SimdPrefix_F2: flags |= OpcodeEncodingFlags.SimdPrefix_F2; break;
 				case VexEncoding.SimdPrefix_F3: flags |= OpcodeEncodingFlags.SimdPrefix_F3; break;
-				default: throw new UnreachableException();
+				default: throw new ArgumentException();
 			}
 
 			switch (vexEncoding & VexEncoding.VectorLength_Mask)
 			{
+				case VexEncoding.VectorLength_Ignored: flags |= OpcodeEncodingFlags.VexL_Ignored; break;
 				case VexEncoding.VectorLength_0: flags |= OpcodeEncodingFlags.VexL_128; break;
 				case VexEncoding.VectorLength_1: flags |= OpcodeEncodingFlags.VexL_256; break;
 				case VexEncoding.VectorLength_2: flags |= OpcodeEncodingFlags.VexL_512; break;
-				case VexEncoding.VectorLength_Ignored: flags |= OpcodeEncodingFlags.VexL_Ignored; break;
+				default: throw new ArgumentException();
 			}
 
 			switch (vexEncoding & VexEncoding.RexW_Mask)
@@ -114,6 +115,7 @@ namespace Asmuth.X86.Asm
 				case VexEncoding.RexW_Ignored: flags |= OpcodeEncodingFlags.RexW_Ignored; break;
 				case VexEncoding.RexW_0: flags |= OpcodeEncodingFlags.RexW_0; break;
 				case VexEncoding.RexW_1: flags |= OpcodeEncodingFlags.RexW_1; break;
+				default: throw new ArgumentException();
 			}
 
 			if (vexType == VexEncoding.Type_Xop)
@@ -137,7 +139,7 @@ namespace Asmuth.X86.Asm
 				}
 			}
 
-			// TODO: Vvvv / NonDestructiveReg is lost here
+			// VEX.Vvvv / NonDestructiveReg is lost here
 
 			return flags;
 		}
@@ -211,9 +213,9 @@ namespace Asmuth.X86.Asm
 
 			switch (encoding & VexEncoding.RexW_Mask)
 			{
+				case VexEncoding.RexW_Ignored: str.Append(".WIG"); break;
 				case VexEncoding.RexW_0: str.Append(".W0"); break;
 				case VexEncoding.RexW_1: str.Append(".W1"); break;
-				case VexEncoding.RexW_Ignored: str.Append(".WIG"); break;
 				default: throw new ArgumentException();
 			}
 

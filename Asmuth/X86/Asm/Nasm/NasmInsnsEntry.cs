@@ -61,6 +61,7 @@ namespace Asmuth.X86.Asm.Nasm
 		#endregion
 
 		#region Builder Class
+		[Obsolete("Fix the design")]
 		public sealed class Builder
 		{
 			private NasmInsnsEntry entry = CreateEmptyEntry();

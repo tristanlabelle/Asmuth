@@ -98,7 +98,10 @@ namespace Asmuth.X86.Asm.Nasm
 				var evexTupleTypesString = codeStringMatch.Groups["evex_tuple_type"].Value;
 				var encodingString = codeStringMatch.Groups["encoding"].Value;
 
-				ParseEncodingString(entryBuilder, encodingString);
+				VexEncoding? vexEncoding;
+				foreach (var encodingToken in ParseEncoding(encodingString, out vexEncoding))
+					entryBuilder.EncodingTokens.Add(encodingToken);
+				entryBuilder.VexEncoding = vexEncoding.GetValueOrDefault();
 
 				if (evexTupleTypesString.Length > 0)
 				{
@@ -118,55 +121,55 @@ namespace Asmuth.X86.Asm.Nasm
 			return entryBuilder.Build(reuse: false);
 		}
 
-		private static void ParseEncodingString(NasmInsnsEntry.Builder entryBuilder, string str)
+		public static IReadOnlyList<NasmEncodingToken> ParseEncoding(string str, out VexEncoding? vex)
 		{
-			var tokens = str.Split(' ');
-			int tokenIndex = 0;
-
-			bool hasVex = false;
-			while (tokenIndex < tokens.Length)
+			// In most of the cases 5 tokens should be enough.
+			var tokens = new List<NasmEncodingToken>(5);
+			vex = null;
+			
+			foreach (string tokenStr in Regex.Split(str, @"\s+"))
 			{
-				var token = tokens[tokenIndex++];
-
-				var tokenType = NasmEncodingToken.TryParseType(token);
+				var tokenType = NasmEncodingToken.TryParseType(tokenStr);
 				if (tokenType != NasmEncodingTokenType.None)
 				{
-					entryBuilder.EncodingTokens.Add(tokenType);
+					tokens.Add(tokenType);
 					continue;
 				}
 
 				byte @byte;
-				if (Regex.IsMatch(token, @"\A[0-9a-f]{2}(\+[rc])?\Z")
-					&& byte.TryParse(token.Substring(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out @byte))
+				if (Regex.IsMatch(tokenStr, @"\A[0-9a-f]{2}(\+[rc])?\Z")
+					&& byte.TryParse(tokenStr.Substring(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out @byte))
 				{
 					var type = NasmEncodingTokenType.Byte;
-					if (token.Length == 4)
+					if (tokenStr.Length == 4)
 					{
-						type = token[token.Length - 1] == 'r'
+						type = tokenStr[tokenStr.Length - 1] == 'r'
 							? NasmEncodingTokenType.Byte_PlusRegister
 							: NasmEncodingTokenType.Byte_PlusConditionCode;
 					}
-					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(type, @byte));
+					tokens.Add(new NasmEncodingToken(type, @byte));
 					continue;
 				}
 
-				if (Regex.IsMatch(token, @"\A/[0-7]\Z"))
+				if (Regex.IsMatch(tokenStr, @"\A/[0-7]\Z"))
 				{
-					entryBuilder.EncodingTokens.Add(new NasmEncodingToken(NasmEncodingTokenType.ModRM_FixedReg, (byte)(token[1] - '0')));
+					tokens.Add(new NasmEncodingToken(NasmEncodingTokenType.ModRM_FixedReg,
+						(byte)(tokenStr[1] - '0')));
 					continue;
 				}
 
-				if (Regex.IsMatch(token, @"\A(vex|xop|evex)\."))
+				if (Regex.IsMatch(tokenStr, @"\A(vex|xop|evex)\."))
 				{
-					if (hasVex) throw new FormatException("Multiple vector XEX prefixes.");
-					entryBuilder.EncodingTokens.Add(NasmEncodingTokenType.Vex);
-					entryBuilder.VexEncoding = ParseVexEncoding(token);
-					hasVex = true;
+					if (vex.HasValue) throw new FormatException("Multiple vector XEX prefixes.");
+					tokens.Add(NasmEncodingTokenType.Vex);
+					vex = ParseVexEncoding(tokenStr);
 					continue;
 				}
 
-				throw new FormatException("Unexpected NASM encoding token '{0}'".FormatInvariant(token));
+				throw new FormatException("Unexpected NASM encoding token '{0}'".FormatInvariant(tokenStr));
 			}
+
+			return tokens;
 		}
 
 		#region ParseVex

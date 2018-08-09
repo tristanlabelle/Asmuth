@@ -10,6 +10,7 @@ namespace Asmuth.X86.Asm.Nasm
 	{
 		public static readonly string AssemblerOnly = "ND";
 		public static readonly string LockCompatible = "LOCK";
+		public static readonly string LongMode = "LONG";
 		public static readonly string NoLongMode = "NOLONG";
 		public static readonly string Obsolete = "OBSOLETE";
 		public static readonly string Future = "FUTURE";

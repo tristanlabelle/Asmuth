@@ -26,6 +26,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -73,6 +74,7 @@
     <Compile Include="EffectiveAddressTests.cs" />
     <Compile Include="GprTests.cs" />
     <Compile Include="InstructionDecoderTests.cs" />
+    <Compile Include="NasmEncodingToOpcodeEncodingTests.cs" />
     <Compile Include="NasmInsnsParsingTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
