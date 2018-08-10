@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Asmuth.X86.Asm
+namespace Asmuth.X86
 {
-    partial class InstructionDictionary
-    {
-		public enum EncodingLookupKey : uint
+    partial class OpcodeEncodingTable<TTag>
+	{
+		public enum EncodingLookupKey : ushort
 		{
 			XexType_Shift = 0,
 			XexType_Escapes_MaybeRex = 0 << (int)XexType_Shift,
@@ -39,7 +39,7 @@ namespace Asmuth.X86.Asm
 
 		private static EncodingLookupKey GetEncodingLookupKey(
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode)
-			=> GetEncodingLookupKey(xex.Type, legacyPrefixes.PotentialSimdPrefix,
+			=> GetEncodingLookupKey(xex.Type, xex.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix,
 				xex.OpcodeMap, opcode);
 
 		public static EncodingLookupKey GetEncodingLookupKey(
@@ -75,7 +75,7 @@ namespace Asmuth.X86.Asm
 			return (EncodingLookupKey)(
 				((uint)simdPrefix << (int)EncodingLookupKey.SimdPrefix_Shift)
 				| ((uint)opcodeMap << (int)EncodingLookupKey.OpcodeMap_Shift)
-				| (((uint)opcode & 0b1111_1000) << (int)EncodingLookupKey.OpcodeMap_Shift));
+				| ((((uint)opcode & 0b1111_1000) >> 3) << (int)EncodingLookupKey.OpcodeHigh5Bits_Shift));
 		}
 
 		private static EncodingLookupKey GetLookupKey(in OpcodeEncoding encoding)

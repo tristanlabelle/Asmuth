@@ -216,15 +216,15 @@ namespace Asmuth.Debugger
 				[StructLayout(LayoutKind.Sequential, Size = (int)SIZE_OF_80387_REGISTERS)]
 				public struct REGISTER_AREA { }
 
-				DWORD ControlWord;
-				DWORD StatusWord;
-				DWORD TagWord;
-				DWORD ErrorOffset;
-				DWORD ErrorSelector;
-				DWORD DataOffset;
-				DWORD DataSelector;
-				REGISTER_AREA RegisterArea;
-				DWORD Cr0NpxState;
+				public DWORD ControlWord;
+				public DWORD StatusWord;
+				public DWORD TagWord;
+				public DWORD ErrorOffset;
+				public DWORD ErrorSelector;
+				public DWORD DataOffset;
+				public DWORD DataSelector;
+				public REGISTER_AREA RegisterArea;
+				public DWORD Cr0NpxState;
 			}
 
 			[StructLayout(LayoutKind.Sequential)]

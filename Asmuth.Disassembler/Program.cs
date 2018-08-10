@@ -19,14 +19,14 @@ namespace Asmuth.Disassembler
 		static void Main(string[] args)
 		{
 			// Load instruction definitions from NASM's insns.dat file
-			var instructionDictionary = new InstructionDictionary();
+			var instructionDictionary = new OpcodeEncodingTable<InstructionDefinition>();
 			foreach (var insnsEntry in NasmInsns.Read(new StreamReader(args[0])))
 			{
 				if (!insnsEntry.CanConvertToOpcodeEncoding) continue;
 
 				var instructionDefinition = insnsEntry.ToInstructionDefinition();
 				Console.WriteLine(instructionDefinition.ToString());
-				instructionDictionary.Add(instructionDefinition);
+				instructionDictionary.Add(instructionDefinition.Encoding, instructionDefinition);
 			}
 
 			var filePath = Path.GetFullPath(args[1]);

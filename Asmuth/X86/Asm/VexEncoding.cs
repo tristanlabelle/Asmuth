@@ -153,17 +153,17 @@ namespace Asmuth.X86.Asm
 
 			switch (encoding & VexEncoding.Type_Mask)
 			{
-				case VexEncoding.Type_Vex: str.Append("VEX"); break;
-				case VexEncoding.Type_Xop: str.Append("XOP"); break;
-				case VexEncoding.Type_EVex: str.Append("EVEX"); break;
+				case VexEncoding.Type_Vex: str.Append("vex"); break;
+				case VexEncoding.Type_Xop: str.Append("xop"); break;
+				case VexEncoding.Type_EVex: str.Append("evex"); break;
 				default: throw new ArgumentException();
 			}
 
 			switch (encoding & VexEncoding.NonDestructiveReg_Mask)
 			{
-				case VexEncoding.NonDestructiveReg_Source: str.Append(".NDS"); break;
-				case VexEncoding.NonDestructiveReg_Dest: str.Append(".NDD"); break;
-				case VexEncoding.NonDestructiveReg_SecondSource: str.Append(".DDS"); break;
+				case VexEncoding.NonDestructiveReg_Source: str.Append(".nds"); break;
+				case VexEncoding.NonDestructiveReg_Dest: str.Append(".ndd"); break;
+				case VexEncoding.NonDestructiveReg_SecondSource: str.Append(".dds"); break;
 				case VexEncoding.NonDestructiveReg_Invalid: break;
 				default: throw new UnreachableException();
 			}
@@ -171,9 +171,9 @@ namespace Asmuth.X86.Asm
 			bool isEVex = (encoding & VexEncoding.Type_Mask) == VexEncoding.Type_EVex;
 			switch (encoding & VexEncoding.VectorLength_Mask)
 			{
-				case VexEncoding.VectorLength_Ignored: str.Append(".LIG"); break;
-				case VexEncoding.VectorLength_0: str.Append(isEVex ? ".128" : ".L0"); break;
-				case VexEncoding.VectorLength_1: str.Append(isEVex ? ".256" : ".L1"); break;
+				case VexEncoding.VectorLength_Ignored: str.Append(".l"); break;
+				case VexEncoding.VectorLength_0: str.Append(isEVex ? ".128" : ".l0"); break;
+				case VexEncoding.VectorLength_1: str.Append(isEVex ? ".256" : ".l1"); break;
 				case VexEncoding.VectorLength_2:
 					if (!isEVex) throw new ArgumentException();
 					str.Append(".512");
@@ -185,8 +185,8 @@ namespace Asmuth.X86.Asm
 			{
 				case VexEncoding.SimdPrefix_None: break;
 				case VexEncoding.SimdPrefix_66: str.Append(".66"); break;
-				case VexEncoding.SimdPrefix_F2: str.Append(".F2"); break;
-				case VexEncoding.SimdPrefix_F3: str.Append(".F3"); break;
+				case VexEncoding.SimdPrefix_F2: str.Append(".f2"); break;
+				case VexEncoding.SimdPrefix_F3: str.Append(".f3"); break;
 				default: throw new UnreachableException();
 			}
 
@@ -194,9 +194,9 @@ namespace Asmuth.X86.Asm
 			{
 				switch (encoding & VexEncoding.Map_Mask)
 				{
-					case VexEncoding.Map_Xop8: str.Append(".M8"); break;
-					case VexEncoding.Map_Xop9: str.Append(".M9"); break;
-					case VexEncoding.Map_Xop10: str.Append(".M10"); break;
+					case VexEncoding.Map_Xop8: str.Append(".m8"); break;
+					case VexEncoding.Map_Xop9: str.Append(".m9"); break;
+					case VexEncoding.Map_Xop10: str.Append(".m10"); break;
 					default: throw new ArgumentException();
 				}
 			}
@@ -204,18 +204,18 @@ namespace Asmuth.X86.Asm
 			{
 				switch (encoding & VexEncoding.Map_Mask)
 				{
-					case VexEncoding.Map_0F: str.Append(".0F"); break;
-					case VexEncoding.Map_0F38: str.Append(".0F38"); break;
-					case VexEncoding.Map_0F3A: str.Append(".0F3A"); break;
+					case VexEncoding.Map_0F: str.Append(".0f"); break;
+					case VexEncoding.Map_0F38: str.Append(".0f38"); break;
+					case VexEncoding.Map_0F3A: str.Append(".0f3a"); break;
 					default: throw new ArgumentException();
 				}
 			}
 
 			switch (encoding & VexEncoding.RexW_Mask)
 			{
-				case VexEncoding.RexW_Ignored: str.Append(".WIG"); break;
-				case VexEncoding.RexW_0: str.Append(".W0"); break;
-				case VexEncoding.RexW_1: str.Append(".W1"); break;
+				case VexEncoding.RexW_Ignored: str.Append(".wig"); break;
+				case VexEncoding.RexW_0: str.Append(".w0"); break;
+				case VexEncoding.RexW_1: str.Append(".w1"); break;
 				default: throw new ArgumentException();
 			}
 

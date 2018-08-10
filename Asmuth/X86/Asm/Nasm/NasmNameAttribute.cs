@@ -10,15 +10,12 @@ namespace Asmuth.X86.Asm.Nasm
 	[AttributeUsage(AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
 	internal sealed class NasmNameAttribute : Attribute
 	{
-		private readonly string name;
+		public string Name { get; }
 
 		public NasmNameAttribute(string name)
 		{
-			if (name == null) throw new ArgumentNullException(nameof(name));
-			this.name = name;
+			this.Name = name ?? throw new ArgumentNullException(nameof(name));
 		}
-
-		public string Name => name;
 	}
 
 	internal static class NasmEnum<TEnum> where TEnum : struct

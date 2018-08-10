@@ -75,8 +75,8 @@ namespace Asmuth.X86.Asm.Nasm
 
 			private OpcodeEncodingFlags flags;
 			private byte mainByte;
-			private byte modRM;
-			private byte imm8;
+			private ModRM? modRM;
+			private byte? imm8Ext;
 			private State state;
 			
 			public OpcodeEncoding Parse(IEnumerable<NasmEncodingToken> tokens, VexEncoding vexEncoding,
@@ -189,8 +189,9 @@ namespace Asmuth.X86.Asm.Nasm
 
 							if (state == State.PostOpcode)
 							{
-								SetModRM(OpcodeEncodingFlags.ModRM_Fixed | OpcodeEncodingFlags.FixedModReg,
-									token.Byte);
+								SetModRM(OpcodeEncodingFlags.ModRM_RM_Fixed
+									| OpcodeEncodingFlags.ModRM_FixedReg,
+									(ModRM)token.Byte);
 								continue;
 							}
 
@@ -198,7 +199,7 @@ namespace Asmuth.X86.Asm.Nasm
 							Debug.Assert(state == State.PostModRM);
 							if (flags.HasImm8Ext()) throw new FormatException("Multiple imm8 extension bytes.");
 							flags |= OpcodeEncodingFlags.Imm8Ext_Fixed;
-							imm8 = token.Byte;
+							imm8Ext = token.Byte;
 							AddImmediateWithSizeInBytes(1);
 							break;
 
@@ -212,8 +213,9 @@ namespace Asmuth.X86.Asm.Nasm
 
 							if (state < State.PostModRM)
 							{
-								SetModRM(OpcodeEncodingFlags.ModRM_Direct | OpcodeEncodingFlags.FixedModReg,
-									token.Byte);
+								SetModRM(OpcodeEncodingFlags.ModRM_RM_Direct
+									| OpcodeEncodingFlags.ModRM_FixedReg,
+									(ModRM)token.Byte);
 								continue;
 							}
 
@@ -226,11 +228,11 @@ namespace Asmuth.X86.Asm.Nasm
 							throw new NotImplementedException();
 
 						case NasmEncodingTokenType.ModRM:
-							SetModRM(OpcodeEncodingFlags.ModRM_Any);
+							SetModRM(OpcodeEncodingFlags.ModRM_RM_Any);
 							break;
 
 						case NasmEncodingTokenType.ModRM_FixedReg:
-							SetModRM(OpcodeEncodingFlags.FixedModReg, (byte)(token.Byte << 3));
+							SetModRM(OpcodeEncodingFlags.ModRM_FixedReg, ModRMEnum.FromReg(token.Byte));
 							break;
 
 						// Immediates
@@ -301,7 +303,7 @@ namespace Asmuth.X86.Asm.Nasm
 					}
 				}
 
-				return new OpcodeEncoding(flags, mainByte, modRM, imm8);
+				return new OpcodeEncoding(flags, mainByte, modRM, imm8Ext);
 			}
 
 			private void SetLongCodeSegment(bool @long)
@@ -353,13 +355,13 @@ namespace Asmuth.X86.Asm.Nasm
 				AdvanceTo(State.PostOpcode);
 			}
 
-			private void SetModRM(OpcodeEncodingFlags flags, byte @byte = 0)
+			private void SetModRM(OpcodeEncodingFlags flags, ModRM refValue = default)
 			{
 				if (state != State.PostOpcode) throw new FormatException("Out-of-order ModRM token.");
-				Debug.Assert((this.flags & OpcodeEncodingFlags.HasModRM) == 0);
-				Debug.Assert((flags & ~(OpcodeEncodingFlags.FixedModReg | OpcodeEncodingFlags.ModRM_Mask)) == 0);
-				this.flags |= OpcodeEncodingFlags.HasModRM | flags;
-				this.modRM = @byte;
+				Debug.Assert((this.flags & OpcodeEncodingFlags.ModRM_Present) == 0);
+				Debug.Assert((flags & ~(OpcodeEncodingFlags.ModRM_FixedReg | OpcodeEncodingFlags.ModRM_RM_Mask)) == 0);
+				this.flags |= OpcodeEncodingFlags.ModRM_Present | flags;
+				this.modRM = refValue;
 				AdvanceTo(State.PostModRM);
 			}
 

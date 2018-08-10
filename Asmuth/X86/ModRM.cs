@@ -45,6 +45,12 @@ namespace Asmuth.X86
 		public static string ToDebugString(this ModRM modRM)
 			=> $"mod = {GetMod(modRM)}, reg = {GetReg(modRM)}, rm = {GetRM(modRM)}";
 
+		public static ModRM FromReg(byte reg)
+		{
+			if (reg >= 8) throw new ArgumentOutOfRangeException(nameof(reg));
+			return (ModRM)(reg << 3);
+		}
+
 		public static ModRM FromComponents(byte mod, byte reg, byte rm)
 		{
 			if (mod >= 4) throw new ArgumentOutOfRangeException(nameof(mod));

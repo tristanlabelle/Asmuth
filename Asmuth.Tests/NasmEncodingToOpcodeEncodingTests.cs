@@ -25,10 +25,10 @@ namespace Asmuth.X86.Asm.Nasm
 		[TestMethod]
 		public void TestModRM()
 		{
-			AssertEncoding("00 /r", HasModRM, 0x10, default(ModRM)); // ADD r/m8, r8
-			AssertEncoding("d8 /0", HasModRM | FixedModReg, 0xD8, ModRM.Reg_0); // FADD m32
-			AssertEncoding("d8 c0+r", HasModRM | FixedModReg | ModRM_Direct, 0xD8, (ModRM)0xC0); // FADD
-			AssertEncoding("d9 f2", HasModRM | FixedModReg | ModRM_Fixed, 0xD9, (ModRM)0xF2); // FPTAN
+			AssertEncoding("00 /r", ModRM_Present, 0x10, default(ModRM)); // ADD r/m8, r8
+			AssertEncoding("d8 /0", ModRM_Present | ModRM_FixedReg, 0xD8, ModRM.Reg_0); // FADD m32
+			AssertEncoding("d8 c0+r", ModRM_Present | ModRM_FixedReg | ModRM_RM_Direct, 0xD8, (ModRM)0xC0); // FADD
+			AssertEncoding("d9 f2", ModRM_Present | ModRM_FixedReg | ModRM_RM_Fixed, 0xD9, (ModRM)0xF2); // FPTAN
 		}
 
 		[TestMethod]
@@ -43,26 +43,26 @@ namespace Asmuth.X86.Asm.Nasm
 		public void TestEscapes()
 		{
 			AssertEncoding("0f a2", Map_0F, 0xA2); // CPUID
-			AssertEncoding("0f 38 c9 /r", Map_0F38 | HasModRM, 0xC9); // SHA1MSG1
-			AssertEncoding("0f 3a cc /r ib", Map_0F3A | HasModRM | ImmediateSize_8, 0xCC); // SHA1RNDS4
+			AssertEncoding("0f 38 c9 /r", Map_0F38 | ModRM_Present, 0xC9); // SHA1MSG1
+			AssertEncoding("0f 3a cc /r ib", Map_0F3A | ModRM_Present | ImmediateSize_8, 0xCC); // SHA1RNDS4
 		}
 
 		[TestMethod]
 		public void TestSimdPrefixes()
 		{
-			AssertEncoding("np 0f 10 /r", SimdPrefix_None | Map_0F | HasModRM, 0x10); // MOVUPS
-			AssertEncoding("66 0f 10 /r", SimdPrefix_66 | Map_0F | HasModRM, 0x10); // MOVUPD
-			AssertEncoding("f2 0f 10 /r", SimdPrefix_F2 | Map_0F | HasModRM, 0x10); // MOVSD
-			AssertEncoding("f3 0f 10 /r", SimdPrefix_F3 | Map_0F | HasModRM, 0x10); // MOVSS
+			AssertEncoding("np 0f 10 /r", SimdPrefix_None | Map_0F | ModRM_Present, 0x10); // MOVUPS
+			AssertEncoding("66 0f 10 /r", SimdPrefix_66 | Map_0F | ModRM_Present, 0x10); // MOVUPD
+			AssertEncoding("f2 0f 10 /r", SimdPrefix_F2 | Map_0F | ModRM_Present, 0x10); // MOVSD
+			AssertEncoding("f3 0f 10 /r", SimdPrefix_F3 | Map_0F | ModRM_Present, 0x10); // MOVSS
 		}
 
 		[TestMethod]
 		public void TestVex()
 		{
 			// Test with different L, pp, mm and w bits
-			AssertEncoding("vex.128.0f 10 /r", XexType_Vex | VexL_128 | SimdPrefix_None | Map_0F | HasModRM, 0x10); // VMOVUPS
-			AssertEncoding("vex.nds.lig.f2.0f 10 /r", XexType_Vex | VexL_Ignored | SimdPrefix_F2 | Map_0F | HasModRM, 0x10); // VMOVSS
-			AssertEncoding("vex.dds.256.66.0f38.w1 98 /r", XexType_Vex | VexL_256 | SimdPrefix_66 | RexW_1 | Map_0F38 | HasModRM, 0x98); // VFMADD132PD
+			AssertEncoding("vex.128.0f 10 /r", XexType_Vex | VexL_128 | SimdPrefix_None | Map_0F | ModRM_Present, 0x10); // VMOVUPS
+			AssertEncoding("vex.nds.lig.f2.0f 10 /r", XexType_Vex | VexL_Ignored | SimdPrefix_F2 | Map_0F | ModRM_Present, 0x10); // VMOVSS
+			AssertEncoding("vex.dds.256.66.0f38.w1 98 /r", XexType_Vex | VexL_256 | SimdPrefix_66 | RexW_1 | Map_0F38 | ModRM_Present, 0x98); // VFMADD132PD
 		}
 
 		private static void AssertEncoding(string nasmEncodingStr,
@@ -75,12 +75,12 @@ namespace Asmuth.X86.Asm.Nasm
 			Assert.AreEqual(expectedFlags, opcodeEncoding.Flags);
 
 			bool hasFixedModRMBits = opcodeEncoding.HasModRM
-				&& ((opcodeEncoding.Flags & FixedModReg) != 0
-				|| (opcodeEncoding.Flags & ModRM_Mask) == ModRM_Fixed);
+				&& ((opcodeEncoding.Flags & ModRM_FixedReg) != 0
+				|| (opcodeEncoding.Flags & ModRM_RM_Mask) == ModRM_RM_Fixed);
 			Assert.IsTrue(expectedModRM.HasValue ? opcodeEncoding.HasModRM : !hasFixedModRMBits,
 				"Expected ModRM provided when not needed or vice-versa.");
 			if (expectedModRM.HasValue)
-				Assert.AreEqual((byte)expectedModRM, opcodeEncoding.ModRM);
+				Assert.AreEqual(expectedModRM.GetValueOrDefault(), opcodeEncoding.RefModRM);
 		}
 	}
 }

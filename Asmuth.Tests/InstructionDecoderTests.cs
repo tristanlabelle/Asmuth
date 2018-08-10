@@ -5,9 +5,31 @@ using System.IO;
 
 namespace Asmuth.X86
 {
+	using OEF = OpcodeEncodingFlags;
+
 	[TestClass]
 	public sealed class InstructionDecoderTests
 	{
+		private static readonly IInstructionDecoderLookup lookup;
+
+		static InstructionDecoderTests()
+		{
+			var table = new OpcodeEncodingTable<string>();
+			table.Add(default, 0x90, "nop");
+			table.Add(OEF.Map_0F | OEF.ModRM_Present, 0x1F, "nop"); // 3+ byte nop
+			table.Add(OEF.Map_0F | OEF.ModRM_Present, 0x45, "cmovne"); // 0x45 should not be interpreted as REX
+			table.Add(OEF.HasMainByteReg | OEF.ImmediateSize_8, 0xB0, "mov r8, imm8");
+			table.Add(OEF.OperandSize_Word | OEF.RexW_0 | OEF.HasMainByteReg | OEF.ImmediateSize_16, 0xB8, "mov r16, imm16");
+			table.Add(OEF.OperandSize_Dword | OEF.RexW_0 | OEF.HasMainByteReg | OEF.ImmediateSize_32, 0xB8, "mov r32, imm32");
+			table.Add(OEF.RexW_1 | OEF.HasMainByteReg | OEF.ImmediateSize_64, 0xB8, "mov r64, imm64");
+			table.Add(OEF.OperandSize_Dword | OEF.RexW_0 | OEF.ModRM_Present | OEF.ModRM_FixedReg | OEF.ImmediateSize_32, 0xF7, ModRM.Reg_0, "test r/m32, imm32");
+			table.Add(OEF.OperandSize_Dword | OEF.RexW_0 | OEF.ModRM_Present | OEF.ModRM_FixedReg, 0xF7, ModRM.Reg_3, "neg r/m32");
+			table.Add(OEF.SimdPrefix_66 | OEF.Map_0F | OEF.ModRM_Present, 0x58, "ADDPD xmm,xmm/m");
+			table.Add(OEF.XexType_Vex | OEF.VexL_128 | OEF.SimdPrefix_66 | OEF.Map_0F | OEF.ModRM_Present, 0x58, "ADDPD xmm1,xmm2,xmm3/m128");
+
+			lookup = table;
+		}
+
 		private sealed class InstructionLookup : IInstructionDecoderLookup
 		{
 			private static readonly object found = new object();
@@ -174,7 +196,7 @@ namespace Asmuth.X86
 		}
 
 		[TestMethod]
-		public void TestMovImm()
+		public void TestImmSizes()
 		{
 			var instructions = new[]
 			{
@@ -211,12 +233,11 @@ namespace Asmuth.X86
 		}
 
 		[TestMethod]
-		public void TestVex2Nop()
+		public void TestVexIA32()
 		{
-			var vex = Vex2.Reserved_Value;
-			var instruction = DecodeSingle_32Bits(vex.GetFirstByte(), vex.GetSecondByte(), 0x90);
-			Assert.AreEqual(XexType.Vex2, instruction.Xex.Type);
-			Assert.AreEqual(0x90, instruction.MainByte);
+			// In IA32 mode, VEX prefixes can be ambiguous with other instructions
+			// See intel reference vol 2A 2.3.5
+			throw new NotImplementedException();
 		}
 
 		[TestMethod]
@@ -235,7 +256,6 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void TestVaddpd()
 		{
-			// VADDPD xmm1, xmm2, xmm3/m128 - VEX.NDS.128.66.0F.WIG 58 /r
 			var modRM = ModRMEnum.FromComponents(3, 1, 2);
 			var vex = Vex3Xop.Header_Vex3
 				| Vex3Xop.NoRegExtensions | Vex3Xop.NotNonDestructiveReg_Unused
@@ -258,7 +278,7 @@ namespace Asmuth.X86
 
 		private static Instruction[] Decode(CodeSegmentType codeSegmentType, params byte[] bytes)
 		{
-			var decoder = new InstructionDecoder(codeSegmentType, InstructionLookup.Instance);
+			var decoder = new InstructionDecoder(codeSegmentType, lookup);
 			var instructions = new List<Instruction>();
 			for (int i = 0; i < bytes.Length; ++i)
 			{
