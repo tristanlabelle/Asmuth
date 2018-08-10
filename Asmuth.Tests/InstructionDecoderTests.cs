@@ -81,6 +81,17 @@ namespace Asmuth.X86
 		}
 
 		[TestMethod]
+		public void TestModRMFixedIndirectAmbiguity()
+		{
+			var table = new OpcodeEncodingTable<string>();
+			table.Add(OEF.ModRM_Present | OEF.ModRM_FixedReg | OEF.ModRM_RM_Indirect, 0xD9, ModRM.Reg_2, "fst m32");
+			table.Add(OEF.ModRM_Present | OEF.ModRM_FixedReg | OEF.ModRM_RM_Fixed | OEF.ImmediateSize_8, 0xD9, (ModRM)0xD0, "fnop imm8"); // Imm8 for test purposes
+
+			Assert.AreEqual(1, DecodeSingle_32Bits(table, 0xD9, 0b01_010_000, 0x00).DisplacementSize.InBytes()); // fst
+			Assert.AreEqual(1, DecodeSingle_32Bits(table, 0xD9, 0b11_010_000, 0x00).ImmediateSizeInBytes); // fnop
+		}
+
+		[TestMethod]
 		public void TestDisplacementSizes()
 		{
 			var table = new OpcodeEncodingTable<string>();

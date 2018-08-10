@@ -558,7 +558,7 @@ namespace Asmuth.X86
 			bool requiresDirectMod = rmFlags == OpcodeEncodingFlags.ModRM_RM_Direct
 				|| rmFlags == OpcodeEncodingFlags.ModRM_RM_Fixed;
 
-			if ((modRM & ModRM.RM_Mask) != (requiresDirectMod ? ModRM.Mod_Direct : 0))
+			if ((modRM & ModRM.Mod_Mask) != (requiresDirectMod ? ModRM.Mod_Direct : 0))
 				throw new ArgumentException();
 		}
 
