@@ -144,9 +144,17 @@ namespace Asmuth.X86
 		}
 
 		[TestMethod]
-		public void TestRexIncAmbiguity()
+		public void TestRexIncDecAmbiguity()
 		{
-			throw new NotImplementedException();
+			var table = new OpcodeEncodingTable<string>();
+			table.Add(OEF.HasMainByteReg, 0x40, "inc r16/32");
+			table.Add(OEF.HasMainByteReg, 0x48, "dec r16/32");
+			table.Add(OEF.ModRM_Present, 01, "add rm, r");
+			
+			Assert.AreEqual(0x42, DecodeSingle_32Bits(table, 0x42).MainOpcodeByte);
+			Assert.AreEqual(0x4C, DecodeSingle_32Bits(table, 0x4C).MainOpcodeByte);
+			Assert.AreEqual(0x01, DecodeSingle_64Bits(table, 0x42, 0x01, 0x00).MainOpcodeByte);
+			Assert.AreEqual(0x01, DecodeSingle_64Bits(table, 0x4C, 0x01, 0x00).MainOpcodeByte);
 		}
 
 		[TestMethod]

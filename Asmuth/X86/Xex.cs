@@ -237,7 +237,23 @@ namespace Asmuth.X86
 				default:
 					throw new ArgumentException(nameof(map));
 			}
-		} 
+		}
+		#endregion
+
+		#region Rex
+		public static string ToIntelStyleString(this Rex rex)
+		{
+			var stringBuilder = new StringBuilder(8);
+			stringBuilder.Append("rex");
+			if ((rex & ~Rex.Reserved_Mask) != 0)
+			{
+				stringBuilder.Append('.');
+				for (int i = 3; i >= 0; i--)
+					if ((rex & (Rex)(1 << i)) != 0)
+						stringBuilder.Append("bxrw"[i]);
+			}
+			return stringBuilder.ToString();
+		}
 		#endregion
 
 		#region Vex2
