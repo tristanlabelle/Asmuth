@@ -15,11 +15,11 @@ namespace Asmuth.X86
 	{
 		public OpcodeEncodingFlags Flags { get; }
 		public byte MainByte { get; }
-		public ModRM RefModRM { get; }
-		public byte RefImm8Ext { get; }
+		public ModRM ModRM { get; }
+		public byte FixedImm8 { get; }
 
 		public OpcodeEncoding(OpcodeEncodingFlags flags, byte mainByte,
-			ModRM? refModRM = null, byte? refImm8Ext = null)
+			ModRM modRM = default, byte fixedImm8 = 0)
 		{
 			// Flags consistency
 			if (flags.GetMap() == OpcodeMap.Default && flags.GetSimdPrefix().HasValue)
@@ -28,36 +28,35 @@ namespace Asmuth.X86
 				throw new ArgumentException("Vector XEX implies SIMD prefixes.");
 			if (flags.IsEscapeXex() && (flags & OpcodeEncodingFlags.VexL_Mask) != OpcodeEncodingFlags.VexL_Ignored)
 				throw new ArgumentException("Escape XEX implies ignored VEX.L.");
-			if (flags.HasImm8Ext() && flags.GetImmediateSizeInBytes() != 1)
-				throw new ArgumentException("imm8 opcode extension implies 8-bit immediate,");
-			if (flags.HasVexIS4() && !flags.IsVex() && !flags.IsXop())
-				throw new ArgumentException("/is4 implies VEX or XOP.");
+			if ((flags & OpcodeEncodingFlags.OperandSize_Mask) != 0 && (flags & OpcodeEncodingFlags.RexW_Mask) != OpcodeEncodingFlags.RexW_0)
+				throw new ArgumentException("Explicit OperandSize implies zero REX.W.");
 			if ((flags & OpcodeEncodingFlags.ModRM_FixedReg) != 0 && !flags.HasModRM())
 				throw new ArgumentException("Fixed Mod.reg implies ModRM.");
 			if ((flags & OpcodeEncodingFlags.ModRM_RM_Mask) != OpcodeEncodingFlags.ModRM_RM_Any && !flags.HasModRM())
 				throw new ArgumentException("Fixed ModRM RM field implies ModRM.");
+			if (flags.HasImm8Ext() && flags.GetImmediateSizeInBytes() != 1)
+				throw new ArgumentException("imm8 opcode extension implies 8-bit immediate,");
+			if (flags.HasVexIS4() && !flags.IsVex() && !flags.IsXop())
+				throw new ArgumentException("/is4 implies VEX or XOP.");
 
-			if (flags.HasModRM() != refModRM.HasValue && !flags.HasAnyModRM())
-				throw new ArgumentException();
-			if (refModRM.HasValue) flags.EnsureReferenceModRM(refModRM.Value);
-			if (flags.HasImm8Ext() != refImm8Ext.HasValue) throw new ArgumentNullException();
+			if (flags.HasModRM()) flags.EnsureReferenceModRM(modRM);
 
 			this.Flags = flags;
 			this.MainByte = (byte)(mainByte & flags.GetMainByteMask());
-			this.RefModRM = refModRM.GetValueOrDefault();
-			this.RefImm8Ext = refImm8Ext.GetValueOrDefault();
+			this.ModRM = flags.HasModRM() ? modRM : default(ModRM);
+			this.FixedImm8 = flags.HasFixedImm8() ? fixedImm8 : (byte)0;
 		}
 
 		public byte MainByteMask => Flags.GetMainByteMask();
 		public bool HasModRM => (Flags & OpcodeEncodingFlags.ModRM_Present) != 0;
 		public bool HasFixedModReg => (Flags & OpcodeEncodingFlags.ModRM_FixedReg) != 0;
-		public bool HasImm8Ext => Flags.HasImm8Ext();
+		public bool HasFixedImm8 => Flags.HasFixedImm8();
 		public SimdPrefix? SimdPrefix => Flags.GetSimdPrefix();
 		public OpcodeMap Map => Flags.GetMap();
 		public int ImmediateSizeInBytes => Flags.GetImmediateSizeInBytes();
 
 		public bool IsMatchUpToMainByte(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode)
+			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte mainByte)
 		{
 			if (!Flags.AdmitsCodeSegmentType(codeSegmentType)) return false;
 			if (!Flags.AdmitsXexType(xex.Type)) return false;
@@ -73,22 +72,22 @@ namespace Asmuth.X86
 			}
 
 			if (xex.OpcodeMap != Flags.GetMap()) return false;
-			if ((opcode & Flags.GetMainByteMask()) != MainByte) return false;
+			if ((mainByte & Flags.GetMainByteMask()) != MainByte) return false;
 			return true;
 		}
 
 		public bool AdmitsModRM(ModRM value)
-			=> HasModRM && Flags.AdmitsModRM(value, reference: RefModRM);
+			=> HasModRM && Flags.AdmitsModRM(value, reference: ModRM);
 
 		public bool IsMatch(CodeSegmentType codeSegmentType,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex,
-			byte opcode, ModRM? modRM, byte? imm8)
+			byte mainByte, ModRM? modRM, byte? imm8)
 		{
-			if (!IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, xex, opcode)) return false;
+			if (!IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, xex, mainByte)) return false;
 			if (modRM.HasValue != HasModRM) return false;
 			if (modRM.HasValue && !AdmitsModRM(modRM.Value)) return false;
 			if (imm8.HasValue != (Flags.GetImmediateSizeInBytes() == 1)) throw new ArgumentException();
-			if (Flags.HasFixedImm8() && imm8.Value != this.RefImm8Ext) return false;
+			if (Flags.HasFixedImm8() && imm8.Value != this.FixedImm8) return false;
 			return true;
 		}
 
@@ -96,7 +95,7 @@ namespace Asmuth.X86
 		{
 			var imm8 = instruction.ImmediateSizeInBytes == 1 ? instruction.Immediate.GetByte(0) : (byte?)null;
 			return IsMatch(instruction.CodeSegmentType,
-				instruction.LegacyPrefixes, instruction.Xex, instruction.MainByte,
+				instruction.LegacyPrefixes, instruction.Xex, instruction.MainOpcodeByte,
 				instruction.ModRM, imm8);
 		}
 
@@ -108,12 +107,15 @@ namespace Asmuth.X86
 			if (Flags.IsEscapeXex())
 				AppendEscapeXex(str);
 			else
-				AppendVectorXex(str);
+			{
+				str.Append(Flags.ToVexEncoding().ToIntelStyleString());
+				str.Append(' ');
+			}
 
 			// String tail: opcode byte and what follows: 0B /r ib
 
 			// The opcode itself
-			str.AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", MainByte);
+			str.AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", (byte)MainByte);
 			if ((Flags & OpcodeEncodingFlags.HasMainByteReg) != 0)
 				str.Append("+r");
 
@@ -127,15 +129,15 @@ namespace Asmuth.X86
 
 					case OpcodeEncodingFlags.ModRM_RM_Any | OpcodeEncodingFlags.ModRM_FixedReg:
 						str.Append(" /");
-						str.Append((char)('0' + RefModRM.GetReg()));
+						str.Append((char)('0' + ModRM.GetReg()));
 						break;
 
 					case OpcodeEncodingFlags.ModRM_RM_Direct | OpcodeEncodingFlags.ModRM_FixedReg:
-						str.AppendFormat(CultureInfo.InvariantCulture, " {0:x2}+r", (byte)RefModRM);
+						str.AppendFormat(CultureInfo.InvariantCulture, " {0:x2}+r", (byte)ModRM);
 						break;
 
 					case OpcodeEncodingFlags.ModRM_RM_Fixed | OpcodeEncodingFlags.ModRM_FixedReg:
-						str.AppendFormat(CultureInfo.InvariantCulture, " {0:x2}", (byte)RefModRM);
+						str.AppendFormat(CultureInfo.InvariantCulture, " {0:x2}", (byte)ModRM);
 						break;
 
 					default: throw new NotImplementedException();
@@ -149,60 +151,6 @@ namespace Asmuth.X86
 			}
 
 			return str.ToString();
-		}
-
-		[Obsolete("Code duplication with VexEncoding.ToIntelStyleString")]
-		private void AppendVectorXex(StringBuilder str)
-		{
-			// Vex/Xop/EVex: VEX.NDS.LIG.66.0F3A.WIG
-			var xexType = Flags & OpcodeEncodingFlags.XexType_Mask;
-			switch (xexType)
-			{
-				case OpcodeEncodingFlags.XexType_Vex: str.Append("vex"); break;
-				case OpcodeEncodingFlags.XexType_Xop: str.Append("xop"); break;
-				case OpcodeEncodingFlags.XexType_EVex: str.Append("evex"); break;
-				default: throw new UnreachableException();
-			}
-
-			// TODO: Pretty print .NDS or similar
-
-			switch (Flags & OpcodeEncodingFlags.VexL_Mask)
-			{
-				case OpcodeEncodingFlags.VexL_Ignored: str.Append(".lig"); break;
-				case OpcodeEncodingFlags.VexL_128: str.Append(".l0"); break;
-				case OpcodeEncodingFlags.VexL_256: str.Append(".l1"); break;
-				case OpcodeEncodingFlags.VexL_512: str.Append(".l2"); break;
-				default: throw new NotImplementedException();
-			}
-
-			switch (Flags.GetSimdPrefix().Value)
-			{
-				case X86.SimdPrefix.None: break;
-				case X86.SimdPrefix._66: str.Append(".66"); break;
-				case X86.SimdPrefix._F2: str.Append(".f2"); break;
-				case X86.SimdPrefix._F3: str.Append(".f3"); break;
-				default: throw new UnreachableException();
-			}
-
-			switch (Flags.GetMap())
-			{
-				case OpcodeMap.Escape0F: str.Append(".0f"); break;
-				case OpcodeMap.Escape0F38: str.Append(".0f38"); break;
-				case OpcodeMap.Escape0F3A: str.Append(".0f3a"); break;
-				case OpcodeMap.Xop8: str.Append(".m8"); break;
-				case OpcodeMap.Xop9: str.Append(".m9"); break;
-				default: throw new NotImplementedException();
-			}
-
-			switch (Flags & OpcodeEncodingFlags.RexW_Mask)
-			{
-				case OpcodeEncodingFlags.RexW_Ignored: str.Append(".wig"); break;
-				case OpcodeEncodingFlags.RexW_0: str.Append(".w0"); break;
-				case OpcodeEncodingFlags.RexW_1: str.Append(".w1"); break;
-				default: throw new UnreachableException();
-			}
-
-			str.Append(' ');
 		}
 
 		private void AppendEscapeXex(StringBuilder str)
@@ -289,15 +237,15 @@ namespace Asmuth.X86
 						comparisonMask |= X86.ModRM.RM_Mask;
 					}
 
-					if ((a.RefModRM & comparisonMask) != (b.RefModRM & comparisonMask))
+					if ((a.ModRM & comparisonMask) != (b.ModRM & comparisonMask))
 						return false;
 				}
 			}
 
 			// Compare immediates
 			if (a.ImmediateSizeInBytes != b.ImmediateSizeInBytes) return true;
-			if (a.HasImm8Ext != b.HasImm8Ext) return true;
-			if (a.HasImm8Ext && a.RefImm8Ext != b.RefImm8Ext) return false;
+			if ((a.Flags & OpcodeEncodingFlags.Imm8Ext_Mask) != (b.Flags & OpcodeEncodingFlags.Imm8Ext_Mask)) return true;
+			if (a.HasFixedImm8 && a.FixedImm8 != b.FixedImm8) return false;
 
 			// If we got to this point, every distinguishing field is potentially ambiguous
 			return true;
@@ -405,6 +353,60 @@ namespace Asmuth.X86
 
 	public static class OpcodeEncodingFlagsEnum
 	{
+		public static VexEncoding ToVexEncoding(this OpcodeEncodingFlags flags)
+		{
+			VexEncoding vex = default;
+			switch (flags & OpcodeEncodingFlags.XexType_Mask)
+			{
+				case OpcodeEncodingFlags.XexType_Escapes_RexOpt: throw new ArgumentException();
+				case OpcodeEncodingFlags.XexType_Vex: vex |= VexEncoding.Type_Vex; break;
+				case OpcodeEncodingFlags.XexType_Xop: vex |= VexEncoding.Type_Xop; break;
+				case OpcodeEncodingFlags.XexType_EVex: vex |= VexEncoding.Type_EVex; break;
+				default: throw new ArgumentOutOfRangeException(nameof(flags));
+			}
+
+			vex |= VexEncoding.NonDestructiveReg_Invalid; // Lost in translation
+
+			switch (flags & OpcodeEncodingFlags.VexL_Mask)
+			{
+				case OpcodeEncodingFlags.VexL_Ignored: vex |= VexEncoding.VectorLength_Ignored; break;
+				case OpcodeEncodingFlags.VexL_128: vex |= VexEncoding.VectorLength_128; break;
+				case OpcodeEncodingFlags.VexL_256: vex |= VexEncoding.VectorLength_256; break;
+				case OpcodeEncodingFlags.VexL_512: vex |= VexEncoding.VectorLength_512; break;
+				default: throw new ArgumentOutOfRangeException(nameof(flags));
+			}
+
+			switch (flags & OpcodeEncodingFlags.SimdPrefix_Mask)
+			{
+				case OpcodeEncodingFlags.SimdPrefix_None: vex |= VexEncoding.SimdPrefix_None; break;
+				case OpcodeEncodingFlags.SimdPrefix_66: vex |= VexEncoding.SimdPrefix_66; break;
+				case OpcodeEncodingFlags.SimdPrefix_F2: vex |= VexEncoding.SimdPrefix_F2; break;
+				case OpcodeEncodingFlags.SimdPrefix_F3: vex |= VexEncoding.SimdPrefix_F3; break;
+				default: throw new ArgumentOutOfRangeException(nameof(flags));
+			}
+
+			switch (flags & OpcodeEncodingFlags.Map_Mask)
+			{
+				case OpcodeEncodingFlags.Map_0F: vex |= VexEncoding.Map_0F; break;
+				case OpcodeEncodingFlags.Map_0F38: vex |= VexEncoding.Map_0F38; break;
+				case OpcodeEncodingFlags.Map_0F3A: vex |= VexEncoding.Map_0F3A; break;
+				case OpcodeEncodingFlags.Map_Xop8: vex |= VexEncoding.Map_Xop8; break;
+				case OpcodeEncodingFlags.Map_Xop9: vex |= VexEncoding.Map_Xop9; break;
+				case OpcodeEncodingFlags.Map_Xop10: vex |= VexEncoding.Map_Xop10; break;
+				default: throw new ArgumentOutOfRangeException(nameof(flags));
+			}
+			
+			switch (flags & OpcodeEncodingFlags.RexW_Mask)
+			{
+				case OpcodeEncodingFlags.RexW_Ignored: vex |= VexEncoding.RexW_Ignored; break;
+				case OpcodeEncodingFlags.RexW_0: vex |= VexEncoding.RexW_0; break;
+				case OpcodeEncodingFlags.RexW_1: vex |= VexEncoding.RexW_1; break;
+				default: throw new ArgumentOutOfRangeException(nameof(flags));
+			}
+
+			return vex;
+		}
+
 		public static bool IsIA32Mode(this OpcodeEncodingFlags flags)
 			=> (flags & OpcodeEncodingFlags.CodeSegmentType_Mask) == OpcodeEncodingFlags.CodeSegmentType_IA32;
 

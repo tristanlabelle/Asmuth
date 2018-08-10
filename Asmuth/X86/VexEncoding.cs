@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Asm
+namespace Asmuth.X86
 {
 	/// <summary>
 	/// Defines the vex-based encoding of an opcode,
@@ -31,13 +31,13 @@ namespace Asmuth.X86.Asm
 
 		// 2 bits
 		VectorLength_Shift = 4,
-		VectorLength_0 = 0 << (int)VectorLength_Shift,
-		VectorLength_1 = 1 << (int)VectorLength_Shift,
-		VectorLength_2 = 2 << (int)VectorLength_Shift,
+		VectorLength_Ignored = 0 << (int)VectorLength_Shift,
+		VectorLength_0 = 1 << (int)VectorLength_Shift,
+		VectorLength_1 = 2 << (int)VectorLength_Shift,
+		VectorLength_2 = 3 << (int)VectorLength_Shift,
 		VectorLength_128 = VectorLength_0,
 		VectorLength_256 = VectorLength_1,
 		VectorLength_512 = VectorLength_2,
-		VectorLength_Ignored = 3 << (int)VectorLength_Shift,
 		VectorLength_Mask = 3 << (int)VectorLength_Shift,
 
 		// 2 bits
@@ -161,17 +161,17 @@ namespace Asmuth.X86.Asm
 
 			switch (encoding & VexEncoding.NonDestructiveReg_Mask)
 			{
+				case VexEncoding.NonDestructiveReg_Invalid: break;
 				case VexEncoding.NonDestructiveReg_Source: str.Append(".nds"); break;
 				case VexEncoding.NonDestructiveReg_Dest: str.Append(".ndd"); break;
 				case VexEncoding.NonDestructiveReg_SecondSource: str.Append(".dds"); break;
-				case VexEncoding.NonDestructiveReg_Invalid: break;
 				default: throw new UnreachableException();
 			}
 
 			bool isEVex = (encoding & VexEncoding.Type_Mask) == VexEncoding.Type_EVex;
 			switch (encoding & VexEncoding.VectorLength_Mask)
 			{
-				case VexEncoding.VectorLength_Ignored: str.Append(".l"); break;
+				case VexEncoding.VectorLength_Ignored: str.Append(".lig"); break;
 				case VexEncoding.VectorLength_0: str.Append(isEVex ? ".128" : ".l0"); break;
 				case VexEncoding.VectorLength_1: str.Append(isEVex ? ".256" : ".l1"); break;
 				case VexEncoding.VectorLength_2:

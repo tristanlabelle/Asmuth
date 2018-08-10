@@ -73,16 +73,16 @@ namespace Asmuth.X86
 		
 		object IInstructionDecoderLookup.TryLookup(
 			CodeSegmentType codeSegmentType, ImmutableLegacyPrefixList legacyPrefixes,
-			Xex xex, byte opcode, ModRM? modRM,
+			Xex xex, byte mainByte, ModRM? modRM,
 			out bool hasModRM, out int immediateSizeInBytes)
 		{
-			var lookupKey = GetEncodingLookupKey(legacyPrefixes, xex, opcode);
+			var lookupKey = GetEncodingLookupKey(legacyPrefixes, xex, mainByte);
 			
 			if (buckets.TryGetValue(lookupKey, out var bucket))
 			{
 				foreach (var entry in bucket)
 				{
-					if (!entry.Opcode.IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, xex, opcode))
+					if (!entry.Opcode.IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, xex, mainByte))
 						continue;
 					
 					if (modRM.HasValue)

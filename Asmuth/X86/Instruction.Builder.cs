@@ -13,7 +13,7 @@ namespace Asmuth.X86
 			public CodeSegmentType CodeSegmentType { get; set; } = CodeSegmentType._32Bits;
 			public ImmutableLegacyPrefixList LegacyPrefixes { get; set; }
 			public Xex Xex { get; set; }
-			public byte OpcodeByte { get; set; }
+			public byte MainByte { get; set; }
 			public ModRM? ModRM { get; set; }
 			public Sib? Sib { get; set; }
 			public int Displacement { get; set; }
@@ -27,7 +27,7 @@ namespace Asmuth.X86
 				CodeSegmentType = CodeSegmentType._32Bits;
 				LegacyPrefixes = ImmutableLegacyPrefixList.Empty;
 				Xex = default;
-				OpcodeByte = 0;
+				MainByte = 0;
 				ModRM = null;
 				Sib = null;
 				Displacement = 0;

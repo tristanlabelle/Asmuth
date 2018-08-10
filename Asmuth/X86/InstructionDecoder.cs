@@ -133,7 +133,7 @@ namespace Asmuth.X86
 					{
 						// What we just read was not a XOP, but a POP reg/mem
 						builder.Xex = default;
-						builder.OpcodeByte = (byte)Vex3Xop.FirstByte_Xop;
+						builder.MainByte = (byte)Vex3Xop.FirstByte_Xop;
 						builder.ModRM = (ModRM)@byte;
 						state = InstructionDecodingState.ExpectModRM;
 						return AdvanceToSibOrFurther();
@@ -185,10 +185,10 @@ namespace Asmuth.X86
 						}
 					}
 
-					builder.OpcodeByte = @byte;
+					builder.MainByte = @byte;
 						
 					lookupTag = lookup.TryLookup(CodeSegmentType,
-						builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modRM: null,
+						builder.LegacyPrefixes, builder.Xex, builder.MainByte, modRM: null,
 						out bool hasModRM, out immediateSizeInBytes);
 
 					if (lookupTag == null)
@@ -214,7 +214,7 @@ namespace Asmuth.X86
 					if (lookupTag == null)
 					{
 						lookupTag = lookup.TryLookup(CodeSegmentType,
-							builder.LegacyPrefixes, builder.Xex, builder.OpcodeByte, modRM: builder.ModRM,
+							builder.LegacyPrefixes, builder.Xex, builder.MainByte, modRM: builder.ModRM,
 							out bool hasModRM, out immediateSizeInBytes);
 						if (!hasModRM) throw new NotSupportedException("Contradictory lookup result.");
 

@@ -35,15 +35,15 @@ namespace Asmuth.X86
 
 
 		private static EncodingLookupKey GetEncodingLookupKey(in Instruction instruction)
-			=> GetEncodingLookupKey(instruction.LegacyPrefixes, instruction.Xex, instruction.MainByte);
+			=> GetEncodingLookupKey(instruction.LegacyPrefixes, instruction.Xex, instruction.MainOpcodeByte);
 
 		private static EncodingLookupKey GetEncodingLookupKey(
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode)
+			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte mainByte)
 			=> GetEncodingLookupKey(xex.Type, xex.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix,
-				xex.OpcodeMap, opcode);
+				xex.OpcodeMap, mainByte);
 
 		public static EncodingLookupKey GetEncodingLookupKey(
-			XexType xexType, SimdPrefix simdPrefix, OpcodeMap opcodeMap, byte opcode)
+			XexType xexType, SimdPrefix simdPrefix, OpcodeMap opcodeMap, byte mainByte)
 		{
 			EncodingLookupKey lookupKey;
 			switch (xexType)
@@ -66,16 +66,16 @@ namespace Asmuth.X86
 				default: throw new ArgumentOutOfRangeException(nameof(xexType));
 			}
 
-			return lookupKey | GetEncodingLookupKeyWithoutXexType(simdPrefix, opcodeMap, opcode);
+			return lookupKey | GetEncodingLookupKeyWithoutXexType(simdPrefix, opcodeMap, mainByte);
 		}
 
 		private static EncodingLookupKey GetEncodingLookupKeyWithoutXexType(
-			SimdPrefix simdPrefix, OpcodeMap opcodeMap, byte opcode)
+			SimdPrefix simdPrefix, OpcodeMap opcodeMap, byte mainByte)
 		{
 			return (EncodingLookupKey)(
 				((uint)simdPrefix << (int)EncodingLookupKey.SimdPrefix_Shift)
 				| ((uint)opcodeMap << (int)EncodingLookupKey.OpcodeMap_Shift)
-				| ((((uint)opcode & 0b1111_1000) >> 3) << (int)EncodingLookupKey.OpcodeHigh5Bits_Shift));
+				| ((uint)(mainByte & ~MainOpcodeByte.EmbeddedRegMask) << (int)EncodingLookupKey.OpcodeHigh5Bits_Shift));
 		}
 
 		private static EncodingLookupKey GetLookupKey(in OpcodeEncoding encoding)

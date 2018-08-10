@@ -75,8 +75,8 @@ namespace Asmuth.X86.Asm.Nasm
 
 			private OpcodeEncodingFlags flags;
 			private byte mainByte;
-			private ModRM? modRM;
-			private byte? imm8Ext;
+			private ModRM modRM;
+			private byte fixedImm8;
 			private State state;
 			
 			public OpcodeEncoding Parse(IEnumerable<NasmEncodingToken> tokens, VexEncoding vexEncoding,
@@ -183,7 +183,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 							if (state < State.PostOpcode)
 							{
-								SetOpcode(token.Byte, plusR: false);
+								SetMainOpcodeByte(token.Byte, plusR: false);
 								continue;
 							}
 
@@ -199,7 +199,7 @@ namespace Asmuth.X86.Asm.Nasm
 							Debug.Assert(state == State.PostModRM);
 							if (flags.HasImm8Ext()) throw new FormatException("Multiple imm8 extension bytes.");
 							flags |= OpcodeEncodingFlags.Imm8Ext_Fixed;
-							imm8Ext = token.Byte;
+							fixedImm8 = token.Byte;
 							AddImmediateWithSizeInBytes(1);
 							break;
 
@@ -207,7 +207,7 @@ namespace Asmuth.X86.Asm.Nasm
 							Debug.Assert((token.Byte & 7) == 0);
 							if (state < State.PostOpcode)
 							{
-								SetOpcode(token.Byte, plusR: true);
+								SetMainOpcodeByte(token.Byte, plusR: true);
 								continue;
 							}
 
@@ -303,7 +303,7 @@ namespace Asmuth.X86.Asm.Nasm
 					}
 				}
 
-				return new OpcodeEncoding(flags, mainByte, modRM, imm8Ext);
+				return new OpcodeEncoding(flags, mainByte, modRM, fixedImm8);
 			}
 
 			private void SetLongCodeSegment(bool @long)
@@ -347,21 +347,21 @@ namespace Asmuth.X86.Asm.Nasm
 				AdvanceTo(State.PostSimdPrefix);
 			}
 
-			private void SetOpcode(byte @byte, bool plusR)
+			private void SetMainOpcodeByte(byte value, bool plusR)
 			{
 				if (state >= State.PostOpcode) throw new FormatException("Out-of-order opcode token.");
-				this.mainByte = @byte;
+				this.mainByte = value;
 				if (plusR) this.flags |= OpcodeEncodingFlags.HasMainByteReg;
 				AdvanceTo(State.PostOpcode);
 			}
 
-			private void SetModRM(OpcodeEncodingFlags flags, ModRM refValue = default)
+			private void SetModRM(OpcodeEncodingFlags flags, ModRM value = default)
 			{
 				if (state != State.PostOpcode) throw new FormatException("Out-of-order ModRM token.");
 				Debug.Assert((this.flags & OpcodeEncodingFlags.ModRM_Present) == 0);
 				Debug.Assert((flags & ~(OpcodeEncodingFlags.ModRM_FixedReg | OpcodeEncodingFlags.ModRM_RM_Mask)) == 0);
 				this.flags |= OpcodeEncodingFlags.ModRM_Present | flags;
-				this.modRM = refValue;
+				this.modRM = value;
 				AdvanceTo(State.PostModRM);
 			}
 

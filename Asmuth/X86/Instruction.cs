@@ -34,7 +34,7 @@ namespace Asmuth.X86
 
 		// 4 bytes
 		private readonly Flags flags;
-		private readonly byte mainByte;
+		private readonly byte mainOpcodeByte;
 		private readonly ModRM modRM;
 		private readonly Sib sib;
 
@@ -50,7 +50,7 @@ namespace Asmuth.X86
 
 			legacyPrefixes = builder.LegacyPrefixes;
 			xex = builder.Xex; // Validate if redundant with prefixes
-			mainByte = builder.OpcodeByte;
+			mainOpcodeByte = builder.MainByte;
 			modRM = builder.ModRM.GetValueOrDefault();
 			sib = builder.Sib.GetValueOrDefault(); // Validate if necessary
 			displacement = builder.Displacement; // Validate with mod/sib
@@ -71,7 +71,7 @@ namespace Asmuth.X86
 		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
 		public Xex Xex => xex;
 		public OpcodeMap OpcodeMap => xex.OpcodeMap;
-		public byte MainByte => mainByte;
+		public byte MainOpcodeByte => mainOpcodeByte;
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;
 		public bool HasMemoryRM => ModRM.HasValue && ModRM.Value.IsMemoryRM();
 

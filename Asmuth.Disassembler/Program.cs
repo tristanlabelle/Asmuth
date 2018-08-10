@@ -128,7 +128,7 @@ namespace Asmuth.Disassembler
 							}
 						}
 
-						Console.Write("{0:X2}", instruction.MainByte);
+						Console.Write("{0:X2}", instruction.MainOpcodeByte);
 						
 						if (instruction.ModRM.HasValue)
 						{

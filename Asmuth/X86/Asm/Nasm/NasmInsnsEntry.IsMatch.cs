@@ -22,7 +22,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 		public bool Match(
 			CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte opcode,
+			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte mainByte,
 			out bool hasModRM, out int immediateSize)
 		{
 			var partialInstruction = new Instruction.Builder
@@ -30,7 +30,7 @@ namespace Asmuth.X86.Asm.Nasm
 				CodeSegmentType = codeSegmentType,
 				LegacyPrefixes = legacyPrefixes,
 				Xex = xex,
-				OpcodeByte = opcode
+				MainByte = mainByte
 			}.Build();
 
 			return Match(partialInstruction, upToOpcode: true, hasModRM: out hasModRM, immediateSize: out immediateSize);
@@ -43,7 +43,8 @@ namespace Asmuth.X86.Asm.Nasm
 				immediateSize: out var immediateSize);
 		}
 
-		private bool Match(Instruction instruction, bool upToOpcode, out bool hasModRM, out int immediateSize)
+		private bool Match(Instruction instruction, bool upToOpcode,
+			out bool hasModRM, out int immediateSize)
 		{
 			hasModRM = false;
 			immediateSize = 0;
@@ -174,7 +175,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 						if (state < NasmEncodingParsingState.PostOpcode)
 						{
-							if (instruction.MainByte != token.Byte) return false;
+							if (instruction.MainOpcodeByte != token.Byte) return false;
 							state = NasmEncodingParsingState.PostOpcode;
 							continue;
 						}
@@ -196,8 +197,9 @@ namespace Asmuth.X86.Asm.Nasm
 						if (state > NasmEncodingParsingState.PostOpcode)
 							throw new NotImplementedException();
 
-						byte mask = token.Type == NasmEncodingTokenType.Byte_PlusConditionCode ? (byte)0xF0 : (byte)0xF8;
-						if ((instruction.MainByte & mask) != token.Byte) return false;
+						byte mask = token.Type == NasmEncodingTokenType.Byte_PlusConditionCode
+							? (byte)0xF0 : (byte)0xF8;
+						if (((byte)instruction.MainOpcodeByte & mask) != token.Byte) return false;
 						state = NasmEncodingParsingState.PostOpcode;
 
 						break;

@@ -80,7 +80,7 @@ namespace Asmuth.X86.Asm.Nasm
 			Assert.IsTrue(expectedModRM.HasValue ? opcodeEncoding.HasModRM : !hasFixedModRMBits,
 				"Expected ModRM provided when not needed or vice-versa.");
 			if (expectedModRM.HasValue)
-				Assert.AreEqual(expectedModRM.GetValueOrDefault(), opcodeEncoding.RefModRM);
+				Assert.AreEqual(expectedModRM.GetValueOrDefault(), opcodeEncoding.ModRM);
 		}
 	}
 }
