@@ -296,8 +296,8 @@ namespace Asmuth.X86
 		SimdPrefix_Ignored = 0 << (int)SimdPrefix_Shift, // CMOVA 0F 47 /r
 		SimdPrefix_None = 1 << (int)SimdPrefix_Shift, // ADDPS NP 0F 58 /r
 		SimdPrefix_66 = 2 << (int)SimdPrefix_Shift, // ADDPD 66 0F 58 /r
-		SimdPrefix_F2 = 3 << (int)SimdPrefix_Shift,
-		SimdPrefix_F3 = 4 << (int)SimdPrefix_Shift,
+		SimdPrefix_F3 = 3 << (int)SimdPrefix_Shift,
+		SimdPrefix_F2 = 4 << (int)SimdPrefix_Shift,
 		SimdPrefix_Mask = 7 << (int)SimdPrefix_Shift,
 
 		// How the REX.W field is used

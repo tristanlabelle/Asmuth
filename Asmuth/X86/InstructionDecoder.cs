@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,12 +12,12 @@ namespace Asmuth.X86
 	{
 		Initial,
 		ExpectPrefixOrOpcode,
-		ExpectXexByte, // substate: remaining byte count
+		ExpectXexByte,
 		ExpectOpcode,
 		ExpectModRM,
 		ExpectSib,
-		ExpectDisplacement, // substate: bytes read
-		ExpectImmediate, // substate: bytes read
+		ExpectDisplacement,
+		ExpectImmediate,
 		Completed,
 		Error // substate: error enum
 	}
@@ -34,15 +35,43 @@ namespace Asmuth.X86
 
 	public sealed class InstructionDecoder
 	{
+		#region Substates
+		private struct ExpectXexByteSubstate
+		{
+			public uint Accumulator;
+			public XexType XexType;
+			public byte BytesRead;
+			public byte ByteCount;
+		}
+
+		private struct ExpectDisplacementSubstate
+		{
+			public uint Accumulator;
+			public byte BytesRead;
+			public byte ByteCount;
+		}
+		
+		private struct ExpectImmediateSubstate
+		{
+			public ulong Accumulator;
+			public byte BytesRead;
+		}
+
+		[StructLayout(LayoutKind.Explicit)]
+		private struct Substate
+		{
+			[FieldOffset(0)] public ExpectXexByteSubstate ExpectXexByte;
+			[FieldOffset(0)] public ExpectDisplacementSubstate ExpectDisplacement;
+			[FieldOffset(0)] public ExpectImmediateSubstate ExpectImmediate;
+			[FieldOffset(0)] public InstructionDecodingError Error;
+		}
+		#endregion
+
 		#region Fields
 		private readonly IInstructionDecoderLookup lookup;
-
-		// State data
-		private InstructionDecodingState state;
-		private byte substate;
-		private uint accumulator;
 		private readonly Instruction.Builder builder = new Instruction.Builder();
-		private ulong immediateRawStorage;
+		private InstructionDecodingState state;
+		private Substate substate;
 		private int immediateSizeInBytes;
 		private object lookupTag;
 		#endregion
@@ -108,19 +137,25 @@ namespace Asmuth.X86
 						return true;
 					}
 
-					var xexType = XexEnums.GetTypeFromByte(@byte);
-					if (CodeSegmentType.IsLongMode() && xexType == XexType.RexAndEscapes)
+					var xexType = XexEnums.SniffType(CodeSegmentType, @byte);
+					if (xexType == XexType.RexAndEscapes)
 					{
 						builder.Xex = new Xex((Rex)@byte);
 						return AdvanceTo(InstructionDecodingState.ExpectOpcode);
 					}
 
-					if (xexType >= XexType.Vex2)
+					if (xexType != XexType.Escapes)
 					{
-						int remainingBytes = xexType.GetMinSizeInBytes() - 1;
-						// Hack: We accumulate the xex bytes, but make sure we end up with the type in the most significant byte
-						accumulator = @byte | ((uint)xexType << (24 - remainingBytes * 8));
-						return AdvanceTo(InstructionDecodingState.ExpectXexByte, substate: (byte)remainingBytes);
+						// Vector XEX are ambiguous with existing opcodes.
+						// We must check whether the following byte is a ModRM.
+						Substate newSubstate = default;
+						newSubstate.ExpectXexByte.XexType = xexType;
+						newSubstate.ExpectXexByte.Accumulator = @byte;
+						newSubstate.ExpectXexByte.BytesRead = 1;
+						newSubstate.ExpectXexByte.ByteCount = (byte)xexType.GetMinSizeInBytes();
+
+						Debug.Assert(newSubstate.ExpectXexByte.ByteCount > 1);
+						return AdvanceTo(InstructionDecodingState.ExpectXexByte, newSubstate);
 					}
 
 					state = InstructionDecodingState.ExpectOpcode;
@@ -129,38 +164,62 @@ namespace Asmuth.X86
 
 				case InstructionDecodingState.ExpectXexByte:
 				{
-					if ((accumulator >> 24) == (uint)Vex3Xop.FirstByte_Xop && (@byte & 0x04) == 0)
+					// The second byte determines whether we are actually parsing a XEX
+					// or an instruction and its ModRM
+					if (substate.ExpectXexByte.BytesRead == 1)
 					{
-						// What we just read was not a XOP, but a POP reg/mem
-						builder.Xex = default;
-						builder.MainByte = (byte)Vex3Xop.FirstByte_Xop;
-						builder.ModRM = (ModRM)@byte;
-						state = InstructionDecodingState.ExpectModRM;
-						return AdvanceToSibOrFurther();
+						byte firstByte = (byte)substate.ExpectXexByte.Accumulator;
+						var finalXexType = XexEnums.GetType(CodeSegmentType, firstByte, @byte);
+						if (finalXexType == XexType.Escapes)
+						{
+							// This was not actually a XEX, but an instruction and its ModRM
+							builder.Xex = default;
+							builder.MainByte = firstByte;
+							builder.ModRM = (ModRM)@byte;
+
+							if (lookup.TryLookup(builder.CodeSegmentType, builder.LegacyPrefixes,
+								builder.Xex, builder.MainByte, builder.ModRM,
+								out bool hasModRM, out int immediateSizeInBytes) == null)
+							{
+								AdvanceToError(InstructionDecodingError.UnknownOpcode);
+							}
+
+							if (!hasModRM) throw new FormatException();
+
+							state = InstructionDecodingState.ExpectModRM;
+							return AdvanceToSibOrFurther();
+						}
+						else
+						{
+							Debug.Assert(finalXexType == substate.ExpectXexByte.XexType);
+						}
 					}
 
 					// Accumulate xex bytes
-					accumulator = (accumulator << 8) | @byte;
-					--substate;
-					if (substate > 0) return true; // More bytes to read
+					substate.ExpectXexByte.Accumulator <<= 8;
+					substate.ExpectXexByte.Accumulator |= @byte;
+					substate.ExpectXexByte.BytesRead++;
+					if (substate.ExpectXexByte.BytesRead < substate.ExpectXexByte.ByteCount)
+						return true; // More bytes to read
 
-					// Thanks to our hack, we always have the type in the most significant byte now
-					var xexType = (XexType)(accumulator >> 24);
-					switch (xexType)
+					switch (substate.ExpectXexByte.XexType)
 					{
-						case XexType.Vex2: builder.Xex = new Xex((Vex2)accumulator); break;
+						case XexType.Vex2:
+							builder.Xex = new Xex((Vex2)substate.ExpectXexByte.Accumulator);
+							break;
 						
 						case XexType.Vex3:
 						case XexType.Xop:
-							builder.Xex = new Xex((Vex3Xop)accumulator);
+							builder.Xex = new Xex((Vex3Xop)substate.ExpectXexByte.Accumulator);
 							break;
 
-						case XexType.EVex: builder.Xex = new Xex((EVex)accumulator); break;
+						case XexType.EVex:
+							builder.Xex = new Xex((EVex)substate.ExpectXexByte.Accumulator);
+							break;
+
 						default: throw new UnreachableException();
 					}
-
-					accumulator = 0;
-						
+					
 					return AdvanceTo(InstructionDecodingState.ExpectOpcode);
 				}
 
@@ -233,31 +292,32 @@ namespace Asmuth.X86
 
 				case InstructionDecodingState.ExpectDisplacement:
 				{
-					accumulator |= (uint)@byte << (substate * 8);
-					substate++;
-					var displacementSize = builder.ModRM.Value.GetDisplacementSize(
-						builder.Sib.GetValueOrDefault(), GetEffectiveAddressSize());
-					if (substate < displacementSize.InBytes()) return true; // More bytes to come
+					substate.ExpectDisplacement.Accumulator |= (uint)@byte << (substate.ExpectDisplacement.BytesRead * 8);
+					substate.ExpectDisplacement.BytesRead++;
+					if (substate.ExpectDisplacement.BytesRead < substate.ExpectDisplacement.ByteCount)
+							return true; // More bytes to come
 
 					// Sign-extend
-					if (displacementSize == DisplacementSize._8Bits)
-						builder.Displacement = unchecked((sbyte)accumulator);
-					else if (displacementSize == DisplacementSize._16Bits)
-						builder.Displacement = unchecked((short)accumulator);
-					else if (displacementSize == DisplacementSize._32Bits)
-						builder.Displacement = unchecked((int)accumulator);
+					if (substate.ExpectDisplacement.ByteCount == 1)
+						builder.Displacement = unchecked((sbyte)substate.ExpectDisplacement.Accumulator);
+					else if (substate.ExpectDisplacement.ByteCount == 2)
+						builder.Displacement = unchecked((short)substate.ExpectDisplacement.Accumulator);
+					else if (substate.ExpectDisplacement.ByteCount == 4)
+						builder.Displacement = unchecked((int)substate.ExpectDisplacement.Accumulator);
+					else
+						throw new UnreachableException();
 
 					return AdvanceToImmediateOrEnd();
 				}
 
 				case InstructionDecodingState.ExpectImmediate:
 				{
-					immediateRawStorage |= (ulong)@byte << (substate * 8);
-					substate++;
-					if (substate < immediateSizeInBytes)
+					substate.ExpectImmediate.Accumulator |= (ulong)@byte << (substate.ExpectImmediate.BytesRead * 8);
+					substate.ExpectImmediate.BytesRead++;
+					if (substate.ExpectImmediate.BytesRead < immediateSizeInBytes)
 						return true; // More bytes to come
 
-					builder.Immediate = Immediate.FromRawStorage(immediateRawStorage, immediateSizeInBytes);
+					builder.Immediate = Immediate.FromRawStorage(substate.ExpectImmediate.Accumulator, immediateSizeInBytes);
 					return AdvanceTo(InstructionDecodingState.Completed);
 				}
 
@@ -289,11 +349,9 @@ namespace Asmuth.X86
 			var codeSegmentType = builder.CodeSegmentType;
 
 			state = InstructionDecodingState.Initial;
-			substate = 0;
-			accumulator = 0;
+			substate = default;
 			builder.Clear();
 			builder.CodeSegmentType = codeSegmentType;
-			immediateRawStorage = 0;
 			immediateSizeInBytes = 0;
 			lookupTag = null;
 		}
@@ -323,17 +381,31 @@ namespace Asmuth.X86
 		}
 
 		#region AdvanceTo***
-		private bool AdvanceTo(InstructionDecodingState newState, byte substate = 0)
+		private bool AdvanceTo(InstructionDecodingState newState)
+		{
+			this.substate = default;
+			return AdvanceTo_NoSubstate(newState);
+		}
+
+		private bool AdvanceTo(InstructionDecodingState newState, in Substate substate)
+		{
+			this.substate = substate;
+			return AdvanceTo_NoSubstate(newState);
+		}
+
+		private bool AdvanceTo_NoSubstate(InstructionDecodingState newState)
 		{
 			Debug.Assert(newState > State);
 			this.state = newState;
-			this.substate = substate;
-			return newState != InstructionDecodingState.Completed && newState != InstructionDecodingState.Error;
+			return newState != InstructionDecodingState.Completed
+				&& newState != InstructionDecodingState.Error;
 		}
 
 		private bool AdvanceToError(InstructionDecodingError error)
 		{
-			return AdvanceTo(InstructionDecodingState.Error, substate: (byte)error);
+			Substate substate = default;
+			substate.Error = error;
+			return AdvanceTo(InstructionDecodingState.Error, substate);
 		}
 
 		private bool AdvanceToSibOrFurther()
@@ -349,10 +421,18 @@ namespace Asmuth.X86
 		{
 			Debug.Assert(State >= InstructionDecodingState.ExpectModRM);
 			Debug.Assert(State < InstructionDecodingState.ExpectDisplacement);
-			
-			return GetDisplacementSize() > DisplacementSize.None
-				? AdvanceTo(InstructionDecodingState.ExpectDisplacement)
-				: AdvanceToImmediateOrEnd();
+
+			var displacementSize = GetDisplacementSize();
+			if (displacementSize != DisplacementSize.None)
+			{
+				Substate newSubstate = default;
+				newSubstate.ExpectDisplacement.ByteCount = (byte)displacementSize.InBytes();
+				return AdvanceTo(InstructionDecodingState.ExpectDisplacement, newSubstate);
+			}
+			else
+			{
+				return AdvanceToImmediateOrEnd();
+			}
 		}
 
 		private bool AdvanceToImmediateOrEnd()
@@ -361,7 +441,7 @@ namespace Asmuth.X86
 			Debug.Assert(State < InstructionDecodingState.ExpectImmediate);
 			
 			return immediateSizeInBytes > 0
-				? AdvanceTo(InstructionDecodingState.ExpectImmediate)
+				? AdvanceTo(InstructionDecodingState.ExpectImmediate, new Substate())
 				: AdvanceTo(InstructionDecodingState.Completed);
 		} 
 		#endregion

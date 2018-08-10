@@ -105,6 +105,10 @@ namespace Asmuth.X86
 			return supported;
 		}
 		#endregion
+
+		public static bool IsIA32(this CodeSegmentType type)
+			=> type != CodeSegmentType._64Bits;
+
 		public static bool IsLongMode(this CodeSegmentType type)
 			=> type == CodeSegmentType._64Bits;
 	}

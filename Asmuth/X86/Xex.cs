@@ -51,8 +51,8 @@ namespace Asmuth.X86
 		SimdPrefix_Shift = 0,
 		SimdPrefix_None = 0 << SimdPrefix_Shift,
 		SimdPrefix_66 = 1 << SimdPrefix_Shift,
-		SimdPrefix_F2 = 2 << SimdPrefix_Shift,
-		SimdPrefix_F3 = 3 << SimdPrefix_Shift,
+		SimdPrefix_F3 = 2 << SimdPrefix_Shift,
+		SimdPrefix_F2 = 3 << SimdPrefix_Shift,
 		SimdPrefix_Mask = 3 << SimdPrefix_Shift,
 
 		VectorSize256 = 1 << 2, // L
@@ -83,8 +83,8 @@ namespace Asmuth.X86
 		SimdPrefix_Shift = 0,
 		SimdPrefix_None = 0 << SimdPrefix_Shift,
 		SimdPrefix_66 = 1 << SimdPrefix_Shift,
-		SimdPrefix_F2 = 2 << SimdPrefix_Shift,
-		SimdPrefix_F3 = 3 << SimdPrefix_Shift,
+		SimdPrefix_F3 = 2 << SimdPrefix_Shift,
+		SimdPrefix_F2 = 3 << SimdPrefix_Shift,
 		SimdPrefix_Mask = 3 << SimdPrefix_Shift,
 
 		VectorSize256 = 1 << 2, // L
@@ -139,8 +139,8 @@ namespace Asmuth.X86
 		pp_Shift = 8,
 		pp_None = 0U << (int)pp_Shift,
 		pp_66 = 1U << (int)pp_Shift,
-		pp_F2 = 2U << (int)pp_Shift,
-		pp_F3 = 3U << (int)pp_Shift,
+		pp_F3 = 2U << (int)pp_Shift,
+		pp_F2 = 3U << (int)pp_Shift,
 		pp_Mask = 3U << (int)pp_Shift,
 
 		// NDS Register specifier
@@ -166,15 +166,41 @@ namespace Asmuth.X86
 		public static bool IsVex3Xop(this XexType xexType)
 			=> xexType == XexType.Vex3 || xexType == XexType.Xop;
 
-		public static XexType GetTypeFromByte(byte value)
+		public static XexType SniffType(CodeSegmentType codeSegmentType, byte @byte)
+			=> SniffOrGetType(codeSegmentType, @byte, second: null);
+
+		public static XexType GetType(CodeSegmentType codeSegmentType, byte first, byte second)
+			=> SniffOrGetType(codeSegmentType, first, second);
+
+		private static XexType SniffOrGetType(CodeSegmentType codeSegmentType, byte first, byte? second)
 		{
-			switch (value)
+			ModRM secondRM = (ModRM)second.GetValueOrDefault();
+			switch (first)
 			{
-				case (byte)Vex2.FirstByte: return XexType.Vex2;
-				case (byte)Vex3Xop.FirstByte_Vex3: return XexType.Vex3;
-				case (byte)Vex3Xop.FirstByte_Xop: return XexType.Xop;
-				case (byte)EVex.FirstByte: return XexType.EVex;
-				default: return ((value & 0xF0) == (byte)Rex.HighNibble) ? XexType.RexAndEscapes : XexType.Escapes;
+				case (byte)Vex2.FirstByte:
+					if (codeSegmentType.IsIA32() && second.HasValue && secondRM.IsMemoryRM())
+						return XexType.Escapes; // This is no VEX2, it's an LDS (C5 /r)
+					return XexType.Vex2;
+
+				case (byte)Vex3Xop.FirstByte_Vex3:
+					if (codeSegmentType.IsIA32() && second.HasValue && secondRM.IsMemoryRM())
+						return XexType.Escapes; // This is no VEX3, it's an LES (C4 /r)
+					return XexType.Vex3;
+
+				case (byte)Vex3Xop.FirstByte_Xop:
+					if (second.HasValue && secondRM.GetReg() == 0)
+						return XexType.Escapes; // This is no XOP, it's a POP (8F /0)
+					return XexType.Xop;
+
+				case (byte)EVex.FirstByte:
+					if (codeSegmentType.IsIA32() && second.HasValue && secondRM.IsMemoryRM())
+						return XexType.Escapes; // This is no EVEX, it's a BOUND (62 /r)
+					return XexType.EVex;
+
+				default:
+					if (codeSegmentType.IsLongMode() && (first & 0xF0) == (byte)Rex.HighNibble)
+						return XexType.RexAndEscapes;
+					return XexType.Escapes;
 			}
 		}
 

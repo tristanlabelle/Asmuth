@@ -44,8 +44,8 @@ namespace Asmuth.X86
 		SimdPrefix_Shift = 6,
 		SimdPrefix_None = 0 << (int)SimdPrefix_Shift,
 		SimdPrefix_66 = 1 << (int)SimdPrefix_Shift,
-		SimdPrefix_F2 = 2 << (int)SimdPrefix_Shift,
-		SimdPrefix_F3 = 3 << (int)SimdPrefix_Shift,
+		SimdPrefix_F3 = 2 << (int)SimdPrefix_Shift,
+		SimdPrefix_F2 = 3 << (int)SimdPrefix_Shift,
 		SimdPrefix_Mask = 3 << (int)SimdPrefix_Shift,
 
 		// 2 bits
