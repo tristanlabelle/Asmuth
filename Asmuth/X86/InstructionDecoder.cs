@@ -181,7 +181,7 @@ namespace Asmuth.X86
 								builder.Xex, builder.MainByte, builder.ModRM,
 								out bool hasModRM, out int immediateSizeInBytes) == null)
 							{
-								AdvanceToError(InstructionDecodingError.UnknownOpcode);
+								return AdvanceToError(InstructionDecodingError.UnknownOpcode);
 							}
 
 							if (!hasModRM) throw new FormatException();
