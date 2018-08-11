@@ -223,8 +223,8 @@ namespace Asmuth.X86
 
 				var rmFlagsA = a.Flags & OpcodeEncodingFlags.ModRM_RM_Mask;
 				var rmFlagsB = b.Flags & OpcodeEncodingFlags.ModRM_RM_Mask;
-				if (rmFlagsA.HasDirectModRM_Mod() && rmFlagsB == OpcodeEncodingFlags.ModRM_RM_Indirect
-					|| rmFlagsB.HasDirectModRM_Mod() && rmFlagsA == OpcodeEncodingFlags.ModRM_RM_Indirect)
+				if ((a.Flags.HasDirectModRM_Mod() && rmFlagsB == OpcodeEncodingFlags.ModRM_RM_Indirect)
+					|| (b.Flags.HasDirectModRM_Mod() && rmFlagsA == OpcodeEncodingFlags.ModRM_RM_Indirect))
 				{
 					// Cannot possibly collide
 					return false;
