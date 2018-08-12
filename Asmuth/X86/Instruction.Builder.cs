@@ -17,7 +17,7 @@ namespace Asmuth.X86
 			public ModRM? ModRM { get; set; }
 			public Sib? Sib { get; set; }
 			public int Displacement { get; set; }
-			public Immediate Immediate { get; set; }
+			public ImmediateData Immediate { get; set; }
 
 			public Instruction Build() => new Instruction(this);
 			public void Build(out Instruction instruction) => instruction = new Instruction(this);

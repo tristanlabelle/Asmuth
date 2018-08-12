@@ -291,6 +291,41 @@ namespace Asmuth.X86
 
 		public static byte GetNonDestructiveReg(this Vex3Xop vex)
 			=> (byte)(~Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.NotNonDestructiveReg_Mask, (int)Vex3Xop.NotNonDestructiveReg_Shift) & 0xF); 
+		
+		public static VexEncoding AsVexEncoding(this Vex3Xop vex)
+		{
+			VexEncoding encoding = 0;
+			if (vex.IsVex3()) encoding |= VexEncoding.Type_Vex;
+			else if (vex.IsXop()) encoding |= VexEncoding.Type_Xop;
+			else throw new ArgumentException();
+
+			encoding |= (vex & Vex3Xop.VectorSize256) == 0
+				? VexEncoding.VectorLength_128 : VexEncoding.VectorLength_256;
+
+			switch (vex.GetSimdPrefix())
+			{
+				case SimdPrefix.None: encoding |= VexEncoding.SimdPrefix_None; break;
+				case SimdPrefix._66: encoding |= VexEncoding.SimdPrefix_66; break;
+				case SimdPrefix._F3: encoding |= VexEncoding.SimdPrefix_F3; break;
+				case SimdPrefix._F2: encoding |= VexEncoding.SimdPrefix_F2; break;
+				default: throw new ArgumentException();
+			}
+			
+			switch (vex.GetOpcodeMap())
+			{
+				case OpcodeMap.Escape0F: encoding |= VexEncoding.Map_0F; break;
+				case OpcodeMap.Escape0F38: encoding |= VexEncoding.Map_0F38; break;
+				case OpcodeMap.Escape0F3A: encoding |= VexEncoding.Map_0F3A; break;
+				case OpcodeMap.Xop8: encoding |= VexEncoding.Map_Xop8; break;
+				case OpcodeMap.Xop9: encoding |= VexEncoding.Map_Xop9; break;
+				default: throw new ArgumentException();
+			}
+
+			encoding |= (vex & Vex3Xop.OperandSize64) == 0
+				? VexEncoding.RexW_0 : VexEncoding.RexW_1;
+
+			return encoding;
+		}
 		#endregion
 	}
 
@@ -434,6 +469,17 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Methods
+		public Rex GetRex()
+		{
+			if (Type != XexType.RexAndEscapes) throw new InvalidOperationException();
+			Rex rex = Rex.Default;
+			if (OperandSize64) rex |= Rex.OperandSize64;
+			if (ModRegExtension) rex |= Rex.ModRegExtension;
+			if (BaseRegExtension) rex |= Rex.BaseRegExtension;
+			if (IndexRegExtension) rex |= Rex.IndexRegExtension;
+			return rex;
+		}
+
 		public Xex WithOpcodeMap(OpcodeMap map)
 		{
 			if (!Type.CanEncodeMap(map)) throw new ArgumentException("The current XEX type cannot encode this opcode map.", nameof(map));
@@ -445,9 +491,8 @@ namespace Asmuth.X86
 		public bool Equals(Xex other) => flags == other.flags;
 		public override bool Equals(object obj) => obj is Xex && Equals((Xex)obj);
 		public override int GetHashCode() => unchecked((int)flags);
-		public override string ToString() => Type.ToString();
 
-		private static T NotImplemented<T>() { throw new NotImplementedException(); }
+		public override string ToString() => Type.ToString();
 
 		private uint GetField(Flags mask, Flags shift)
 			=> Bits.MaskAndShiftRight((uint)flags, (uint)mask, (int)shift);

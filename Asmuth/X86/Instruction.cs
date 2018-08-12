@@ -108,8 +108,9 @@ namespace Asmuth.X86
 		}
 
 		public int Displacement => displacement;
-		public int ImmediateSizeInBytes => (int)Bits.MaskAndShiftRight((uint)flags, (uint)Flags.ImmediateSizeInBytes_Mask, (int)Flags.ImmediateSizeInBytes_Shift);
-		public Immediate Immediate => Immediate.FromRawStorage(immediateRawStorage, ImmediateSizeInBytes);
+		public ImmediateData ImmediateData => ImmediateData.FromRawStorage(immediateRawStorage, ImmediateSizeInBytes);
+		public int ImmediateSizeInBytes => (int)Bits.MaskAndShiftRight((uint)flags,
+			(uint)Flags.ImmediateSizeInBytes_Mask, (int)Flags.ImmediateSizeInBytes_Shift);
 
 		public int SizeInBytes
 		{

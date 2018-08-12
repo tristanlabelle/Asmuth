@@ -126,7 +126,7 @@ namespace Asmuth.X86
 			{
 				var instruction = instructions[i];
 				Assert.AreEqual(1 << i, instruction.ImmediateSizeInBytes);
-				Assert.AreEqual((byte)1, instruction.Immediate.GetByte(0));
+				Assert.AreEqual((byte)1, instruction.ImmediateData.GetByte(0));
 			}
 		}
 

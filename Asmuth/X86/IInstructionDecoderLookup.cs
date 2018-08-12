@@ -56,7 +56,7 @@ namespace Asmuth.X86
 		public static InstructionDecoderLookupResult Success(
 			bool hasModRM, int immediateSizeInBytes, object tag = null)
 		{
-			if (unchecked((uint)immediateSizeInBytes) > Immediate.MaxSizeInBytes)
+			if (unchecked((uint)immediateSizeInBytes) > ImmediateData.MaxSizeInBytes)
 				throw new ArgumentOutOfRangeException(nameof(immediateSizeInBytes));
 			return new InstructionDecoderLookupResult(InstructionDecoderLookupStatus.Success,
 				hasModRM, (byte)immediateSizeInBytes, tag);

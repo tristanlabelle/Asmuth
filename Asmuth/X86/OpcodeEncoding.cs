@@ -93,7 +93,7 @@ namespace Asmuth.X86
 
 		public bool IsMatch(in Instruction instruction)
 		{
-			var imm8 = instruction.ImmediateSizeInBytes == 1 ? instruction.Immediate.GetByte(0) : (byte?)null;
+			var imm8 = instruction.ImmediateSizeInBytes == 1 ? instruction.ImmediateData.GetByte(0) : (byte?)null;
 			return IsMatch(instruction.CodeSegmentType,
 				instruction.LegacyPrefixes, instruction.Xex, instruction.MainOpcodeByte,
 				instruction.ModRM, imm8);

@@ -15,70 +15,55 @@ namespace Asmuth.X86.Asm
 
 		public interface IWithReg
 		{
-			RegisterNamespace RegisterNamespace { get; }
+			RegisterClass RegisterClass { get; }
 		}
 
 		// PUSH CS
 		public sealed class FixedReg : OperandFormat, IWithReg
 		{
-			public NamedRegister Register { get; }
-			public RegisterNamespace RegisterNamespace => Register.Namespace;
+			public Register Register { get; }
+			public RegisterClass RegisterClass => Register.Class;
 
-			public FixedReg(NamedRegister register) => this.Register = register;
-			public FixedReg(RegisterNamespace @namespace, byte index)
-				: this(new NamedRegister(@namespace, index)) {}
+			public FixedReg(Register register) => this.Register = register;
+			public FixedReg(RegisterClass @namespace, byte index)
+				: this(new Register(@namespace, index)) {}
 
-			public override OperandSize? ImpliedIntegerSize => Register.Namespace.TryGetIntegerSize();
+			public override OperandSize? ImpliedIntegerSize => throw new NotImplementedException();
 
 			public override string ToString() => Register.ToString();
 
-			public static readonly FixedReg AL = new FixedReg(NamedRegister.AL);
-			public static readonly FixedReg CL = new FixedReg(NamedRegister.CL);
-			public static readonly FixedReg AX = new FixedReg(NamedRegister.AX);
-			public static readonly FixedReg CX = new FixedReg(NamedRegister.CX);
-			public static readonly FixedReg DX = new FixedReg(NamedRegister.DX);
-			public static readonly FixedReg Eax = new FixedReg(NamedRegister.Eax);
-			public static readonly FixedReg Ecx = new FixedReg(NamedRegister.Ecx);
-			public static readonly FixedReg Rax = new FixedReg(NamedRegister.Rax);
-			public static readonly FixedReg ST0 = new FixedReg(NamedRegister.ST0);
+			public static readonly FixedReg AL = new FixedReg(Register.AL);
+			public static readonly FixedReg CL = new FixedReg(Register.CL);
+			public static readonly FixedReg AX = new FixedReg(Register.AX);
+			public static readonly FixedReg CX = new FixedReg(Register.CX);
+			public static readonly FixedReg DX = new FixedReg(Register.DX);
+			public static readonly FixedReg Eax = new FixedReg(Register.Eax);
+			public static readonly FixedReg Ecx = new FixedReg(Register.Ecx);
+			public static readonly FixedReg Rax = new FixedReg(Register.Rax);
+			public static readonly FixedReg ST0 = new FixedReg(Register.ST0);
 		}
 
 		// PUSH r32
 		public sealed class Reg : OperandFormat, IWithReg
 		{
-			public RegisterNamespace Namespace { get; }
+			public RegisterClass RegisterClass { get; }
+			public RegisterFamily RegisterFamily => RegisterClass.Family;
 
-			public Reg(RegisterNamespace @namespace)
+			public Reg(RegisterClass @class)
 			{
-				this.Namespace = @namespace;
+				this.RegisterClass = @class;
 			}
 
-			public override OperandSize? ImpliedIntegerSize => Namespace.TryGetIntegerSize();
+			public override OperandSize? ImpliedIntegerSize => throw new NotImplementedException();
 
-			public override string ToString()
-			{
-				switch (Namespace)
-				{
-					case RegisterNamespace.Gpr8: return "r8";
-					case RegisterNamespace.Gpr16: return "r16";
-					case RegisterNamespace.Gpr32: return "r32";
-					case RegisterNamespace.Gpr64: return "r64";
-					case RegisterNamespace.X87: return "st";
-					case RegisterNamespace.Mmx: return "mm";
-					case RegisterNamespace.Xmm: return "xmm";
-					case RegisterNamespace.Ymm: return "ymm";
-					case RegisterNamespace.Zmm: return "zmm";
-					default: throw new NotImplementedException();
-				}
-			}
-			
-			RegisterNamespace IWithReg.RegisterNamespace => Namespace;
+			public override string ToString() => throw new NotImplementedException();
 
-			public static readonly Reg Gpr8 = new Reg(RegisterNamespace.Gpr8);
-			public static readonly Reg Gpr16 = new Reg(RegisterNamespace.Gpr16);
-			public static readonly Reg Gpr32 = new Reg(RegisterNamespace.Gpr32);
-			public static readonly Reg Gpr64 = new Reg(RegisterNamespace.Gpr64);
-			public static readonly Reg X87 = new Reg(RegisterNamespace.X87);
+			public static readonly Reg GprUnsized = new Reg(RegisterClass.GprUnsized);
+			public static readonly Reg Gpr8 = new Reg(RegisterClass.GprByte);
+			public static readonly Reg Gpr16 = new Reg(RegisterClass.GprWord);
+			public static readonly Reg Gpr32 = new Reg(RegisterClass.GprDword);
+			public static readonly Reg Gpr64 = new Reg(RegisterClass.GprQword);
+			public static readonly Reg X87 = new Reg(RegisterClass.X87);
 		}
 
 		// FDIV m32fp
@@ -123,11 +108,11 @@ namespace Asmuth.X86.Asm
 
 			public override string ToString()
 			{
-				return (RegSpec.Namespace.IsGpr() ? "r" : RegSpec.ToString())
+				return (RegSpec.RegisterClass.Family == RegisterFamily.Gpr ? "r" : RegSpec.ToString())
 					+ "/" + MemSpec.ToString();
 			}
 
-			RegisterNamespace IWithReg.RegisterNamespace => RegSpec.Namespace;
+			RegisterClass IWithReg.RegisterClass => RegSpec.RegisterClass;
 
 			public static readonly RegOrMem RM8 = new RegOrMem(Reg.Gpr8, Mem.I8);
 			public static readonly RegOrMem RM16 = new RegOrMem(Reg.Gpr16, Mem.I16);

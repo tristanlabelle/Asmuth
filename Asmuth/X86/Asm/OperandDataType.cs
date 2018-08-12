@@ -8,11 +8,11 @@ namespace Asmuth.X86.Asm
 	{
 		ElementSize_Shift = 0,
 		ElementSize_0Bits = 0 << (int)ElementSize_Shift, // Doesn't actually access memory, like LEA
-		ElementSize_8Bits = 1 << (int)ElementSize_Shift,
-		ElementSize_16Bits = 2 << (int)ElementSize_Shift,
-		ElementSize_32Bits = 4 << (int)ElementSize_Shift,
+		ElementSize_Byte = 1 << (int)ElementSize_Shift,
+		ElementSize_Word = 2 << (int)ElementSize_Shift,
+		ElementSize_Dword = 4 << (int)ElementSize_Shift,
 		ElementSize_48Bits = 6 << (int)ElementSize_Shift,
-		ElementSize_64Bits = 8 << (int)ElementSize_Shift,
+		ElementSize_Qword = 8 << (int)ElementSize_Shift,
 		ElementSize_80Bits = 10 << (int)ElementSize_Shift,
 		ElementSize_128Bits = 16 << (int)ElementSize_Shift,
 		ElementSize_256Bits = 32 << (int)ElementSize_Shift,
@@ -36,24 +36,24 @@ namespace Asmuth.X86.Asm
 
 		Unknown = Type_Unknown | ElementSize_0Bits,
 
-		_8 = Type_Unknown | ElementSize_8Bits,
-		_16 = Type_Unknown | ElementSize_16Bits,
-		_32 = Type_Unknown | ElementSize_32Bits,
-		_64 = Type_Unknown | ElementSize_64Bits,
+		_8 = Type_Unknown | ElementSize_Byte,
+		_16 = Type_Unknown | ElementSize_Word,
+		_32 = Type_Unknown | ElementSize_Dword,
+		_64 = Type_Unknown | ElementSize_Qword,
 		_128 = Type_Unknown | ElementSize_128Bits,
 		_256 = Type_Unknown | ElementSize_256Bits,
 		_512 = Type_Unknown | ElementSize_512Bits,
 
-		I8 = Type_Int | ElementSize_8Bits,
-		I16 = Type_Int | ElementSize_16Bits,
-		I32 = Type_Int | ElementSize_32Bits,
-		I64 = Type_Int | ElementSize_64Bits,
+		I8 = Type_Int | ElementSize_Byte,
+		I16 = Type_Int | ElementSize_Word,
+		I32 = Type_Int | ElementSize_Dword,
+		I64 = Type_Int | ElementSize_Qword,
 
-		F32 = Type_Float | ElementSize_32Bits,
-		F64 = Type_Float | ElementSize_64Bits,
+		F32 = Type_Float | ElementSize_Dword,
+		F64 = Type_Float | ElementSize_Qword,
 		F80 = Type_Float | ElementSize_80Bits,
 
-		FarPtr16 = Type_FarPtr | ElementSize_32Bits,
+		FarPtr16 = Type_FarPtr | ElementSize_Dword,
 		FarPtr32 = Type_FarPtr | ElementSize_48Bits,
 		FarPtr64 = Type_FarPtr | ElementSize_80Bits,
 	}

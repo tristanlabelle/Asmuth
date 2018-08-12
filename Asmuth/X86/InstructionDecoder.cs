@@ -383,7 +383,7 @@ namespace Asmuth.X86
 			if (substate.ExpectImmediate.BytesRead < immediateSizeInBytes)
 				return true; // More bytes to come
 
-			builder.Immediate = Immediate.FromRawStorage(substate.ExpectImmediate.Accumulator, immediateSizeInBytes);
+			builder.Immediate = ImmediateData.FromRawStorage(substate.ExpectImmediate.Accumulator, immediateSizeInBytes);
 
 			// If the opcode is disambigued based on the imm8, we must look it up here.
 			if (lookupTag == failedLookupTag)

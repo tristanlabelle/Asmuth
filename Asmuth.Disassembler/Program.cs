@@ -143,7 +143,7 @@ namespace Asmuth.Disassembler
 							else Console.Write("r{0}", modRM.GetRM() + (instruction.Xex.BaseRegExtension ? 8 : 0));
 						}
 
-						foreach (byte b in instruction.Immediate)
+						foreach (byte b in instruction.ImmediateData)
 							Console.Write(" {0:X2}", b);
 
 						Console.WriteLine();
