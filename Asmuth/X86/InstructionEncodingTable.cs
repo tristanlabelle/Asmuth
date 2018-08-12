@@ -7,8 +7,6 @@ namespace Asmuth.X86
 {
 	public sealed partial class InstructionEncodingTable : IInstructionDecoderLookup
 	{
-		private static readonly object lookupSuccessTag = new object();
-
 		public static InstructionEncodingTable Instance { get; } = new InstructionEncodingTable();
 
 		private static bool Lookup(ushort[] table, byte mainByte)
@@ -124,11 +122,11 @@ namespace Asmuth.X86
 			throw new NotImplementedException();
 		}
 		
-		public object TryLookup(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte mainByte, ModRM? modRM,
-			out bool hasModRM, out int immediateSizeInBytes)
+		public InstructionDecoderLookupResult Lookup(CodeSegmentType codeSegmentType,
+			ImmutableLegacyPrefixList legacyPrefixes, Xex xex,
+			byte mainByte, ModRM? modRM, byte? imm8)
 		{
-			hasModRM = HasModRM(xex.OpcodeMap, mainByte);
+			bool hasModRM = HasModRM(xex.OpcodeMap, mainByte);
 			if (!hasModRM && modRM.HasValue) throw new ArgumentException();
 
 			ImmediateSize? immediateSize = GetImmediateSize(xex.OpcodeMap, mainByte, modRM);
@@ -136,13 +134,12 @@ namespace Asmuth.X86
 			{
 				// We need to read the ModRM byte
 				Debug.Assert(hasModRM && modRM == null);
-				immediateSizeInBytes = -1;
-				return null;
+				return InstructionDecoderLookupResult.Ambiguous_RequireModRM;
 			}
 
-			immediateSizeInBytes = immediateSize.Value.InBytes(
+			int immediateSizeInBytes = immediateSize.Value.InBytes(
 				operandSize: codeSegmentType.GetIntegerOperandSize(legacyPrefixes, xex));
-			return lookupSuccessTag;
+			return InstructionDecoderLookupResult.Success(hasModRM, immediateSizeInBytes);
 		}
 	}
 }

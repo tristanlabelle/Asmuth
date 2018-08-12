@@ -45,7 +45,7 @@ namespace Asmuth.Debugger
 		private static Instruction Decode(InstructionDecoder decoder, ProcessDebugger debugger, ForeignPtr ptr)
 		{
 			var reader = new BinaryReader(debugger.OpenMemory(ptr));
-			while (decoder.Feed(reader.ReadByte())) { }
+			while (decoder.Consume(reader.ReadByte())) { }
 			return decoder.GetInstruction();
 		}
 	}

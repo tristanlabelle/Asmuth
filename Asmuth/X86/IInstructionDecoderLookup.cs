@@ -11,10 +11,63 @@ namespace Asmuth.X86
 	/// </summary>
 	public interface IInstructionDecoderLookup
 	{
-		object TryLookup(CodeSegmentType codeSegmentType,
+		InstructionDecoderLookupResult Lookup(CodeSegmentType codeSegmentType,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex,
-			byte mainByte, ModRM? modRM,
-			out bool hasModRM, // If true and null return, must lookup again after reading modRM
-			out int immediateSizeInBytes); // Only valid on non-null return
+			byte mainByte, ModRM? modRM, byte? imm8);
+	}
+
+	public readonly struct InstructionDecoderLookupResult
+	{
+		private readonly object tag;
+		private readonly InstructionDecoderLookupStatus status;
+		private readonly byte immediateSizeInBytes;
+		private readonly bool hasModRM;
+
+		private InstructionDecoderLookupResult(InstructionDecoderLookupStatus status,
+			bool hasModRM = false, byte immediateSizeInBytes = 0, object tag = null)
+		{
+			this.status = status;
+			this.hasModRM = hasModRM;
+			this.immediateSizeInBytes = immediateSizeInBytes;
+			this.tag = tag;
+		}
+
+		public InstructionDecoderLookupStatus Status => status;
+		public bool IsNotFound => status == InstructionDecoderLookupStatus.NotFound;
+		public bool IsSuccess => status == InstructionDecoderLookupStatus.Success;
+		public bool HasImmediateSizeInBytes => status >= InstructionDecoderLookupStatus.Ambiguous_RequireImm8;
+
+		public bool HasModRM => IsNotFound ? throw new InvalidOperationException() : hasModRM;
+
+		public int ImmediateSizeInBytes => HasImmediateSizeInBytes
+			? immediateSizeInBytes : throw new InvalidOperationException();
+
+		public object Tag => IsSuccess ? tag : throw new InvalidOperationException();
+
+		public static readonly InstructionDecoderLookupResult NotFound
+			= new InstructionDecoderLookupResult(InstructionDecoderLookupStatus.NotFound);
+
+		public static readonly InstructionDecoderLookupResult Ambiguous_RequireModRM
+			= new InstructionDecoderLookupResult(InstructionDecoderLookupStatus.Ambiguous_RequireModRM, hasModRM: true);
+
+		public static InstructionDecoderLookupResult Ambiguous_RequireImm8(bool hasModRM)
+			=> new InstructionDecoderLookupResult(InstructionDecoderLookupStatus.Ambiguous_RequireImm8, hasModRM, immediateSizeInBytes: 8);
+
+		public static InstructionDecoderLookupResult Success(
+			bool hasModRM, int immediateSizeInBytes, object tag = null)
+		{
+			if (unchecked((uint)immediateSizeInBytes) > Immediate.MaxSizeInBytes)
+				throw new ArgumentOutOfRangeException(nameof(immediateSizeInBytes));
+			return new InstructionDecoderLookupResult(InstructionDecoderLookupStatus.Success,
+				hasModRM, (byte)immediateSizeInBytes, tag);
+		}
+	}
+	
+	public enum InstructionDecoderLookupStatus : byte
+	{
+		NotFound,
+		Ambiguous_RequireModRM,
+		Ambiguous_RequireImm8,
+		Success
 	}
 }

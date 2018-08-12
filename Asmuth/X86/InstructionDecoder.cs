@@ -11,9 +11,9 @@ namespace Asmuth.X86
 	public enum InstructionDecodingState : byte
 	{
 		Initial,
-		ExpectPrefixOrOpcode,
+		ExpectPrefixOrMainOpcodeByte,
 		ExpectXexByte,
-		ExpectOpcode,
+		ExpectMainOpcodeByte,
 		ExpectModRM,
 		ExpectSib,
 		ExpectDisplacement,
@@ -68,12 +68,14 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Fields
+		private static readonly object failedLookupTag = new object();
+
 		private readonly IInstructionDecoderLookup lookup;
 		private readonly Instruction.Builder builder = new Instruction.Builder();
 		private InstructionDecodingState state;
 		private Substate substate;
-		private int immediateSizeInBytes;
-		private object lookupTag;
+		private object lookupTag = failedLookupTag;
+		private int immediateSizeInBytes = -1;
 		#endregion
 
 		#region Constructors
@@ -106,233 +108,20 @@ namespace Asmuth.X86
 			{
 				if (state != InstructionDecodingState.Completed)
 					throw new InvalidOperationException();
+				Debug.Assert(lookupTag != failedLookupTag);
 				return lookupTag;
 			}
 		}
 		#endregion
 
 		#region Methods
-		public bool Feed(byte @byte)
-		{
-			switch (State)
-			{
-				case InstructionDecodingState.Initial:
-				case InstructionDecodingState.ExpectPrefixOrOpcode:
-				{
-					state = InstructionDecodingState.ExpectPrefixOrOpcode;
-
-					// Check if we have a legacy prefix
-					var legacyPrefix = LegacyPrefixEnum.TryFromEncodingByte(@byte);
-					if (legacyPrefix.HasValue)
-					{
-						// Allow duplicate legacy prefixes
-						// write.exe has 66 66 0F 1F 84 00 00 00 00 00 = nop word ptr [rax+rax+0000000000000000h]
-						if (builder.LegacyPrefixes.Contains(legacyPrefix.Value))
-							return true;
-
-						if (builder.LegacyPrefixes.ContainsFromGroup(legacyPrefix.Value.GetGroup()))
-							return AdvanceToError(InstructionDecodingError.ConflictingLegacyPrefixes);
-						
-						builder.LegacyPrefixes = ImmutableLegacyPrefixList.Add(builder.LegacyPrefixes, legacyPrefix.Value);
-						return true;
-					}
-
-					var xexType = XexEnums.SniffType(CodeSegmentType, @byte);
-					if (xexType == XexType.RexAndEscapes)
-					{
-						builder.Xex = new Xex((Rex)@byte);
-						return AdvanceTo(InstructionDecodingState.ExpectOpcode);
-					}
-
-					if (xexType != XexType.Escapes)
-					{
-						// Vector XEX are ambiguous with existing opcodes.
-						// We must check whether the following byte is a ModRM.
-						Substate newSubstate = default;
-						newSubstate.ExpectXexByte.XexType = xexType;
-						newSubstate.ExpectXexByte.Accumulator = @byte;
-						newSubstate.ExpectXexByte.BytesRead = 1;
-						newSubstate.ExpectXexByte.ByteCount = (byte)xexType.GetMinSizeInBytes();
-
-						Debug.Assert(newSubstate.ExpectXexByte.ByteCount > 1);
-						return AdvanceTo(InstructionDecodingState.ExpectXexByte, newSubstate);
-					}
-
-					state = InstructionDecodingState.ExpectOpcode;
-					goto case InstructionDecodingState.ExpectOpcode;
-				}
-
-				case InstructionDecodingState.ExpectXexByte:
-				{
-					// The second byte determines whether we are actually parsing a XEX
-					// or an instruction and its ModRM
-					if (substate.ExpectXexByte.BytesRead == 1)
-					{
-						byte firstByte = (byte)substate.ExpectXexByte.Accumulator;
-						var finalXexType = XexEnums.GetType(CodeSegmentType, firstByte, @byte);
-						if (finalXexType == XexType.Escapes)
-						{
-							// This was not actually a XEX, but an instruction and its ModRM
-							builder.Xex = default;
-							builder.MainByte = firstByte;
-							builder.ModRM = (ModRM)@byte;
-
-							if (lookup.TryLookup(builder.CodeSegmentType, builder.LegacyPrefixes,
-								builder.Xex, builder.MainByte, builder.ModRM,
-								out bool hasModRM, out int immediateSizeInBytes) == null)
-							{
-								return AdvanceToError(InstructionDecodingError.UnknownOpcode);
-							}
-
-							if (!hasModRM) throw new FormatException();
-
-							state = InstructionDecodingState.ExpectModRM;
-							return AdvanceToSibOrFurther();
-						}
-						else
-						{
-							Debug.Assert(finalXexType == substate.ExpectXexByte.XexType);
-						}
-					}
-
-					// Accumulate xex bytes
-					substate.ExpectXexByte.Accumulator <<= 8;
-					substate.ExpectXexByte.Accumulator |= @byte;
-					substate.ExpectXexByte.BytesRead++;
-					if (substate.ExpectXexByte.BytesRead < substate.ExpectXexByte.ByteCount)
-						return true; // More bytes to read
-
-					switch (substate.ExpectXexByte.XexType)
-					{
-						case XexType.Vex2:
-							builder.Xex = new Xex((Vex2)substate.ExpectXexByte.Accumulator);
-							break;
-						
-						case XexType.Vex3:
-						case XexType.Xop:
-							builder.Xex = new Xex((Vex3Xop)substate.ExpectXexByte.Accumulator);
-							break;
-
-						case XexType.EVex:
-							builder.Xex = new Xex((EVex)substate.ExpectXexByte.Accumulator);
-							break;
-
-						default: throw new UnreachableException();
-					}
-					
-					return AdvanceTo(InstructionDecodingState.ExpectOpcode);
-				}
-
-				case InstructionDecodingState.ExpectOpcode:
-				{
-					if (builder.Xex.Type.AllowsEscapes())
-					{
-						if (builder.Xex.OpcodeMap == OpcodeMap.Default && @byte == 0x0F)
-						{
-							builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Escape0F);
-							return true;
-						}
-
-						if (builder.Xex.OpcodeMap == OpcodeMap.Escape0F)
-						{
-							switch (@byte)
-							{
-								case 0x38: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Escape0F38); return true;
-								case 0x3A: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Escape0F3A); return true;
-								default: break;
-							}
-						}
-					}
-
-					builder.MainByte = @byte;
-						
-					lookupTag = lookup.TryLookup(CodeSegmentType,
-						builder.LegacyPrefixes, builder.Xex, builder.MainByte, modRM: null,
-						out bool hasModRM, out immediateSizeInBytes);
-
-					if (lookupTag == null)
-					{
-						// If we know there is a ModRM, read it and lookup again afterwards.
-						if (hasModRM) return AdvanceTo(InstructionDecodingState.ExpectModRM);
-
-						return AdvanceToError(InstructionDecodingError.UnknownOpcode);
-					}
-
-					Debug.Assert(immediateSizeInBytes >= 0);
-					
-					return hasModRM
-						? AdvanceTo(InstructionDecodingState.ExpectModRM)
-						: AdvanceToImmediateOrEnd();
-				}
-
-				case InstructionDecodingState.ExpectModRM:
-				{
-					builder.ModRM = (ModRM)@byte;
-
-					// If we don't have a lookup tag yet, we needed the ModRM to complete the lookup.
-					if (lookupTag == null)
-					{
-						lookupTag = lookup.TryLookup(CodeSegmentType,
-							builder.LegacyPrefixes, builder.Xex, builder.MainByte, modRM: builder.ModRM,
-							out bool hasModRM, out immediateSizeInBytes);
-						if (!hasModRM) throw new NotSupportedException("Contradictory lookup result.");
-
-						if (lookupTag == null || immediateSizeInBytes < 0)
-							return AdvanceToError(InstructionDecodingError.UnknownOpcode);
-					}
-
-					return AdvanceToSibOrFurther();
-				}
-
-				case InstructionDecodingState.ExpectSib:
-				{
-					builder.Sib = (Sib)@byte;
-					return AdvanceToDisplacementOrFurther();
-				}
-
-				case InstructionDecodingState.ExpectDisplacement:
-				{
-					substate.ExpectDisplacement.Accumulator |= (uint)@byte << (substate.ExpectDisplacement.BytesRead * 8);
-					substate.ExpectDisplacement.BytesRead++;
-					if (substate.ExpectDisplacement.BytesRead < substate.ExpectDisplacement.ByteCount)
-							return true; // More bytes to come
-
-					// Sign-extend
-					if (substate.ExpectDisplacement.ByteCount == 1)
-						builder.Displacement = unchecked((sbyte)substate.ExpectDisplacement.Accumulator);
-					else if (substate.ExpectDisplacement.ByteCount == 2)
-						builder.Displacement = unchecked((short)substate.ExpectDisplacement.Accumulator);
-					else if (substate.ExpectDisplacement.ByteCount == 4)
-						builder.Displacement = unchecked((int)substate.ExpectDisplacement.Accumulator);
-					else
-						throw new UnreachableException();
-
-					return AdvanceToImmediateOrEnd();
-				}
-
-				case InstructionDecodingState.ExpectImmediate:
-				{
-					substate.ExpectImmediate.Accumulator |= (ulong)@byte << (substate.ExpectImmediate.BytesRead * 8);
-					substate.ExpectImmediate.BytesRead++;
-					if (substate.ExpectImmediate.BytesRead < immediateSizeInBytes)
-						return true; // More bytes to come
-
-					builder.Immediate = Immediate.FromRawStorage(substate.ExpectImmediate.Accumulator, immediateSizeInBytes);
-					return AdvanceTo(InstructionDecodingState.Completed);
-				}
-
-				default:
-					throw new InvalidOperationException("Invalid decoding state.");
-			}
-		}
-
 		public void GetInstruction(out Instruction instruction)
 		{
 			if (state != InstructionDecodingState.Completed)
 				throw new InvalidOperationException();
 			builder.Build(out instruction);
 		}
-		
+
 		public Instruction GetInstruction()
 		{
 			GetInstruction(out Instruction instruction);
@@ -352,8 +141,8 @@ namespace Asmuth.X86
 			substate = default;
 			builder.Clear();
 			builder.CodeSegmentType = codeSegmentType;
-			immediateSizeInBytes = 0;
-			lookupTag = null;
+			immediateSizeInBytes = -1;
+			lookupTag = failedLookupTag;
 		}
 
 		public void Reset(CodeSegmentType codeSegmentType)
@@ -362,9 +151,269 @@ namespace Asmuth.X86
 			builder.CodeSegmentType = codeSegmentType;
 		}
 
+		public bool Consume(byte @byte)
+		{
+			switch (State)
+			{
+				case InstructionDecodingState.Initial:
+					state = InstructionDecodingState.ExpectPrefixOrMainOpcodeByte;
+					goto case InstructionDecodingState.ExpectPrefixOrMainOpcodeByte;
+
+				case InstructionDecodingState.ExpectPrefixOrMainOpcodeByte:
+					return ConsumePrefixOrMainOpcodeByte(@byte);
+
+				case InstructionDecodingState.ExpectXexByte:
+					return ConsumeXexByte(@byte);
+
+				case InstructionDecodingState.ExpectMainOpcodeByte:
+					return ConsumeMainOpcodeByte(@byte);
+
+				case InstructionDecodingState.ExpectModRM:
+					return ConsumeModRM((ModRM)@byte);
+
+				case InstructionDecodingState.ExpectSib:
+					builder.Sib = (Sib)@byte;
+					return AdvanceToDisplacementOrFurther();
+
+				case InstructionDecodingState.ExpectDisplacement:
+					return ConsumeDisplacementByte(@byte);
+
+				case InstructionDecodingState.ExpectImmediate:
+					return ConsumeImmediateByte(@byte);
+
+				default:
+					throw new InvalidOperationException("Invalid decoding state.");
+			}
+		}
+
+		private bool ConsumePrefixOrMainOpcodeByte(byte @byte)
+		{
+			// Check if we have a legacy prefix
+			var legacyPrefix = LegacyPrefixEnum.TryFromEncodingByte(@byte);
+			if (legacyPrefix.HasValue)
+			{
+				// Allow duplicate legacy prefixes
+				// write.exe has 66 66 0F 1F 84 00 00 00 00 00 = nop word ptr [rax+rax+0000000000000000h]
+				if (builder.LegacyPrefixes.Contains(legacyPrefix.Value))
+					return true;
+
+				if (builder.LegacyPrefixes.ContainsFromGroup(legacyPrefix.Value.GetGroup()))
+					return AdvanceToError(InstructionDecodingError.ConflictingLegacyPrefixes);
+
+				builder.LegacyPrefixes = ImmutableLegacyPrefixList.Add(builder.LegacyPrefixes, legacyPrefix.Value);
+				return true;
+			}
+
+			var xexType = XexEnums.SniffType(CodeSegmentType, @byte);
+			if (xexType == XexType.RexAndEscapes)
+			{
+				builder.Xex = new Xex((Rex)@byte);
+				return AdvanceTo(InstructionDecodingState.ExpectMainOpcodeByte);
+			}
+
+			if (xexType != XexType.Escapes)
+			{
+				// Vector XEX are ambiguous with existing opcodes.
+				// We must check whether the following byte is a ModRM.
+				Substate newSubstate = default;
+				newSubstate.ExpectXexByte.XexType = xexType;
+				newSubstate.ExpectXexByte.Accumulator = @byte;
+				newSubstate.ExpectXexByte.BytesRead = 1;
+				newSubstate.ExpectXexByte.ByteCount = (byte)xexType.GetMinSizeInBytes();
+
+				Debug.Assert(newSubstate.ExpectXexByte.ByteCount > 1);
+				return AdvanceTo(InstructionDecodingState.ExpectXexByte, newSubstate);
+			}
+
+			state = InstructionDecodingState.ExpectMainOpcodeByte;
+			return ConsumeMainOpcodeByte(@byte);
+		}
+
+		private bool ConsumeXexByte(byte @byte)
+		{
+			Debug.Assert(state == InstructionDecodingState.ExpectXexByte);
+
+			// The second byte determines whether we are actually parsing a XEX
+			// or an instruction and its ModRM
+			if (substate.ExpectXexByte.BytesRead == 1)
+			{
+				byte firstByte = (byte)substate.ExpectXexByte.Accumulator;
+				var finalXexType = XexEnums.GetType(CodeSegmentType, firstByte, @byte);
+				if (finalXexType == XexType.Escapes)
+				{
+					// This was not actually a XEX, but an instruction and its ModRM
+					builder.Xex = default;
+					builder.MainByte = firstByte;
+
+					state = InstructionDecodingState.ExpectModRM;
+					return ConsumeModRM((ModRM)@byte);
+				}
+				else
+				{
+					Debug.Assert(finalXexType == substate.ExpectXexByte.XexType);
+				}
+			}
+
+			// Accumulate xex bytes
+			substate.ExpectXexByte.Accumulator <<= 8;
+			substate.ExpectXexByte.Accumulator |= @byte;
+			substate.ExpectXexByte.BytesRead++;
+			if (substate.ExpectXexByte.BytesRead < substate.ExpectXexByte.ByteCount)
+				return true; // More bytes to read
+
+			switch (substate.ExpectXexByte.XexType)
+			{
+				case XexType.Vex2:
+					builder.Xex = new Xex((Vex2)substate.ExpectXexByte.Accumulator);
+					break;
+
+				case XexType.Vex3:
+				case XexType.Xop:
+					builder.Xex = new Xex((Vex3Xop)substate.ExpectXexByte.Accumulator);
+					break;
+
+				case XexType.EVex:
+					builder.Xex = new Xex((EVex)substate.ExpectXexByte.Accumulator);
+					break;
+
+				default: throw new UnreachableException();
+			}
+
+			return AdvanceTo(InstructionDecodingState.ExpectMainOpcodeByte);
+		}
+
+		private bool ConsumeMainOpcodeByte(byte @byte)
+		{
+			if (builder.Xex.Type.AllowsEscapes())
+			{
+				if (builder.Xex.OpcodeMap == OpcodeMap.Default && @byte == 0x0F)
+				{
+					builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Escape0F);
+					return true;
+				}
+
+				if (builder.Xex.OpcodeMap == OpcodeMap.Escape0F)
+				{
+					switch (@byte)
+					{
+						case 0x38: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Escape0F38); return true;
+						case 0x3A: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Escape0F3A); return true;
+						default: break;
+					}
+				}
+			}
+
+			builder.MainByte = @byte;
+
+			var lookupResult = lookup.Lookup(CodeSegmentType,
+				builder.LegacyPrefixes, builder.Xex,
+				builder.MainByte, modRM: null, imm8: null);
+			if (lookupResult.IsNotFound)
+				return AdvanceToError(InstructionDecodingError.UnknownOpcode);
+
+			if (lookupResult.HasImmediateSizeInBytes)
+				immediateSizeInBytes = lookupResult.ImmediateSizeInBytes;
+
+			if (lookupResult.IsSuccess)
+				lookupTag = lookupResult.Tag;
+
+			return lookupResult.HasModRM
+				? AdvanceTo(InstructionDecodingState.ExpectModRM)
+				: AdvanceToImmediateOrEnd();
+		}
+
+		private bool ConsumeModRM(ModRM modRM)
+		{
+			Debug.Assert(state == InstructionDecodingState.ExpectModRM);
+
+			builder.ModRM = modRM;
+
+			// If the main opcode byte wasn't enough to lookup the opcode, repeat the lookup now
+			if (lookupTag == failedLookupTag)
+			{
+				var lookupResult = lookup.Lookup(builder.CodeSegmentType, builder.LegacyPrefixes,
+					builder.Xex, builder.MainByte, modRM, imm8: null);
+				switch (lookupResult.Status)
+				{
+					case InstructionDecoderLookupStatus.Success:
+					case InstructionDecoderLookupStatus.Ambiguous_RequireImm8:
+						if (!lookupResult.HasModRM) throw new FormatException();
+						immediateSizeInBytes = lookupResult.ImmediateSizeInBytes;
+						if (lookupResult.IsSuccess) lookupTag = lookupResult.Tag;
+						break;
+
+					case InstructionDecoderLookupStatus.NotFound:
+						return AdvanceToError(InstructionDecodingError.UnknownOpcode);
+
+					case InstructionDecoderLookupStatus.Ambiguous_RequireModRM:
+					default:
+						throw new UnreachableException();
+				}
+			}
+			
+			return modRM.ImpliesSib(GetEffectiveAddressSize())
+				? AdvanceTo(InstructionDecodingState.ExpectSib)
+				: AdvanceToDisplacementOrFurther();
+		}
+
+		private bool ConsumeDisplacementByte(byte @byte)
+		{
+			substate.ExpectDisplacement.Accumulator |= (uint)@byte << (substate.ExpectDisplacement.BytesRead * 8);
+			substate.ExpectDisplacement.BytesRead++;
+			if (substate.ExpectDisplacement.BytesRead < substate.ExpectDisplacement.ByteCount)
+				return true; // More bytes to come
+
+			// Sign-extend
+			if (substate.ExpectDisplacement.ByteCount == 1)
+				builder.Displacement = unchecked((sbyte)substate.ExpectDisplacement.Accumulator);
+			else if (substate.ExpectDisplacement.ByteCount == 2)
+				builder.Displacement = unchecked((short)substate.ExpectDisplacement.Accumulator);
+			else if (substate.ExpectDisplacement.ByteCount == 4)
+				builder.Displacement = unchecked((int)substate.ExpectDisplacement.Accumulator);
+			else
+				throw new UnreachableException();
+
+			return AdvanceToImmediateOrEnd();
+		}
+
+		private bool ConsumeImmediateByte(byte @byte)
+		{
+			substate.ExpectImmediate.Accumulator |= (ulong)@byte << (substate.ExpectImmediate.BytesRead * 8);
+			substate.ExpectImmediate.BytesRead++;
+			if (substate.ExpectImmediate.BytesRead < immediateSizeInBytes)
+				return true; // More bytes to come
+
+			builder.Immediate = Immediate.FromRawStorage(substate.ExpectImmediate.Accumulator, immediateSizeInBytes);
+
+			// If the opcode is disambigued based on the imm8, we must look it up here.
+			if (lookupTag == failedLookupTag)
+			{
+				Debug.Assert(immediateSizeInBytes == 1);
+
+				var lookupResult = lookup.Lookup(builder.CodeSegmentType, builder.LegacyPrefixes,
+					builder.Xex, builder.MainByte, builder.ModRM, imm8: @byte);
+				switch (lookupResult.Status)
+				{
+					case InstructionDecoderLookupStatus.Success:
+						lookupTag = lookupResult.Tag;
+						break;
+
+					case InstructionDecoderLookupStatus.NotFound:
+						return AdvanceToError(InstructionDecodingError.UnknownOpcode);
+
+					case InstructionDecoderLookupStatus.Ambiguous_RequireModRM:
+					case InstructionDecoderLookupStatus.Ambiguous_RequireImm8:
+					default:
+						throw new UnreachableException();
+				}
+			}
+
+			return AdvanceTo(InstructionDecodingState.Completed);
+		}
+
 		private AddressSize GetEffectiveAddressSize()
 		{
-			Debug.Assert(state > InstructionDecodingState.ExpectPrefixOrOpcode);
+			Debug.Assert(state > InstructionDecodingState.ExpectPrefixOrMainOpcodeByte);
 			return CodeSegmentType.GetEffectiveAddressSize(builder.LegacyPrefixes);
 		}
 
@@ -408,15 +457,6 @@ namespace Asmuth.X86
 			return AdvanceTo(InstructionDecodingState.Error, substate);
 		}
 
-		private bool AdvanceToSibOrFurther()
-		{
-			Debug.Assert(State == InstructionDecodingState.ExpectModRM);
-			
-			return builder.ModRM.Value.ImpliesSib(GetEffectiveAddressSize())
-				? AdvanceTo(InstructionDecodingState.ExpectSib)
-				: AdvanceToDisplacementOrFurther();
-		}
-
 		private bool AdvanceToDisplacementOrFurther()
 		{
 			Debug.Assert(State >= InstructionDecodingState.ExpectModRM);
@@ -437,7 +477,7 @@ namespace Asmuth.X86
 
 		private bool AdvanceToImmediateOrEnd()
 		{
-			Debug.Assert(State >= InstructionDecodingState.ExpectOpcode);
+			Debug.Assert(State >= InstructionDecodingState.ExpectMainOpcodeByte);
 			Debug.Assert(State < InstructionDecodingState.ExpectImmediate);
 			
 			return immediateSizeInBytes > 0

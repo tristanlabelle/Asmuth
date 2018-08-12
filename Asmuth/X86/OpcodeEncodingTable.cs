@@ -71,10 +71,9 @@ namespace Asmuth.X86
 			return false;
 		}
 		
-		object IInstructionDecoderLookup.TryLookup(
+		InstructionDecoderLookupResult IInstructionDecoderLookup.Lookup(
 			CodeSegmentType codeSegmentType, ImmutableLegacyPrefixList legacyPrefixes,
-			Xex xex, byte mainByte, ModRM? modRM,
-			out bool hasModRM, out int immediateSizeInBytes)
+			Xex xex, byte mainByte, ModRM? modRM, byte? imm8)
 		{
 			var lookupKey = GetEncodingLookupKey(legacyPrefixes, xex, mainByte);
 			
@@ -95,22 +94,29 @@ namespace Asmuth.X86
 					}
 					else if (entry.Opcode.HasModRM && !entry.Opcode.Flags.HasAnyModRM())
 					{
-						// We need the ModRM bit to disambiguate
-						hasModRM = true;
-						immediateSizeInBytes = -1;
-						return null;
+						return InstructionDecoderLookupResult.Ambiguous_RequireModRM;
+					}
+
+					if (entry.Opcode.HasFixedImm8)
+					{
+						if (!imm8.HasValue)
+						{
+							return InstructionDecoderLookupResult.Ambiguous_RequireImm8(
+								hasModRM: entry.Opcode.HasModRM);
+						}
+						else if (imm8.Value != entry.Opcode.FixedImm8)
+						{
+							continue;
+						}
 					}
 					
-					hasModRM = entry.Opcode.HasModRM;
-					immediateSizeInBytes = entry.Opcode.ImmediateSizeInBytes;
-					return entry.Tag;
+					return InstructionDecoderLookupResult.Success(
+						entry.Opcode.HasModRM, entry.Opcode.ImmediateSizeInBytes,
+						entry.Tag);
 				}
 			}
-		
-			// No match found
-			hasModRM = false;
-			immediateSizeInBytes = -1;
-			return null;
+
+			return InstructionDecoderLookupResult.NotFound;
 		}
 	}
 }

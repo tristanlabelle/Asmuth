@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,13 +16,12 @@ namespace Asmuth.X86.Asm.Nasm
 			this.entries = entries.ToList();
 		}
 
-		public object TryLookup(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte mainByte, ModRM? modRM,
-			out bool hasModRM, out int immediateSizeInBytes)
+		public InstructionDecoderLookupResult Lookup(CodeSegmentType codeSegmentType,
+			ImmutableLegacyPrefixList legacyPrefixes, Xex xex,
+			byte mainByte, ModRM? modRM, byte? imm8)
 		{
-			hasModRM = false;
-			immediateSizeInBytes = 0;
-
+			bool hasModRM = false;
+			int immediateSizeInBytes = 0;
 			NasmInsnsEntry match = null;
 			foreach (var entry in entries)
 			{
@@ -31,8 +31,11 @@ namespace Asmuth.X86.Asm.Nasm
 					if (match != null)
 					{
 						// If we match multiple, we should have the same response for each
-						if (entryHasModRM != hasModRM) return false;
-						if (entryImmediateSize != immediateSizeInBytes) return false;
+						if (entryHasModRM != hasModRM || entryImmediateSize != immediateSizeInBytes)
+						{
+							Debug.Fail("Ambiguous match");
+							return InstructionDecoderLookupResult.NotFound;
+						}
 					}
 
 					hasModRM = entryHasModRM;
@@ -41,7 +44,10 @@ namespace Asmuth.X86.Asm.Nasm
 				}
 			}
 
-			return match;
+			if (match == null) return InstructionDecoderLookupResult.NotFound;
+
+			return InstructionDecoderLookupResult.Success(
+				hasModRM, immediateSizeInBytes, match);
 		}
 	}
 }

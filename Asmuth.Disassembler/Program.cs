@@ -110,7 +110,7 @@ namespace Asmuth.Disassembler
 							if (codeOffset >= sectionHeader.SizeOfRawData) throw new InvalidDataException();
 							var @byte = fileViewAccessor.ReadByte(sectionHeader.PointerToRawData + codeOffset);
 							codeOffset++;
-							if (!instructionDecoder.Feed(@byte)) break;
+							if (!instructionDecoder.Consume(@byte)) break;
 						}
 
 						var instruction = instructionDecoder.GetInstruction();

@@ -43,7 +43,7 @@ namespace Asmuth.X86
 
 			this.Flags = flags;
 			this.MainByte = (byte)(mainByte & flags.GetMainByteMask());
-			this.ModRM = flags.HasModRM() ? modRM : default(ModRM);
+			this.ModRM = flags.HasModRM() ? modRM : default;
 			this.FixedImm8 = flags.HasFixedImm8() ? fixedImm8 : (byte)0;
 		}
 

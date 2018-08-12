@@ -232,7 +232,7 @@ namespace Asmuth.X86
 			var instructions = new List<Instruction>();
 			for (int i = 0; i < bytes.Length; ++i)
 			{
-				if (!decoder.Feed(bytes[i]))
+				if (!decoder.Consume(bytes[i]))
 				{
 					Assert.AreNotEqual(InstructionDecodingState.Error, decoder.State);
 					instructions.Add(decoder.GetInstruction());

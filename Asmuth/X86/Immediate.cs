@@ -8,6 +8,9 @@ namespace Asmuth.X86
 	// Represents an untyped immediate value associated with an instruction
     public readonly struct Immediate : IReadOnlyList<byte>, IList<byte>, IEquatable<Immediate>
     {
+		public const int MaxSizeInBytes = 8;
+		public const int MaxSizeInBits = 64;
+
 		// Bytes 0-7 of immediate stored as 0x7766554433221100
 		private readonly ulong rawStorage;
 		private readonly byte sizeInBytes;
