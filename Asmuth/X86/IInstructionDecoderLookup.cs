@@ -51,7 +51,7 @@ namespace Asmuth.X86
 			= new InstructionDecoderLookupResult(InstructionDecoderLookupStatus.Ambiguous_RequireModRM, hasModRM: true);
 
 		public static InstructionDecoderLookupResult Ambiguous_RequireImm8(bool hasModRM)
-			=> new InstructionDecoderLookupResult(InstructionDecoderLookupStatus.Ambiguous_RequireImm8, hasModRM, immediateSizeInBytes: 8);
+			=> new InstructionDecoderLookupResult(InstructionDecoderLookupStatus.Ambiguous_RequireImm8, hasModRM, immediateSizeInBytes: 1);
 
 		public static InstructionDecoderLookupResult Success(
 			bool hasModRM, int immediateSizeInBytes, object tag = null)

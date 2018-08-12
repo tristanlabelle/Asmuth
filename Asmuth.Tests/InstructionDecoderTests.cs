@@ -84,11 +84,11 @@ namespace Asmuth.X86
 		public void TestModRMFixedIndirectAmbiguity()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.ModRM_Present | OEF.ModRM_FixedReg | OEF.ModRM_RM_Indirect, 0xD9, ModRM.Reg_2, "fst m32");
-			table.Add(OEF.ModRM_Present | OEF.ModRM_FixedReg | OEF.ModRM_RM_Fixed | OEF.ImmediateSize_8, 0xD9, (ModRM)0xD0, "fnop imm8"); // Imm8 for test purposes
+			table.Add(OEF.ModRM_Present | OEF.ModRM_FixedReg | OEF.ModRM_RM_Indirect, 0xD9, ModRM.Reg_2, "fst");
+			table.Add(OEF.ModRM_Present | OEF.ModRM_FixedReg | OEF.ModRM_RM_Fixed, 0xD9, (ModRM)0xD0, "fnop");
 
-			Assert.AreEqual(1, DecodeSingle_32Bits(table, 0xD9, 0b01_010_000, 0x00).DisplacementSize.InBytes()); // fst
-			Assert.AreEqual(1, DecodeSingle_32Bits(table, 0xD9, 0b11_010_000, 0x00).ImmediateSizeInBytes); // fnop
+			Assert.AreEqual("fst", DecodeSingleForTag_32Bits(table, 0xD9, 0b00_010_000)); // Indirect eax /2
+			Assert.AreEqual("fnop", DecodeSingleForTag_32Bits(table, 0xD9, 0b11_010_000)); // Direct eax /2
 		}
 
 		[TestMethod]
@@ -223,6 +223,18 @@ namespace Asmuth.X86
 			Assert.AreEqual(modRM, instruction.ModRM);
 		}
 		
+		[TestMethod]
+		public void TestImm8ExtAmbiguity()
+		{
+			var table = new OpcodeEncodingTable<string>();
+			var flags = OEF.SimdPrefix_None | OEF.Map_0F | OEF.ModRM_Present | OEF.Imm8Ext_Fixed | OEF.ImmediateSize_8;
+			table.Add(flags, 0xC2, default(ModRM), 0x00, "cmpeqps");
+			table.Add(flags, 0xC2, default(ModRM), 0x01, "cmpltps");
+
+			Assert.AreEqual("cmpeqps", DecodeSingleForTag_32Bits(table, 0x0F, 0xC2, 0x00, 0x00));
+			Assert.AreEqual("cmpltps", DecodeSingleForTag_32Bits(table, 0x0F, 0xC2, 0x00, 0x01));
+		}
+
 		private static byte ModRM_Reg(byte reg) => (byte)ModRMEnum.FromComponents(mod: 3, reg: reg, rm: 0);
 
 		private static Instruction[] Decode(IInstructionDecoderLookup lookup,
@@ -259,5 +271,28 @@ namespace Asmuth.X86
 
 		private static Instruction DecodeSingle_64Bits(IInstructionDecoderLookup lookup, params byte[] bytes)
 			=> DecodeSingle(lookup, CodeSegmentType._64Bits, bytes);
+		
+		private static object DecodeSingleForTag(IInstructionDecoderLookup lookup,
+			CodeSegmentType codeSegmentType, params byte[] bytes)
+		{
+			var decoder = new InstructionDecoder(codeSegmentType, lookup);
+			for (int i = 0; i < bytes.Length; ++i)
+			{
+				if (!decoder.Consume(bytes[i]))
+				{
+					Assert.AreEqual(InstructionDecodingState.Completed, decoder.State);
+					Assert.AreEqual(i, bytes.Length - 1);
+					return decoder.LookupTag;
+				}
+			}
+
+			Assert.Fail();
+			return null;
+		}
+
+
+		private static object DecodeSingleForTag_32Bits(
+			IInstructionDecoderLookup lookup, params byte[] bytes)
+			=> DecodeSingleForTag(lookup, CodeSegmentType._32Bits, bytes);
 	}
 }

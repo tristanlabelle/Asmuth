@@ -16,10 +16,10 @@ namespace Asmuth.X86
 		public OpcodeEncodingFlags Flags { get; }
 		public byte MainByte { get; }
 		public ModRM ModRM { get; }
-		public byte FixedImm8 { get; }
+		public byte Imm8 { get; }
 
 		public OpcodeEncoding(OpcodeEncodingFlags flags, byte mainByte,
-			ModRM modRM = default, byte fixedImm8 = 0)
+			ModRM modRM = default, byte imm8 = 0)
 		{
 			// Flags consistency
 			if (flags.GetMap() == OpcodeMap.Default && flags.GetSimdPrefix().HasValue)
@@ -44,7 +44,7 @@ namespace Asmuth.X86
 			this.Flags = flags;
 			this.MainByte = (byte)(mainByte & flags.GetMainByteMask());
 			this.ModRM = flags.HasModRM() ? modRM : default;
-			this.FixedImm8 = flags.HasFixedImm8() ? fixedImm8 : (byte)0;
+			this.Imm8 = flags.HasFixedImm8() ? imm8 : (byte)0;
 		}
 
 		public byte MainByteMask => Flags.GetMainByteMask();
@@ -87,7 +87,7 @@ namespace Asmuth.X86
 			if (modRM.HasValue != HasModRM) return false;
 			if (modRM.HasValue && !AdmitsModRM(modRM.Value)) return false;
 			if (imm8.HasValue != (Flags.GetImmediateSizeInBytes() == 1)) throw new ArgumentException();
-			if (Flags.HasFixedImm8() && imm8.Value != this.FixedImm8) return false;
+			if (Flags.HasFixedImm8() && imm8.Value != this.Imm8) return false;
 			return true;
 		}
 
@@ -245,7 +245,7 @@ namespace Asmuth.X86
 			// Compare immediates
 			if (a.ImmediateSizeInBytes != b.ImmediateSizeInBytes) return true;
 			if ((a.Flags & OpcodeEncodingFlags.Imm8Ext_Mask) != (b.Flags & OpcodeEncodingFlags.Imm8Ext_Mask)) return true;
-			if (a.HasFixedImm8 && a.FixedImm8 != b.FixedImm8) return false;
+			if (a.HasFixedImm8 && a.Imm8 != b.Imm8) return false;
 
 			// If we got to this point, every distinguishing field is potentially ambiguous
 			return true;

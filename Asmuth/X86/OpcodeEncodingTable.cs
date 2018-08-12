@@ -49,6 +49,9 @@ namespace Asmuth.X86
 		public void Add(OpcodeEncodingFlags opcodeFlags, byte mainByte, ModRM modRM, TTag tag)
 			=> Add(new OpcodeEncoding(opcodeFlags, mainByte, modRM), tag);
 
+		public void Add(OpcodeEncodingFlags opcodeFlags, byte mainByte, ModRM modRM, byte imm8, TTag tag)
+			=> Add(new OpcodeEncoding(opcodeFlags, mainByte, modRM, imm8), tag);
+
 		public bool Find(in Instruction instruction, out OpcodeEncoding opcode, out TTag tag)
 		{
 			var key = GetEncodingLookupKey(instruction);
@@ -104,7 +107,7 @@ namespace Asmuth.X86
 							return InstructionDecoderLookupResult.Ambiguous_RequireImm8(
 								hasModRM: entry.Opcode.HasModRM);
 						}
-						else if (imm8.Value != entry.Opcode.FixedImm8)
+						else if (imm8.Value != entry.Opcode.Imm8)
 						{
 							continue;
 						}
