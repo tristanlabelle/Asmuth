@@ -18,9 +18,10 @@ namespace Asmuth.X86
 
 	public static class SegmentRegisterEnum
 	{
-		public static char GetLetter(this SegmentRegister reg)
-		{
-			return "ECSDFG"[(int)reg];
-		}
+		private static readonly string[] names = { "es", "cs", "ss", "ds", "fs", "gs" };
+
+		public static string GetName(this SegmentRegister reg) => names[(int)reg];
+		public static char GetLetter(this SegmentRegister reg) => GetName(reg)[0];
+		public static bool IsZeroInLongMode(this SegmentRegister reg) => reg < SegmentRegister.FS;
 	}
 }
