@@ -25,12 +25,12 @@ namespace Asmuth.X86.Asm
 			public RegisterClass RegisterClass => Register.Class;
 
 			public FixedReg(Register register) => this.Register = register;
-			public FixedReg(RegisterClass @namespace, byte index)
-				: this(new Register(@namespace, index)) {}
+			public FixedReg(RegisterClass @class, byte index)
+				: this(new Register(@class, index)) {}
 
 			public override OperandSize? ImpliedIntegerSize => throw new NotImplementedException();
 
-			public override string ToString() => Register.ToString();
+			public override string ToString() => Register.Name;
 
 			public static readonly FixedReg AL = new FixedReg(Register.AL);
 			public static readonly FixedReg CL = new FixedReg(Register.CL);

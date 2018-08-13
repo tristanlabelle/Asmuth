@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 
 namespace Asmuth.X86
 {
@@ -13,7 +14,9 @@ namespace Asmuth.X86
 			{
 				switch (Family)
 				{
-					case RegisterFamily.Gpr: return AsGpr().Name;
+					case RegisterFamily.Gpr:
+						return IsSized ? AsSizedGpr().Name : Gpr.GetBaseName(Index);
+
 					case RegisterFamily.X87: return "st" + Index;
 					case RegisterFamily.Mmx: return "mm" + Index;
 
@@ -41,22 +44,22 @@ namespace Asmuth.X86
 			}
 		}
 
-		private static readonly Dictionary<string, Register> nameLookup;
-
-		static Register()
-		{
-			nameLookup = new Dictionary<string, Register>(StringComparer.InvariantCultureIgnoreCase);
-			foreach (var field in typeof(Register).GetTypeInfo().DeclaredFields)
+		private static readonly Lazy<Dictionary<string, Register>> nameLookup
+			= new Lazy<Dictionary<string, Register>>(() =>
 			{
-				if (!field.IsStatic || field.FieldType != typeof(Register))
-					continue;
+				var dict = new Dictionary<string, Register>(StringComparer.InvariantCultureIgnoreCase);
+				foreach (var field in typeof(Register).GetTypeInfo().DeclaredFields)
+				{
+					if (!field.IsStatic || field.FieldType != typeof(Register))
+						continue;
 
-				// TODO: Pick FlagsUnsized over Flags16 and remove suffix
-				nameLookup.Add(field.Name, (Register)field.GetValue(null));
-			}
-		}
+					// TODO: Pick FlagsUnsized over Flags16 and remove suffix
+					dict.Add(field.Name, (Register)field.GetValue(null));
+				}
+				return dict;
+			}, LazyThreadSafetyMode.ExecutionAndPublication);
 
 		public static Register? TryFromName(string name)
-			=> nameLookup.TryGetValue(name, out Register reg) ? reg : (Register?)null;
+			=> nameLookup.Value.TryGetValue(name, out Register reg) ? reg : (Register?)null;
 	}
 }

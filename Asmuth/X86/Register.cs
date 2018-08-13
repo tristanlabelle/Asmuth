@@ -5,7 +5,6 @@ using System.Text;
 
 namespace Asmuth.X86
 {
-
 	public enum RegisterFamily : byte
 	{
 		Gpr,
@@ -85,6 +84,7 @@ namespace Asmuth.X86
 		public RegisterFamily Family => family;
 		public bool IsGpr => Family == RegisterFamily.Gpr;
 		public bool IsSized => sizeInBytes > 0;
+		public bool IsSizedGpr => IsGpr && IsSized;
 		public int? SizeInBytes => IsSized ? sizeInBytes : (int?)null;
 		public int? SizeInBits => IsSized ? sizeInBytes * 8 : (int?)null;
 
@@ -142,12 +142,46 @@ namespace Asmuth.X86
 			this.Index = (byte)index;
 		}
 
+		public Register(Gpr gpr)
+		{
+			if (gpr.Part == GprPart.HighByte)
+			{
+				this.Class = RegisterClass.GprByte;
+				this.Index = (byte)(0x10 + gpr.Index);
+			}
+			else
+			{
+				switch (gpr.Part)
+				{
+					case GprPart.Byte: this.Class = RegisterClass.GprByte; break;
+					case GprPart.Word: this.Class = RegisterClass.GprWord; break;
+					case GprPart.Dword: this.Class = RegisterClass.GprDword; break;
+					case GprPart.Qword: this.Class = RegisterClass.GprQword; break;
+					default: throw new UnreachableException();
+				}
+				this.Index = (byte)gpr.Index;
+			}
+		}
+
 		public RegisterFamily Family => Class.Family;
+		public bool IsSized => Class.IsSized;
 		public int? SizeInBytes => Class.SizeInBytes;
 		public int? SizeInBits => Class.SizeInBits;
-		public bool IsGpr => Family == RegisterFamily.Gpr;
+		public bool IsGpr => Class.IsGpr;
+		public bool IsSizedGpr => Class.IsSizedGpr;
 
-		public Gpr AsGpr() => throw new NotImplementedException();
+		public Gpr AsSizedGpr()
+		{
+			if (IsSizedGpr) throw new InvalidOperationException();
+			switch (SizeInBytes.Value)
+			{
+				case 1: return new Gpr(Index & 0xF, Index >= 0x10 ? GprPart.HighByte : GprPart.Byte);
+				case 2: return new Gpr(Index, GprPart.Word);
+				case 4: return new Gpr(Index, GprPart.Dword);
+				case 8: return new Gpr(Index, GprPart.Qword);
+				default: throw new UnreachableException();
+			}
+		}
 
 		public override string ToString() => Name;
 

@@ -52,52 +52,9 @@ namespace Asmuth.X86
 		public static int GetOffsetInBytes(this GprPart part)
 			=> part == GprPart.HighByte ? 1 : 0;
 	}
-	
-	public struct Gpr : IEquatable<Gpr>
+
+	public readonly struct Gpr : IEquatable<Gpr>
 	{
-		#region Static instances
-		public static readonly Gpr AL = new Gpr(0, GprPart.Byte);
-		public static readonly Gpr CL = new Gpr(1, GprPart.Byte);
-		public static readonly Gpr DL = new Gpr(2, GprPart.Byte);
-		public static readonly Gpr BL = new Gpr(3, GprPart.Byte);
-		public static readonly Gpr Spl = new Gpr(4, GprPart.Byte);
-		public static readonly Gpr Bpl = new Gpr(5, GprPart.Byte);
-		public static readonly Gpr Sil = new Gpr(6, GprPart.Byte);
-		public static readonly Gpr Dil = new Gpr(7, GprPart.Byte);
-
-		public static readonly Gpr AH = new Gpr(0, GprPart.HighByte);
-		public static readonly Gpr CH = new Gpr(1, GprPart.HighByte);
-		public static readonly Gpr DH = new Gpr(2, GprPart.HighByte);
-		public static readonly Gpr BH = new Gpr(3, GprPart.HighByte);
-
-		public static readonly Gpr AX = new Gpr(0, GprPart.Word);
-		public static readonly Gpr CX = new Gpr(1, GprPart.Word);
-		public static readonly Gpr DX = new Gpr(2, GprPart.Word);
-		public static readonly Gpr BX = new Gpr(3, GprPart.Word);
-		public static readonly Gpr SP = new Gpr(4, GprPart.Word);
-		public static readonly Gpr BP = new Gpr(5, GprPart.Word);
-		public static readonly Gpr SI = new Gpr(6, GprPart.Word);
-		public static readonly Gpr DI = new Gpr(7, GprPart.Word);
-
-		public static readonly Gpr Eax = new Gpr(0, GprPart.Dword);
-		public static readonly Gpr Ecx = new Gpr(1, GprPart.Dword);
-		public static readonly Gpr Edx = new Gpr(2, GprPart.Dword);
-		public static readonly Gpr Ebx = new Gpr(3, GprPart.Dword);
-		public static readonly Gpr Esp = new Gpr(4, GprPart.Dword);
-		public static readonly Gpr Ebp = new Gpr(5, GprPart.Dword);
-		public static readonly Gpr Esi = new Gpr(6, GprPart.Dword);
-		public static readonly Gpr Edi = new Gpr(7, GprPart.Dword);
-
-		public static readonly Gpr Rax = new Gpr(0, GprPart.Qword);
-		public static readonly Gpr Rcx = new Gpr(1, GprPart.Qword);
-		public static readonly Gpr Rdx = new Gpr(2, GprPart.Qword);
-		public static readonly Gpr Rbx = new Gpr(3, GprPart.Qword);
-		public static readonly Gpr Rsp = new Gpr(4, GprPart.Qword);
-		public static readonly Gpr Rbp = new Gpr(5, GprPart.Qword);
-		public static readonly Gpr Rsi = new Gpr(6, GprPart.Qword);
-		public static readonly Gpr Rdi = new Gpr(7, GprPart.Qword);
-		#endregion
-
 		// Low nibble: register index
 		// High nibble: part
 		private readonly byte value;
@@ -113,14 +70,23 @@ namespace Asmuth.X86
 		public Gpr(GprCode code, GprPart part) : this((int)code, part) { }
 
 		public int Index => value & 0xF;
+		public bool IsExtended => Index >= 8;
+		public GprCode Code => Part == GprPart.HighByte ? (GprCode)(4 + Index) : (GprCode)(Index & 7);
 		public GprPart Part => (GprPart)(value >> 4);
 		public OperandSize Size => Part.GetSize();
 		public int SizeInBytes => Part.GetSizeInBytes();
-		public bool RequiresRex => Index >= 8 || (Part == GprPart.Byte && Index >= 4);
-		public bool RequiresRexBit => Index >= 8;
-		public bool PreventsRex => Part == GprPart.HighByte;
-		public GprCode Code => Part == GprPart.HighByte ? (GprCode)(4 + Index) : (GprCode)(Index & 7);
+		public int SizeInBits => SizeInBytes * 8;
 
+		public bool? RexPresence
+		{
+			get
+			{
+				if (Part == GprPart.HighByte) return false;
+				if (Index >= 8 || (Part == GprPart.Byte && Index >= 4)) return true;
+				return null; // Optional
+			}
+		}
+		
 		public string Name
 		{
 			get
@@ -206,9 +172,7 @@ namespace Asmuth.X86
 		}
 
 		public static string GetName(int index, GprPart part)
-		{
-			return new Gpr(index, part).Name;
-		}
+			=> new Gpr(index, part).Name;
 
 		public static GprPart? TryParseRSuffix(char c)
 		{
@@ -294,7 +258,81 @@ namespace Asmuth.X86
 			}
 
 			return null;
-		} 
+		}
+		#endregion
+		#region Static instances
+		public static readonly Gpr AL = new Gpr(0, GprPart.Byte);
+		public static readonly Gpr CL = new Gpr(1, GprPart.Byte);
+		public static readonly Gpr DL = new Gpr(2, GprPart.Byte);
+		public static readonly Gpr BL = new Gpr(3, GprPart.Byte);
+		public static readonly Gpr Spl = new Gpr(4, GprPart.Byte);
+		public static readonly Gpr Bpl = new Gpr(5, GprPart.Byte);
+		public static readonly Gpr Sil = new Gpr(6, GprPart.Byte);
+		public static readonly Gpr Dil = new Gpr(7, GprPart.Byte);
+		public static readonly Gpr R8b = new Gpr(8, GprPart.Byte);
+		public static readonly Gpr R9b = new Gpr(9, GprPart.Byte);
+		public static readonly Gpr R10b = new Gpr(10, GprPart.Byte);
+		public static readonly Gpr R11b = new Gpr(11, GprPart.Byte);
+		public static readonly Gpr R12b = new Gpr(12, GprPart.Byte);
+		public static readonly Gpr R13b = new Gpr(13, GprPart.Byte);
+		public static readonly Gpr R14b = new Gpr(14, GprPart.Byte);
+		public static readonly Gpr R15b = new Gpr(15, GprPart.Byte);
+
+		public static readonly Gpr AH = new Gpr(0, GprPart.HighByte);
+		public static readonly Gpr CH = new Gpr(1, GprPart.HighByte);
+		public static readonly Gpr DH = new Gpr(2, GprPart.HighByte);
+		public static readonly Gpr BH = new Gpr(3, GprPart.HighByte);
+
+		public static readonly Gpr AX = new Gpr(0, GprPart.Word);
+		public static readonly Gpr CX = new Gpr(1, GprPart.Word);
+		public static readonly Gpr DX = new Gpr(2, GprPart.Word);
+		public static readonly Gpr BX = new Gpr(3, GprPart.Word);
+		public static readonly Gpr SP = new Gpr(4, GprPart.Word);
+		public static readonly Gpr BP = new Gpr(5, GprPart.Word);
+		public static readonly Gpr SI = new Gpr(6, GprPart.Word);
+		public static readonly Gpr DI = new Gpr(7, GprPart.Word);
+		public static readonly Gpr R8w = new Gpr(8, GprPart.Word);
+		public static readonly Gpr R9w = new Gpr(9, GprPart.Word);
+		public static readonly Gpr R10w = new Gpr(10, GprPart.Word);
+		public static readonly Gpr R11w = new Gpr(11, GprPart.Word);
+		public static readonly Gpr R12w = new Gpr(12, GprPart.Word);
+		public static readonly Gpr R13w = new Gpr(13, GprPart.Word);
+		public static readonly Gpr R14w = new Gpr(14, GprPart.Word);
+		public static readonly Gpr R15w = new Gpr(15, GprPart.Word);
+
+		public static readonly Gpr Eax = new Gpr(0, GprPart.Dword);
+		public static readonly Gpr Ecx = new Gpr(1, GprPart.Dword);
+		public static readonly Gpr Edx = new Gpr(2, GprPart.Dword);
+		public static readonly Gpr Ebx = new Gpr(3, GprPart.Dword);
+		public static readonly Gpr Esp = new Gpr(4, GprPart.Dword);
+		public static readonly Gpr Ebp = new Gpr(5, GprPart.Dword);
+		public static readonly Gpr Esi = new Gpr(6, GprPart.Dword);
+		public static readonly Gpr Edi = new Gpr(7, GprPart.Dword);
+		public static readonly Gpr R8d = new Gpr(8, GprPart.Dword);
+		public static readonly Gpr R9d = new Gpr(9, GprPart.Dword);
+		public static readonly Gpr R10d = new Gpr(10, GprPart.Dword);
+		public static readonly Gpr R11d = new Gpr(11, GprPart.Dword);
+		public static readonly Gpr R12d = new Gpr(12, GprPart.Dword);
+		public static readonly Gpr R13d = new Gpr(13, GprPart.Dword);
+		public static readonly Gpr R14d = new Gpr(14, GprPart.Dword);
+		public static readonly Gpr R15d = new Gpr(15, GprPart.Dword);
+
+		public static readonly Gpr Rax = new Gpr(0, GprPart.Qword);
+		public static readonly Gpr Rcx = new Gpr(1, GprPart.Qword);
+		public static readonly Gpr Rdx = new Gpr(2, GprPart.Qword);
+		public static readonly Gpr Rbx = new Gpr(3, GprPart.Qword);
+		public static readonly Gpr Rsp = new Gpr(4, GprPart.Qword);
+		public static readonly Gpr Rbp = new Gpr(5, GprPart.Qword);
+		public static readonly Gpr Rsi = new Gpr(6, GprPart.Qword);
+		public static readonly Gpr Rdi = new Gpr(7, GprPart.Qword);
+		public static readonly Gpr R8 = new Gpr(8, GprPart.Qword);
+		public static readonly Gpr R9 = new Gpr(9, GprPart.Qword);
+		public static readonly Gpr R10 = new Gpr(10, GprPart.Qword);
+		public static readonly Gpr R11 = new Gpr(11, GprPart.Qword);
+		public static readonly Gpr R12 = new Gpr(12, GprPart.Qword);
+		public static readonly Gpr R13 = new Gpr(13, GprPart.Qword);
+		public static readonly Gpr R14 = new Gpr(14, GprPart.Qword);
+		public static readonly Gpr R15 = new Gpr(15, GprPart.Qword);
 		#endregion
 	}
 }
