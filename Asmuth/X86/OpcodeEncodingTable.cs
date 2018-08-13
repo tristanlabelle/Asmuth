@@ -29,18 +29,44 @@ namespace Asmuth.X86
 			if (tag == null) throw new ArgumentNullException(nameof(tag));
 
 			var lookupKey = GetLookupKey(opcode);
-			buckets .TryGetValue(lookupKey, out List<Entry> bucket);
+			buckets.TryGetValue(lookupKey, out List<Entry> bucket);
 			if (bucket == null)
 			{
 				bucket = new List<Entry>();
 				buckets.Add(lookupKey, bucket);
 			}
 
+			bool? moreGeneral = null;
 			foreach (var existingEntry in bucket)
-				if (OpcodeEncoding.AreAmbiguous(opcode, existingEntry.Opcode))
-					throw new ArgumentException();
+			{
+				var result = OpcodeEncoding.Compare(opcode, existingEntry.Opcode);
+				switch (result)
+				{
+					case OpcodeEncodingComparisonResult.Ambiguous:
+					case OpcodeEncodingComparisonResult.Equal:
+						throw new ArgumentException();
 
-			bucket.Add(new Entry(opcode, tag));
+					case OpcodeEncodingComparisonResult.Different:
+						continue;
+
+					case OpcodeEncodingComparisonResult.LhsMoreGeneral:
+						if (moreGeneral == false) throw new ArgumentException();
+						moreGeneral = true;
+						break;
+
+					case OpcodeEncodingComparisonResult.RhsMoreGeneral:
+						if (moreGeneral == true) throw new ArgumentException();
+						moreGeneral = false;
+						break;
+
+					default: throw new UnreachableException();
+				}
+			}
+
+			if (moreGeneral.GetValueOrDefault(true))
+				bucket.Add(new Entry(opcode, tag));
+			else
+				bucket.Insert(0, new Entry(opcode, tag));
 		}
 
 		public void Add(OpcodeEncodingFlags opcodeFlags, byte mainByte, TTag tag)

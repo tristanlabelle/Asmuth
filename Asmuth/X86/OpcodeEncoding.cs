@@ -8,10 +8,10 @@ using System.Threading.Tasks;
 namespace Asmuth.X86
 {
 	/// <summary>
-	/// The necessary information to determine if a series of byte
-	/// corresponds to an instruction.
+	/// The necessary information to determine if a series of bytes
+	/// corresponds to a opcode.
 	/// </summary>
-	public readonly struct OpcodeEncoding
+	public readonly partial struct OpcodeEncoding
 	{
 		public OpcodeEncodingFlags Flags { get; }
 		public byte MainByte { get; }
@@ -197,65 +197,6 @@ namespace Asmuth.X86
 			}
 		}
 		#endregion
-		
-		public static bool AreAmbiguous(OpcodeEncoding a, OpcodeEncoding b)
-		{
-			// Compare prefixes
-			if (!AreAmbiguous(a.Flags, b.Flags, OpcodeEncodingFlags.CodeSegmentType_Mask)) return false;
-			if (!AreEqual(a.Flags, b.Flags, OpcodeEncodingFlags.XexType_Mask)) return false;
-			if (!AreAmbiguous(a.Flags, b.Flags, OpcodeEncodingFlags.OperandSize_Mask)) return false;
-			if (!AreAmbiguous(a.Flags, b.Flags, OpcodeEncodingFlags.VexL_Mask)) return false;
-			if (!AreAmbiguous(a.Flags, b.Flags, OpcodeEncodingFlags.SimdPrefix_Mask)) return false;
-			if (!AreAmbiguous(a.Flags, b.Flags, OpcodeEncodingFlags.RexW_Mask)) return false;
-			if (!AreEqual(a.Flags, b.Flags, OpcodeEncodingFlags.Map_Mask)) return false;
-
-			// Compare main byte
-			byte mainByteMask = (byte)(a.MainByteMask & b.MainByteMask);
-			if ((a.MainByte & mainByteMask) != (b.MainByte & mainByteMask)) return false;
-
-			// Compare ModRM
-			if (a.HasModRM != b.HasModRM) return true;
-			if (a.HasModRM)
-			{
-				ModRM comparisonMask = default;
-				if (a.HasFixedModReg && b.HasFixedModReg)
-					comparisonMask |= X86.ModRM.Reg_Mask;
-
-				var rmFlagsA = a.Flags & OpcodeEncodingFlags.ModRM_RM_Mask;
-				var rmFlagsB = b.Flags & OpcodeEncodingFlags.ModRM_RM_Mask;
-				if ((a.Flags.HasDirectModRM_Mod() && rmFlagsB == OpcodeEncodingFlags.ModRM_RM_Indirect)
-					|| (b.Flags.HasDirectModRM_Mod() && rmFlagsA == OpcodeEncodingFlags.ModRM_RM_Indirect))
-				{
-					// Cannot possibly collide
-					return false;
-				}
-				else
-				{
-					if (rmFlagsA == OpcodeEncodingFlags.ModRM_RM_Fixed
-						&& rmFlagsB == OpcodeEncodingFlags.ModRM_RM_Fixed)
-					{
-						comparisonMask |= X86.ModRM.RM_Mask;
-					}
-
-					if ((a.ModRM & comparisonMask) != (b.ModRM & comparisonMask))
-						return false;
-				}
-			}
-
-			// Compare immediates
-			if (a.ImmediateSizeInBytes != b.ImmediateSizeInBytes) return true;
-			if ((a.Flags & OpcodeEncodingFlags.Imm8Ext_Mask) != (b.Flags & OpcodeEncodingFlags.Imm8Ext_Mask)) return true;
-			if (a.HasFixedImm8 && a.Imm8 != b.Imm8) return false;
-
-			// If we got to this point, every distinguishing field is potentially ambiguous
-			return true;
-		}
-
-		private static bool AreEqual(OpcodeEncodingFlags a, OpcodeEncodingFlags b,
-			OpcodeEncodingFlags mask) => (a & mask) == (b & mask);
-
-		private static bool AreAmbiguous(OpcodeEncodingFlags a, OpcodeEncodingFlags b,
-			OpcodeEncodingFlags mask) => (a & mask) == 0 || (b & mask) == 0 || (a & mask) == (b & mask);
 	}
 	
 	[Flags]
@@ -331,8 +272,8 @@ namespace Asmuth.X86
 		ModRM_RM_Shift = ModRM_FixedReg_Shift + 1,
 		ModRM_RM_Any = 0 << (int)ModRM_RM_Shift,
 		ModRM_RM_Indirect = 1 << (int)ModRM_RM_Shift, // PREFETCH: 0F18 M/1
-		ModRM_RM_Direct = 2 << (int)ModRM_RM_Shift, // FADD: DC C0+i
-		ModRM_RM_Fixed = 3 << (int)ModRM_RM_Shift, // FADDP: DE C1
+		ModRM_RM_Direct = 2 << (int)ModRM_RM_Shift, // FADD: DC C0+i, implies mod = 11
+		ModRM_RM_Fixed = 3 << (int)ModRM_RM_Shift, // FADDP: DE C1, implies mod = 11
 		ModRM_RM_Mask = 3 << (int)ModRM_RM_Shift,
 
 		// Opcode extension in imm8
