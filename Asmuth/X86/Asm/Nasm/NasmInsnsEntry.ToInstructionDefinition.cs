@@ -130,16 +130,16 @@ namespace Asmuth.X86.Asm.Nasm
 						// Legacy prefixes
 						case NasmEncodingTokenType.LegacyPrefix_NoSimd:
 							SetSimdPrefix(SimdPrefix.None);
-							continue;
+							break;
 
 						case NasmEncodingTokenType.LegacyPrefix_F2:
 							SetSimdPrefix(SimdPrefix._F2);
-							continue;
+							break;
 
 						case NasmEncodingTokenType.LegacyPrefix_MustRep:
 						case NasmEncodingTokenType.LegacyPrefix_F3:
 							SetSimdPrefix(SimdPrefix._F3);
-							continue;
+							break;
 
 						case NasmEncodingTokenType.LegacyPrefix_NoF3:
 						case NasmEncodingTokenType.LegacyPrefix_HleAlways:
@@ -170,7 +170,7 @@ namespace Asmuth.X86.Asm.Nasm
 							{
 								flags = flags.WithMap(OpcodeMap.Escape0F);
 								AdvanceTo(State.OpcodeMap0F);
-								continue;
+								break;
 							}
 
 							if (state == State.OpcodeMap0F && (token.Byte == 0x38 || token.Byte == 0x3A))
@@ -178,25 +178,28 @@ namespace Asmuth.X86.Asm.Nasm
 								flags = flags.WithMap(
 									token.Byte == 0x38 ? OpcodeMap.Escape0F38 : OpcodeMap.Escape0F3A);
 								AdvanceTo(State.PostOpcodeMap);
-								continue;
+								break;
 							}
 
 							if (state < State.PostOpcode)
 							{
 								SetMainOpcodeByte(token.Byte, plusR: false);
-								continue;
+								break;
 							}
 
-							if (state == State.PostOpcode)
+							// Heuristic: if it's of the form 0b11000000,
+							// it's probably a fixed ModRM, otherwise a fixed imm8
+							if (state == State.PostOpcode && !flags.HasModRM()
+								&& (token.Byte >> 6) == 3)
 							{
 								SetModRM(OpcodeEncodingFlags.ModRM_RM_Fixed
 									| OpcodeEncodingFlags.ModRM_FixedReg,
 									(ModRM)token.Byte);
-								continue;
+								break;
 							}
 
 							// Opcode extension byte
-							Debug.Assert(state == State.PostModRM);
+							Debug.Assert(state == State.PostOpcode || state == State.PostModRM);
 							if (flags.HasImm8Ext()) throw new FormatException("Multiple imm8 extension bytes.");
 							flags |= OpcodeEncodingFlags.Imm8Ext_Fixed;
 							fixedImm8 = token.Byte;
@@ -208,7 +211,7 @@ namespace Asmuth.X86.Asm.Nasm
 							if (state < State.PostOpcode)
 							{
 								SetMainOpcodeByte(token.Byte, plusR: true);
-								continue;
+								break;
 							}
 
 							if (state < State.PostModRM)
@@ -216,7 +219,7 @@ namespace Asmuth.X86.Asm.Nasm
 								SetModRM(OpcodeEncodingFlags.ModRM_RM_Direct
 									| OpcodeEncodingFlags.ModRM_FixedReg,
 									(ModRM)token.Byte);
-								continue;
+								break;
 							}
 
 							throw new FormatException();
