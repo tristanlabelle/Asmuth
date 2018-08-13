@@ -9,7 +9,7 @@ namespace Asmuth.X86.Asm
 		private OperandFormat() { } // Disallow external inheritance
 
 		// Used for NASM's "size match"
-		public abstract OperandSize? ImpliedIntegerSize { get; }
+		public abstract int? ImpliedRegisterSizeInBytes { get; }
 
 		public abstract override string ToString();
 
@@ -28,7 +28,7 @@ namespace Asmuth.X86.Asm
 			public FixedReg(RegisterClass @class, byte index)
 				: this(new Register(@class, index)) {}
 
-			public override OperandSize? ImpliedIntegerSize => throw new NotImplementedException();
+			public override int? ImpliedRegisterSizeInBytes =>  Register.SizeInBytes;
 
 			public override string ToString() => Register.Name;
 
@@ -54,9 +54,9 @@ namespace Asmuth.X86.Asm
 				this.RegisterClass = @class;
 			}
 
-			public override OperandSize? ImpliedIntegerSize => throw new NotImplementedException();
+			public override int? ImpliedRegisterSizeInBytes => RegisterClass.SizeInBytes;
 
-			public override string ToString() => throw new NotImplementedException();
+			public override string ToString() => RegisterClass.Name;
 
 			public static readonly Reg GprUnsized = new Reg(RegisterClass.GprUnsized);
 			public static readonly Reg Gpr8 = new Reg(RegisterClass.GprByte);
@@ -75,7 +75,7 @@ namespace Asmuth.X86.Asm
 
 			public Mem(OperandDataType dataType) => this.DataType = dataType;
 
-			public override OperandSize? ImpliedIntegerSize => DataType.TryGetIntegerSize();
+			public override int? ImpliedRegisterSizeInBytes => DataType.GetImpliedRegisterSizeInBytes();
 
 			public override string ToString() 
 				=> SizeInBytes == 0 ? "m" : ("m" + SizeInBits.ToString());
@@ -99,12 +99,16 @@ namespace Asmuth.X86.Asm
 
 			public RegOrMem(Reg regSpec, Mem memSpec)
 			{
-				// TODO: Check matching sizes
-				this.RegSpec = regSpec ?? throw new ArgumentNullException(nameof(regSpec));
-				this.MemSpec = memSpec ?? throw new ArgumentNullException(nameof(memSpec));
+				if (regSpec == null) throw new ArgumentNullException(nameof(regSpec));
+				if (memSpec == null) throw new ArgumentNullException(nameof(memSpec));
+				if (regSpec.ImpliedRegisterSizeInBytes != memSpec.ImpliedRegisterSizeInBytes)
+					throw new ArgumentException();
+				
+				this.RegSpec = regSpec;
+				this.MemSpec = memSpec;
 			}
 
-			public override OperandSize? ImpliedIntegerSize => MemSpec.ImpliedIntegerSize;
+			public override int? ImpliedRegisterSizeInBytes => RegSpec.ImpliedRegisterSizeInBytes;
 
 			public override string ToString()
 			{
@@ -132,7 +136,7 @@ namespace Asmuth.X86.Asm
 				this.DataType = dataType;
 			}
 
-			public override OperandSize? ImpliedIntegerSize => DataType.TryGetIntegerSize();
+			public override int? ImpliedRegisterSizeInBytes => DataType.GetImpliedRegisterSizeInBytes();
 
 			public override string ToString() => "imm" + DataType.GetElementSizeInBits();
 
@@ -149,7 +153,7 @@ namespace Asmuth.X86.Asm
 
 			public Const(sbyte value) => this.Value = value;
 
-			public override OperandSize? ImpliedIntegerSize => OperandSize.Byte;
+			public override int? ImpliedRegisterSizeInBytes => 1;
 
 			public override string ToString() => Value.ToString();
 
@@ -164,7 +168,7 @@ namespace Asmuth.X86.Asm
 
 			public Rel(OperandSize offsetSize) => this.OffsetSize = offsetSize;
 
-			public override OperandSize? ImpliedIntegerSize => OffsetSize;
+			public override int? ImpliedRegisterSizeInBytes => OffsetSize.InBytes();
 
 			public override string ToString() => "rel" + OffsetSize.InBits();
 

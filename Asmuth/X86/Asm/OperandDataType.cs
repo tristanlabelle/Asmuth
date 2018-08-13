@@ -78,16 +78,11 @@ namespace Asmuth.X86.Asm
 		public static int GetTotalSizeInBits(this OperandDataType type)
 			=> GetTotalSizeInBytes(type) * 8;
 
-		public static OperandSize? TryGetIntegerSize(this OperandDataType type)
+		public static int? GetImpliedRegisterSizeInBytes(this OperandDataType type)
 		{
-			switch (type)
-			{
-				case OperandDataType.I8: return OperandSize.Byte;
-				case OperandDataType.I16: return OperandSize.Word;
-				case OperandDataType.I32: return OperandSize.Dword;
-				case OperandDataType.I64: return OperandSize.Qword;
-				default: return null;
-			}
+			if ((type & OperandDataType.Type_Mask) == OperandDataType.Type_FarPtr) return null;
+			if ((type & OperandDataType.ElementSize_Mask) == OperandDataType.ElementSize_0Bits) return null;
+			return type.GetTotalSizeInBytes();
 		}
 	}
 }

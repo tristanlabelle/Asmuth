@@ -18,7 +18,7 @@ namespace Asmuth.X86.Asm.Nasm
 		public static readonly string Undocumented = "UNDOC";
 		public static readonly string X64 = "X64";
 
-		public static OperandSize? TryAsUnsizedOperandSize(string flag)
+		public static OperandSize? TryAsDefaultOperandSize(string flag)
 		{
 			switch (flag)
 			{

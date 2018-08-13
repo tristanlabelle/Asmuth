@@ -88,6 +88,32 @@ namespace Asmuth.X86
 		public int? SizeInBytes => IsSized ? sizeInBytes : (int?)null;
 		public int? SizeInBits => IsSized ? sizeInBytes * 8 : (int?)null;
 
+		public string Name
+		{
+			get
+			{
+				switch (family)
+				{
+					case RegisterFamily.Gpr: return IsSized ? "r" + SizeInBits : "r";
+					case RegisterFamily.X87: return "st";
+					case RegisterFamily.Mmx: return "mm";
+					case RegisterFamily.Sse:
+						if (SizeInBytes == 16) return "xmm";
+						if (SizeInBytes == 32) return "ymm";
+						if (SizeInBytes == 64) return "zmm";
+						throw new NotImplementedException();
+					case RegisterFamily.AvxOpmask: return "k";
+					case RegisterFamily.Debug: return "dr";
+					case RegisterFamily.Control: return "cr";
+					case RegisterFamily.IP: return "ip";
+					case RegisterFamily.Flags: return "flags";
+					default: throw new NotImplementedException();
+				}
+			}
+		}
+
+		public override string ToString() => Name;
+
 		public bool Equals(RegisterClass other)
 			=> family == other.family && sizeInBytes == other.sizeInBytes;
 

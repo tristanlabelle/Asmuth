@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86.Asm.Nasm
 {
+	using OEF = OpcodeEncodingFlags;
+
 	partial class NasmInsnsEntry
 	{
 		public bool CanConvertToOpcodeEncoding
@@ -25,11 +27,22 @@ namespace Asmuth.X86.Asm.Nasm
 		public InstructionDefinition ToInstructionDefinition()
 		{
 			if (!CanConvertToOpcodeEncoding) throw new InvalidOperationException();
-			
+
+			bool memOnlyModRM = false;
+			foreach (var operand in operands)
+			{
+				if (operand.Field == OperandField.BaseReg
+					&& (operand.Type & NasmOperandType.OpType_Mask) == NasmOperandType.OpType_Memory)
+				{
+					memOnlyModRM = true;
+					break;
+				}
+			}
+
 			var data = new InstructionDefinition.Data
 			{
 				Mnemonic = mnemonic,
-				Encoding = ToOpcodeEncoding(encodingTokens, vexEncoding, GetLongMode(flags.Contains)),
+				Encoding = ToOpcodeEncoding(encodingTokens, vexEncoding, GetLongMode(flags.Contains), memOnlyModRM),
 				Operands = NasmOperand.ToOperandFormat((IReadOnlyList<NasmOperand>)operands, Flags)
 			};
 
@@ -47,16 +60,19 @@ namespace Asmuth.X86.Asm.Nasm
 		}
 
 		public static OpcodeEncoding ToOpcodeEncoding(
-			IEnumerable<NasmEncodingToken> encodingTokens, VexEncoding? vexEncoding, bool? longMode)
+			IEnumerable<NasmEncodingToken> encodingTokens,
+			VexEncoding? vexEncoding, bool? longMode,
+			bool memOnlyModRM = false)
 		{
 			if (encodingTokens == null) throw new ArgumentNullException(nameof(encodingTokens));
 			
-			OpcodeEncodingFlags encodingFlags = OpcodeEncodingFlags.CodeSegmentType_Any;
+			OEF encodingFlags = OEF.CodeSegmentType_Any;
 			if (longMode.HasValue)
-				encodingFlags = longMode.Value ? OpcodeEncodingFlags.CodeSegmentType_Long : OpcodeEncodingFlags.CodeSegmentType_IA32;
+				encodingFlags = longMode.Value ? OEF.CodeSegmentType_Long : OEF.CodeSegmentType_IA32;
 
 			var parser = new EncodingParser();
-			return parser.Parse(encodingTokens, vexEncoding.GetValueOrDefault(), encodingFlags);
+			return parser.Parse(encodingTokens, vexEncoding.GetValueOrDefault(),
+				encodingFlags, memOnlyModRM);
 		}
 
 		private struct EncodingParser
@@ -73,16 +89,16 @@ namespace Asmuth.X86.Asm.Nasm
 				Immediates
 			}
 
-			private OpcodeEncodingFlags flags;
+			private OEF flags;
 			private byte mainByte;
 			private ModRM modRM;
 			private byte fixedImm8;
 			private State state;
 			
 			public OpcodeEncoding Parse(IEnumerable<NasmEncodingToken> tokens, VexEncoding vexEncoding,
-				OpcodeEncodingFlags codeSegmentTypeFlags)
+				OEF codeSegmentTypeFlags, bool memOnlyModRM)
 			{
-				codeSegmentTypeFlags &= OpcodeEncodingFlags.CodeSegmentType_Mask;
+				codeSegmentTypeFlags &= OEF.CodeSegmentType_Mask;
 				state = State.Prefixes;
 				
 				NasmEncodingTokenType addressSize = 0;
@@ -106,16 +122,16 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						case NasmEncodingTokenType.OperandSize_16:
-							SetOperandSize(OpcodeEncodingFlags.OperandSize_Word);
+							SetOperandSize(OEF.OperandSize_Word);
 							SetLongCodeSegment(false);
 							break;
 
 						case NasmEncodingTokenType.OperandSize_32:
-							SetOperandSize(OpcodeEncodingFlags.OperandSize_Dword);
+							SetOperandSize(OEF.OperandSize_Dword);
 							break;
 
 						case NasmEncodingTokenType.OperandSize_64:
-							SetOperandSize(OpcodeEncodingFlags.OperandSize_Ignored);
+							SetOperandSize(OEF.OperandSize_Ignored);
 							SetRexW(true);
 							break;
 							
@@ -192,8 +208,8 @@ namespace Asmuth.X86.Asm.Nasm
 							if (state == State.PostOpcode && !flags.HasModRM()
 								&& (token.Byte >> 6) == 3)
 							{
-								SetModRM(OpcodeEncodingFlags.ModRM_RM_Fixed
-									| OpcodeEncodingFlags.ModRM_FixedReg,
+								SetModRM(OEF.ModRM_RM_Fixed
+									| OEF.ModRM_FixedReg,
 									(ModRM)token.Byte);
 								break;
 							}
@@ -201,7 +217,7 @@ namespace Asmuth.X86.Asm.Nasm
 							// Opcode extension byte
 							Debug.Assert(state == State.PostOpcode || state == State.PostModRM);
 							if (flags.HasImm8Ext()) throw new FormatException("Multiple imm8 extension bytes.");
-							flags |= OpcodeEncodingFlags.Imm8Ext_Fixed;
+							flags |= OEF.Imm8Ext_Fixed;
 							fixedImm8 = token.Byte;
 							AddImmediateWithSizeInBytes(1);
 							break;
@@ -216,8 +232,8 @@ namespace Asmuth.X86.Asm.Nasm
 
 							if (state < State.PostModRM)
 							{
-								SetModRM(OpcodeEncodingFlags.ModRM_RM_Direct
-									| OpcodeEncodingFlags.ModRM_FixedReg,
+								SetModRM(OEF.ModRM_RM_Direct
+									| OEF.ModRM_FixedReg,
 									(ModRM)token.Byte);
 								break;
 							}
@@ -231,11 +247,12 @@ namespace Asmuth.X86.Asm.Nasm
 							throw new NotImplementedException();
 
 						case NasmEncodingTokenType.ModRM:
-							SetModRM(OpcodeEncodingFlags.ModRM_RM_Any);
+							SetModRM(memOnlyModRM ? OEF.ModRM_RM_Indirect : OEF.ModRM_RM_Any);
 							break;
 
 						case NasmEncodingTokenType.ModRM_FixedReg:
-							SetModRM(OpcodeEncodingFlags.ModRM_FixedReg, ModRMEnum.FromReg(token.Byte));
+							SetModRM((memOnlyModRM ? OEF.ModRM_RM_Indirect : OEF.ModRM_RM_Any) | OEF.ModRM_FixedReg,
+								ModRMEnum.FromReg(token.Byte));
 							break;
 
 						// Immediates
@@ -264,10 +281,10 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						case NasmEncodingTokenType.Immediate_RelativeOffset:
-							if ((flags & OpcodeEncodingFlags.CodeSegmentType_Mask) == OpcodeEncodingFlags.CodeSegmentType_Long
-								|| (flags & OpcodeEncodingFlags.OperandSize_Mask) == OpcodeEncodingFlags.OperandSize_Dword)
+							if ((flags & OEF.CodeSegmentType_Mask) == OEF.CodeSegmentType_Long
+								|| (flags & OEF.OperandSize_Mask) == OEF.OperandSize_Dword)
 								AddImmediateWithSizeInBytes(sizeof(int));
-							else if ((flags & OpcodeEncodingFlags.OperandSize_Mask) == OpcodeEncodingFlags.OperandSize_Word)
+							else if ((flags & OEF.OperandSize_Mask) == OEF.OperandSize_Word)
 								AddImmediateWithSizeInBytes(sizeof(short));
 							else
 								throw new FormatException("Ambiguous relative offset size.");
@@ -276,7 +293,7 @@ namespace Asmuth.X86.Asm.Nasm
 						case NasmEncodingTokenType.Immediate_Is4:
 							if (flags.GetImmediateSizeInBytes() > 0)
 								throw new FormatException("Imm8 extension must be the only immediate.");
-							flags |= OpcodeEncodingFlags.Imm8Ext_VexIS4;
+							flags |= OEF.Imm8Ext_VexIS4;
 							AddImmediateWithSizeInBytes(1);
 							break;
 
@@ -311,34 +328,34 @@ namespace Asmuth.X86.Asm.Nasm
 
 			private void SetLongCodeSegment(bool @long)
 			{
-				if ((this.flags & OpcodeEncodingFlags.CodeSegmentType_Mask)
-					== (@long ? OpcodeEncodingFlags.CodeSegmentType_IA32 : OpcodeEncodingFlags.CodeSegmentType_Long))
+				if ((this.flags & OEF.CodeSegmentType_Mask)
+					== (@long ? OEF.CodeSegmentType_IA32 : OEF.CodeSegmentType_Long))
 					throw new FormatException("Conflicting code segment type.");
-				flags |= @long ? OpcodeEncodingFlags.CodeSegmentType_Long : OpcodeEncodingFlags.CodeSegmentType_IA32;
+				flags |= @long ? OEF.CodeSegmentType_Long : OEF.CodeSegmentType_IA32;
 			}
 
-			private void SetOperandSize(OpcodeEncodingFlags flags)
+			private void SetOperandSize(OEF flags)
 			{
 				if (state > State.PostSimdPrefix) throw new FormatException("Out-of-order operand size prefix.");
-				if ((this.flags & OpcodeEncodingFlags.OperandSize_Mask) != 0)
+				if ((this.flags & OEF.OperandSize_Mask) != 0)
 					throw new FormatException("Multiple operand size prefixes.");
 				this.flags |= flags;
 			}
 
 			private void SetRexW(bool set)
 			{
-				if ((this.flags & OpcodeEncodingFlags.RexW_Mask)
-					== (set ? OpcodeEncodingFlags.RexW_0 : OpcodeEncodingFlags.RexW_1))
+				if ((this.flags & OEF.RexW_Mask)
+					== (set ? OEF.RexW_0 : OEF.RexW_1))
 					throw new FormatException("Conflicting REX.W encoding.");
 
 				if (set)
 				{
 					SetLongCodeSegment(true);
-					flags |= OpcodeEncodingFlags.RexW_1;
+					flags |= OEF.RexW_1;
 				}
 				else
 				{
-					flags |= OpcodeEncodingFlags.RexW_0;
+					flags |= OEF.RexW_0;
 				}
 			}
 
@@ -354,16 +371,16 @@ namespace Asmuth.X86.Asm.Nasm
 			{
 				if (state >= State.PostOpcode) throw new FormatException("Out-of-order opcode token.");
 				this.mainByte = value;
-				if (plusR) this.flags |= OpcodeEncodingFlags.HasMainByteReg;
+				if (plusR) this.flags |= OEF.HasMainByteReg;
 				AdvanceTo(State.PostOpcode);
 			}
 
-			private void SetModRM(OpcodeEncodingFlags flags, ModRM value = default)
+			private void SetModRM(OEF flags, ModRM value = default)
 			{
 				if (state != State.PostOpcode) throw new FormatException("Out-of-order ModRM token.");
-				Debug.Assert((this.flags & OpcodeEncodingFlags.ModRM_Present) == 0);
-				Debug.Assert((flags & ~(OpcodeEncodingFlags.ModRM_FixedReg | OpcodeEncodingFlags.ModRM_RM_Mask)) == 0);
-				this.flags |= OpcodeEncodingFlags.ModRM_Present | flags;
+				Debug.Assert((this.flags & OEF.ModRM_Present) == 0);
+				Debug.Assert((flags & ~(OEF.ModRM_FixedReg | OEF.ModRM_RM_Mask)) == 0);
+				this.flags |= OEF.ModRM_Present | flags;
 				this.modRM = value;
 				AdvanceTo(State.PostModRM);
 			}

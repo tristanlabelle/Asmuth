@@ -17,8 +17,8 @@ namespace Asmuth.X86.Asm.Nasm
 			this.Type = type;
 		}
 
-		public OperandFormat TryToOperandFormat(OperandSize? unsizedSize)
-			=> TryToOperandFormat(Type, unsizedSize);
+		public OperandFormat TryToOperandFormat(int? defaultSizeInBytes)
+			=> TryToOperandFormat(Type, defaultSizeInBytes);
 
 		public static OperandFormat[] ToOperandFormat(
 			IReadOnlyList<NasmOperand> operands, IEnumerable<string> flags)
@@ -29,15 +29,16 @@ namespace Asmuth.X86.Asm.Nasm
 					return ToOperandFormat(operands, sizeMatch: true);
 				else
 				{
-					var unsizedSize = NasmInstructionFlags.TryAsUnsizedOperandSize(flag);
-					if (unsizedSize.HasValue) return ToOperandFormat(operands, unsizedSize.Value);
+					var defaultSize = NasmInstructionFlags.TryAsDefaultOperandSize(flag);
+					if (defaultSize.HasValue) return ToOperandFormat(operands, defaultSize.Value);
 				}
 			}
 
 			return ToOperandFormat(operands, sizeMatch: false);
 		}
 
-		public static OperandFormat[] ToOperandFormat(IReadOnlyList<NasmOperand> operands, bool sizeMatch)
+		public static OperandFormat[] ToOperandFormat(
+			IReadOnlyList<NasmOperand> operands, bool sizeMatch)
 		{
 			// ADD  reg_al,imm      [-i:  04 ib]         8086,SM
 			// ADD  rm8,imm         [mi:  hle 80 / 0 ib] 8086,SM,LOCK
@@ -46,10 +47,10 @@ namespace Asmuth.X86.Asm.Nasm
 
 			var operandFormats = new OperandFormat[operands.Count];
 			
-			OperandSize? impliedSize = null;
+			int? impliedSize = null;
 			for (int i = 0; i < operands.Count; ++i)
 			{
-				var operandFormat = operands[i].TryToOperandFormat(unsizedSize: null);
+				var operandFormat = operands[i].TryToOperandFormat(defaultSizeInBytes: null);
 				if (operandFormat == null)
 				{
 					if (!sizeMatch) throw new FormatException();
@@ -62,7 +63,7 @@ namespace Asmuth.X86.Asm.Nasm
 					// Determine the size we'll match on the second pass
 					if (sizeMatch && !impliedSize.HasValue)
 					{
-						var operandSize = operandFormat.ImpliedIntegerSize;
+						var operandSize = operandFormat.ImpliedRegisterSizeInBytes;
 						if (operandSize.HasValue) impliedSize = operandSize;
 					}
 				}
@@ -88,13 +89,14 @@ namespace Asmuth.X86.Asm.Nasm
 			var operandFormats = new OperandFormat[operands.Count];
 			for (int i = 0; i < operands.Count; ++i)
 			{
-				var operandFormat = operands[i].TryToOperandFormat(unsizedSize);
+				var operandFormat = operands[i].TryToOperandFormat(unsizedSize.InBytes());
 				operandFormats[i] = operandFormat ?? throw new FormatException();
 			}
 			return operandFormats;
 		}
 
-		public static OperandFormat TryToOperandFormat(NasmOperandType type, OperandSize? unsizedSize)
+		public static OperandFormat TryToOperandFormat(
+			NasmOperandType type, int? defaultSizeInBytes)
 		{
 			switch (type)
 			{
@@ -121,12 +123,12 @@ namespace Asmuth.X86.Asm.Nasm
 
 				case NasmOperandType.Mem:
 				{
-					if (!unsizedSize.HasValue) return OperandFormat.Mem.M;
-					else if (unsizedSize == OperandSize.Byte) return OperandFormat.Mem.I8;
-					else if (unsizedSize == OperandSize.Word) return OperandFormat.Mem.I16;
-					else if (unsizedSize == OperandSize.Dword) return OperandFormat.Mem.I32;
-					else if (unsizedSize == OperandSize.Qword) return OperandFormat.Mem.I64;
-					else throw new ArgumentOutOfRangeException(nameof(unsizedSize));
+					if (!defaultSizeInBytes.HasValue) return OperandFormat.Mem.M;
+					else if (defaultSizeInBytes == 1) return OperandFormat.Mem.I8;
+					else if (defaultSizeInBytes == 2) return OperandFormat.Mem.I16;
+					else if (defaultSizeInBytes == 4) return OperandFormat.Mem.I32;
+					else if (defaultSizeInBytes == 8) return OperandFormat.Mem.I64;
+					else throw new ArgumentOutOfRangeException(nameof(defaultSizeInBytes));
 				}
 				case NasmOperandType.Mem8: return OperandFormat.Mem.I8;
 				case NasmOperandType.Mem16: return OperandFormat.Mem.I16;
@@ -139,12 +141,12 @@ namespace Asmuth.X86.Asm.Nasm
 
 				case NasmOperandType.Imm:
 				{
-					if (!unsizedSize.HasValue) return null;
-					else if (unsizedSize == OperandSize.Byte) return OperandFormat.Imm.I8;
-					else if (unsizedSize == OperandSize.Word) return OperandFormat.Imm.I16;
-					else if (unsizedSize == OperandSize.Dword) return OperandFormat.Imm.I32;
-					else if (unsizedSize == OperandSize.Qword) return OperandFormat.Imm.I64;
-					else throw new ArgumentOutOfRangeException(nameof(unsizedSize));
+					if (!defaultSizeInBytes.HasValue) return null;
+					else if (defaultSizeInBytes == 1) return OperandFormat.Imm.I8;
+					else if (defaultSizeInBytes == 2) return OperandFormat.Imm.I16;
+					else if (defaultSizeInBytes == 4) return OperandFormat.Imm.I32;
+					else if (defaultSizeInBytes == 8) return OperandFormat.Imm.I64;
+					else throw new ArgumentOutOfRangeException(nameof(defaultSizeInBytes));
 				}
 				case NasmOperandType.Imm8: return OperandFormat.Imm.I8;
 				case NasmOperandType.Imm16: return OperandFormat.Imm.I16;
