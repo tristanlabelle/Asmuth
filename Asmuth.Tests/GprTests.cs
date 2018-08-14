@@ -13,21 +13,21 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void TestName()
 		{
-			Assert.AreEqual("cl", new Gpr(GprCode.C, GprPart.Byte).Name);
-			Assert.AreEqual("ch", new Gpr(GprCode.C, GprPart.HighByte).Name);
-			Assert.AreEqual("cx", new Gpr(GprCode.C, GprPart.Word).Name);
-			Assert.AreEqual("ecx", new Gpr(GprCode.C, GprPart.Dword).Name);
-			Assert.AreEqual("rcx", new Gpr(GprCode.C, GprPart.Qword).Name);
+			Assert.AreEqual("cl", Gpr.Byte(GprCode.C, hasRex: true).Name);
+			Assert.AreEqual("ch", Gpr.Byte(GprCode.BplOrCH, hasRex: false).Name);
+			Assert.AreEqual("cx", Gpr.Word(GprCode.C).Name);
+			Assert.AreEqual("ecx", Gpr.Dword(GprCode.C).Name);
+			Assert.AreEqual("rcx", Gpr.Qword(GprCode.C).Name);
 
-			Assert.AreEqual("bpl", new Gpr(GprCode.BP, GprPart.Byte).Name);
-			Assert.AreEqual("bp", new Gpr(GprCode.BP, GprPart.Word).Name);
-			Assert.AreEqual("ebp", new Gpr(GprCode.BP, GprPart.Dword).Name);
-			Assert.AreEqual("rbp", new Gpr(GprCode.BP, GprPart.Qword).Name);
+			Assert.AreEqual("bpl", Gpr.Byte(GprCode.BP, hasRex: true).Name);
+			Assert.AreEqual("bp", Gpr.Word(GprCode.BP).Name);
+			Assert.AreEqual("ebp", Gpr.Dword(GprCode.BP).Name);
+			Assert.AreEqual("rbp", Gpr.Qword(GprCode.BP).Name);
 
-			Assert.AreEqual("r8b", new Gpr(GprCode.R8, GprPart.Byte).Name);
-			Assert.AreEqual("r8w", new Gpr(GprCode.R8, GprPart.Word).Name);
-			Assert.AreEqual("r8d", new Gpr(GprCode.R8, GprPart.Dword).Name);
-			Assert.AreEqual("r8", new Gpr(GprCode.R8, GprPart.Qword).Name);
+			Assert.AreEqual("r8b", Gpr.Byte(GprCode.R8, hasRex: true).Name);
+			Assert.AreEqual("r8w", Gpr.Word(GprCode.R8).Name);
+			Assert.AreEqual("r8d", Gpr.Dword(GprCode.R8).Name);
+			Assert.AreEqual("r8", Gpr.Qword(GprCode.R8).Name);
 		}
 	}
 }

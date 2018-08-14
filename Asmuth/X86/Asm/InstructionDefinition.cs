@@ -55,6 +55,9 @@ namespace Asmuth.X86.Asm
 				firstOperand = false;
 			}
 
+			stringBuilder.Append(": ");
+			stringBuilder.Append(Encoding.ToString());
+
 			return stringBuilder.ToString();
 		}
 		#endregion

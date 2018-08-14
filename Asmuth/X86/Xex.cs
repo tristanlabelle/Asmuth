@@ -431,7 +431,7 @@ namespace Asmuth.X86
 		public bool BaseRegExtension => (flags & Flags.BaseRegExtension) != 0;
 		public bool IndexRegExtension => (flags & Flags.IndexRegExtension) != 0;
 
-		public OperandSize VectorSize => (OperandSize)((uint)OperandSize._128 + GetField(Flags.VectorSize_Mask, Flags.VectorSize_Shift));
+		public SseVectorSize VectorSize => (SseVectorSize)GetField(Flags.VectorSize_Mask, Flags.VectorSize_Shift);
 
 		public byte? NonDestructiveReg
 		{

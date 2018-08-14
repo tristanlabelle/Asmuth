@@ -8,18 +8,16 @@ namespace Asmuth.X86
 {
 	public enum AddressSize : byte
 	{
-		_16,
-		_32,
-		_64
+		_16Bits,
+		_32Bits,
+		_64Bits
 	}
 
 	public static class AddressSizeEnum
 	{
-		public static OperandSize ToOperandSize(this AddressSize size)
-			=> OperandSize.Word + (int)size;
-		public static int InBytes(this AddressSize size)
-			=> (2 << (int)size);
-		public static int InBits(this AddressSize size)
-			=> InBytes(size) * 8;
+		public static IntegerSize ToIntegerSize(this AddressSize size)
+			=> (IntegerSize)((int)IntegerSize.Word + (int)size);
+		public static int InBytes(this AddressSize size) => 2 << (int)size;
+		public static int InBits(this AddressSize size) => InBytes(size) * 8;
 	}
 }

@@ -170,19 +170,19 @@ namespace Asmuth.X86
 
 		public Register(Gpr gpr)
 		{
-			if (gpr.Part == GprPart.HighByte)
+			if (gpr.IsHighByte)
 			{
-				this.Class = RegisterClass.GprByte;
-				this.Index = (byte)(0x10 + gpr.Index);
+				Class = RegisterClass.GprByte;
+				Index = (byte)(0x10 + gpr.Index);
 			}
 			else
 			{
-				switch (gpr.Part)
+				switch (gpr.Size)
 				{
-					case GprPart.Byte: this.Class = RegisterClass.GprByte; break;
-					case GprPart.Word: this.Class = RegisterClass.GprWord; break;
-					case GprPart.Dword: this.Class = RegisterClass.GprDword; break;
-					case GprPart.Qword: this.Class = RegisterClass.GprQword; break;
+					case IntegerSize.Byte: Class = RegisterClass.GprByte; break;
+					case IntegerSize.Word: Class = RegisterClass.GprWord; break;
+					case IntegerSize.Dword: Class = RegisterClass.GprDword; break;
+					case IntegerSize.Qword: Class = RegisterClass.GprQword; break;
 					default: throw new UnreachableException();
 				}
 				this.Index = (byte)gpr.Index;
@@ -201,10 +201,10 @@ namespace Asmuth.X86
 			if (!IsSizedGpr) throw new InvalidOperationException();
 			switch (SizeInBytes.Value)
 			{
-				case 1: return new Gpr(Index & 0xF, Index >= 0x10 ? GprPart.HighByte : GprPart.Byte);
-				case 2: return new Gpr(Index, GprPart.Word);
-				case 4: return new Gpr(Index, GprPart.Dword);
-				case 8: return new Gpr(Index, GprPart.Qword);
+				case 1: return Index < 0x10 ? Gpr.Byte(Index) : Gpr.HighByte(Index & 0xF);
+				case 2: return Gpr.Word(Index);
+				case 4: return Gpr.Dword(Index);
+				case 8: return Gpr.Qword(Index);
 				default: throw new UnreachableException();
 			}
 		}

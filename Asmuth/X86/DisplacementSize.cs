@@ -30,9 +30,9 @@ namespace Asmuth.X86
 		public static bool IsLong(this DisplacementSize size)
 			=> size >= DisplacementSize._16Bits;
 		public static DisplacementSize GetMaximum(AddressSize addressSize)
-			=> addressSize == AddressSize._16 ? DisplacementSize._16Bits : DisplacementSize._32Bits;
+			=> addressSize == AddressSize._16Bits ? DisplacementSize._16Bits : DisplacementSize._32Bits;
 		public static bool IsEncodable(this DisplacementSize size, AddressSize addressSize)
-			=> (size == DisplacementSize._16Bits) == (addressSize == AddressSize._16);
+			=> (size == DisplacementSize._16Bits) == (addressSize == AddressSize._16Bits);
 		public static bool CanEncodeValue(this DisplacementSize size, int displacement)
 		{
 			switch (size)

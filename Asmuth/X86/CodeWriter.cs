@@ -40,7 +40,7 @@ namespace Asmuth.X86
 		private void Emit(OpcodeMap map, byte opcode8, byte opcode, Gpr reg, EffectiveAddress rm)
 		{
 			WritePrefixes(reg, rm);
-			Emit(map, reg.Size == OperandSize.Byte ? opcode8 : opcode);
+			Emit(map, reg.Size == IntegerSize.Byte ? opcode8 : opcode);
 
 			var displacementSize = rm.MinimumDisplacementSize;
 			var encoding = rm.Encode(codeSegmentType, reg.Code.GetLow3Bits(), displacementSize);
@@ -106,12 +106,12 @@ namespace Asmuth.X86
 
 			// Rex
 			Rex? rex = null;
-			if (reg.Part == GprPart.Qword)
+			if (reg.Size == IntegerSize.Qword)
 			{
 				if (!codeSegmentType.IsLongMode()) throw new ArgumentException("reg");
 				rex = rex.GetValueOrDefault() | Rex.OperandSize64;
 			}
-			else if (reg.Size == OperandSize.Byte)
+			else if (reg.Size == IntegerSize.Byte)
 			{
 				// Might require rex for low byte
 				throw new NotImplementedException();

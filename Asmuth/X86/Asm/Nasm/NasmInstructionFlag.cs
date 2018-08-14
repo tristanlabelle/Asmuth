@@ -18,14 +18,15 @@ namespace Asmuth.X86.Asm.Nasm
 		public static readonly string Undocumented = "UNDOC";
 		public static readonly string X64 = "X64";
 
-		public static OperandSize? TryAsDefaultOperandSize(string flag)
+		public static int? TryAsDefaultOperandSizeInBytes(string flag)
 		{
 			switch (flag)
 			{
-				case "SB": return OperandSize.Byte;
-				case "SW": return OperandSize.Word;
-				case "SD": return OperandSize.Dword;
-				case "SQ": return OperandSize.Qword;
+				case "SB": return 1;
+				case "SW": return 2;
+				case "SD": return 4;
+				case "SQ": return 8;
+				case "SO": return 16;
 				default: return null;
 			}
 		}

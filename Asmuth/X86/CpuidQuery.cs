@@ -105,7 +105,7 @@ namespace Asmuth.X86
 			str.Append('_');
 
 			// E[ABCD]X
-			str.Append(Gpr.GetName(OutputGpr, GprPart.Dword));
+			str.Append(new Gpr(OutputGpr, IntegerSize.Dword, hasRex: false).Name);
 
 			if (bitCount > 0 && bitCount < 32)
 			{

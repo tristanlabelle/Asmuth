@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -121,26 +122,23 @@ namespace Asmuth.X86
 
 			if ((Flags & OpcodeEncodingFlags.ModRM_Present) != 0)
 			{
-				switch (Flags & (OpcodeEncodingFlags.ModRM_RM_Mask | OpcodeEncodingFlags.ModRM_FixedReg))
+				str.Append(' ');
+
+				bool fixedReg = (Flags & OpcodeEncodingFlags.ModRM_FixedReg) != 0;
+				var modRMFlags = Flags & OpcodeEncodingFlags.ModRM_RM_Mask;
+				if (fixedReg && Flags.HasModRMDirectMod())
 				{
-					case OpcodeEncodingFlags.ModRM_RM_Any:
-						str.Append(" /r");
-						break;
-
-					case OpcodeEncodingFlags.ModRM_RM_Any | OpcodeEncodingFlags.ModRM_FixedReg:
-						str.Append(" /");
-						str.Append((char)('0' + ModRM.GetReg()));
-						break;
-
-					case OpcodeEncodingFlags.ModRM_RM_Direct | OpcodeEncodingFlags.ModRM_FixedReg:
-						str.AppendFormat(CultureInfo.InvariantCulture, " {0:x2}+r", (byte)ModRM);
-						break;
-
-					case OpcodeEncodingFlags.ModRM_RM_Fixed | OpcodeEncodingFlags.ModRM_FixedReg:
-						str.AppendFormat(CultureInfo.InvariantCulture, " {0:x2}", (byte)ModRM);
-						break;
-
-					default: throw new NotImplementedException();
+					str.AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", (byte)ModRM);
+					if (modRMFlags == OpcodeEncodingFlags.ModRM_RM_Direct)
+						str.Append("+r");
+				}
+				else
+				{
+					if (modRMFlags == OpcodeEncodingFlags.ModRM_RM_Indirect)
+						str.Append('m');
+					str.Append('/');
+					if (fixedReg) str.Append('r');
+					else str.Append((char)('0' + ModRM.GetReg()));
 				}
 			}
 
@@ -393,25 +391,25 @@ namespace Asmuth.X86
 		public static bool IsEVex(this OpcodeEncodingFlags flags)
 			=> (flags & OpcodeEncodingFlags.XexType_Vex) == OpcodeEncodingFlags.XexType_EVex;
 
-		public static bool AdmitsVectorSize(this OpcodeEncodingFlags flags, OperandSize size)
+		public static bool AdmitsVectorSize(this OpcodeEncodingFlags flags, SseVectorSize size)
 		{
 			switch (flags & OpcodeEncodingFlags.VexL_Mask)
 			{
 				case OpcodeEncodingFlags.VexL_Ignored: return true;
-				case OpcodeEncodingFlags.VexL_128: return size == OperandSize._128;
-				case OpcodeEncodingFlags.VexL_256: return size == OperandSize._256;
-				case OpcodeEncodingFlags.VexL_512: return size == OperandSize._512;
+				case OpcodeEncodingFlags.VexL_128: return size == SseVectorSize._128Bits;
+				case OpcodeEncodingFlags.VexL_256: return size == SseVectorSize._256Bits;
+				case OpcodeEncodingFlags.VexL_512: return size == SseVectorSize._512Bits;
 				default: throw new ArgumentOutOfRangeException(nameof(flags));
 			}
 		}
 
-		public static bool AdmitsIntegerSize(this OpcodeEncodingFlags flags, OperandSize size)
+		public static bool AdmitsIntegerSize(this OpcodeEncodingFlags flags, IntegerSize size)
 		{
 			switch (flags & OpcodeEncodingFlags.OperandSize_Mask)
 			{
 				case OpcodeEncodingFlags.OperandSize_Ignored: return true;
-				case OpcodeEncodingFlags.OperandSize_Word: return size == OperandSize.Word;
-				case OpcodeEncodingFlags.OperandSize_Dword: return size == OperandSize.Dword;
+				case OpcodeEncodingFlags.OperandSize_Word: return size == IntegerSize.Word;
+				case OpcodeEncodingFlags.OperandSize_Dword: return size == IntegerSize.Dword;
 				default: throw new ArgumentOutOfRangeException(nameof(flags));
 			}
 		}

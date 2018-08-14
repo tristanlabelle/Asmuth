@@ -59,15 +59,15 @@ namespace Asmuth.X86.Asm.Nasm
 				{
 					// Address size
 					case NasmEncodingTokenType.AddressSize_Fixed16:
-						if (instruction.EffectiveAddressSize != AddressSize._16) return false;
+						if (instruction.EffectiveAddressSize != AddressSize._16Bits) return false;
 						break;
 
 					case NasmEncodingTokenType.AddressSize_Fixed32:
-						if (instruction.EffectiveAddressSize != AddressSize._32) return false;
+						if (instruction.EffectiveAddressSize != AddressSize._32Bits) return false;
 						break;
 
 					case NasmEncodingTokenType.AddressSize_Fixed64:
-						if (instruction.EffectiveAddressSize != AddressSize._64) return false;
+						if (instruction.EffectiveAddressSize != AddressSize._64Bits) return false;
 						break;
 
 					case NasmEncodingTokenType.AddressSize_NoOverride:
@@ -76,15 +76,15 @@ namespace Asmuth.X86.Asm.Nasm
 
 					// Operand size
 					case NasmEncodingTokenType.OperandSize_16:
-						if (GetIntegerOperandSize(instruction) != OperandSize.Word) return false;
+						if (GetIntegerOperandSize(instruction) != IntegerSize.Word) return false;
 						break;
 
 					case NasmEncodingTokenType.OperandSize_32:
-						if (GetIntegerOperandSize(instruction) != OperandSize.Dword) return false;
+						if (GetIntegerOperandSize(instruction) != IntegerSize.Dword) return false;
 						break;
 
 					case NasmEncodingTokenType.OperandSize_64:
-						if (GetIntegerOperandSize(instruction) != OperandSize.Qword) return false;
+						if (GetIntegerOperandSize(instruction) != IntegerSize.Qword) return false;
 						break;
 
 					case NasmEncodingTokenType.OperandSize_NoOverride:
@@ -249,8 +249,8 @@ namespace Asmuth.X86.Asm.Nasm
 
 					case NasmEncodingTokenType.Immediate_RelativeOffset:
 						immediateSize += instruction.CodeSegmentType
-							.GetIntegerOperandSize(instruction.LegacyPrefixes, instruction.Xex)
-							== OperandSize.Word ? 2 : 4;
+							.GetWordOrDwordIntegerOperandSize(instruction.LegacyPrefixes, instruction.Xex)
+							.InBytes();
 						break;
 
 					// Misc
@@ -282,7 +282,7 @@ namespace Asmuth.X86.Asm.Nasm
 					&& instruction.ImmediateSizeInBytes == immediateSize));
 		}
 
-		private static OperandSize GetIntegerOperandSize(Instruction instruction)
+		private static IntegerSize GetIntegerOperandSize(Instruction instruction)
 		{
 			return instruction.CodeSegmentType.GetIntegerOperandSize(
 				instruction.LegacyPrefixes, instruction.Xex);

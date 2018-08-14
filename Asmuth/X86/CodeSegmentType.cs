@@ -29,16 +29,17 @@ namespace Asmuth.X86
 	public static class CodeSegmentTypeEnum
 	{
 		#region OperandSize
-		public static OperandSize GetDefaultOperandSize(this CodeSegmentType type)
-			=> type == CodeSegmentType._16Bits ? OperandSize.Word : OperandSize.Dword;
-		public static OperandSize GetIntegerOperandSize(this CodeSegmentType type,
+		public static IntegerSize GetDefaultIntegerOperandSize(this CodeSegmentType type)
+			=> type == CodeSegmentType._16Bits ? IntegerSize.Word : IntegerSize.Dword;
+
+		public static IntegerSize GetIntegerOperandSize(this CodeSegmentType type,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex)
 		{
 			return GetIntegerOperandSize(type,
 				@override: legacyPrefixes.HasOperandSizeOverride,
 				rexW: xex.OperandSize64);
 		}
-		public static OperandSize GetIntegerOperandSize(this CodeSegmentType type,
+		public static IntegerSize GetIntegerOperandSize(this CodeSegmentType type,
 			bool @override, bool rexW)
 		{
 			if (rexW)
@@ -48,23 +49,21 @@ namespace Asmuth.X86
 				// • For non-byte operations: if a 66H prefix is used with prefix (REX.W = 1),
 				//   66H is ignored.
 				// • If a 66H override is used with REX and REX.W = 0, the operand size is 16 bits.
-				return OperandSize.Qword;
+				return IntegerSize.Qword;
 			}
 
 			return (type == CodeSegmentType._16Bits) == @override
-				? OperandSize.Dword : OperandSize.Word;
+				? IntegerSize.Dword : IntegerSize.Word;
 		}
-		#endregion
 
-		#region OperandSize
-		public static OperandSize GetWordOrDwordImmediateSize(this CodeSegmentType type,
+		public static IntegerSize GetWordOrDwordIntegerOperandSize(this CodeSegmentType type,
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex)
 		{
-			return GetWordOrDwordImmediateSize(type,
+			return GetWordOrDwordIntegerOperandSize(type,
 				@override: legacyPrefixes.HasOperandSizeOverride,
 				rexW: xex.OperandSize64);
 		}
-		public static OperandSize GetWordOrDwordImmediateSize(this CodeSegmentType type,
+		public static IntegerSize GetWordOrDwordIntegerOperandSize(this CodeSegmentType type,
 			bool @override, bool rexW)
 		{
 			if (rexW)
@@ -74,11 +73,11 @@ namespace Asmuth.X86
 				// • For non-byte operations: if a 66H prefix is used with prefix (REX.W = 1),
 				//   66H is ignored.
 				// • If a 66H override is used with REX and REX.W = 0, the operand size is 16 bits.
-				return OperandSize.Dword;
+				return IntegerSize.Dword;
 			}
 
 			return (type == CodeSegmentType._16Bits) == @override
-				? OperandSize.Dword : OperandSize.Word;
+				? IntegerSize.Dword : IntegerSize.Word;
 		}
 		#endregion
 
@@ -89,14 +88,14 @@ namespace Asmuth.X86
 			=> GetEffectiveAddressSize(type, @override: legacyPrefixes.HasAddressSizeOverride);
 		public static AddressSize GetEffectiveAddressSize(this CodeSegmentType type, bool @override)
 		{
-			if (type == CodeSegmentType._16Bits) return @override ? AddressSize._32 : AddressSize._16;
-			if (type == CodeSegmentType._32Bits) return @override ? AddressSize._16 : AddressSize._32;
-			if (type == CodeSegmentType._64Bits) return @override ? AddressSize._32 : AddressSize._64;
+			if (type == CodeSegmentType._16Bits) return @override ? AddressSize._32Bits : AddressSize._16Bits;
+			if (type == CodeSegmentType._32Bits) return @override ? AddressSize._16Bits : AddressSize._32Bits;
+			if (type == CodeSegmentType._64Bits) return @override ? AddressSize._32Bits : AddressSize._64Bits;
 			throw new ArgumentOutOfRangeException(nameof(type));
 		}
 		public static bool Supports(this CodeSegmentType type, AddressSize addressSize)
 			=> type == CodeSegmentType._64Bits 
-			? (addressSize != AddressSize._16) : (addressSize != AddressSize._64);
+			? (addressSize != AddressSize._16Bits) : (addressSize != AddressSize._64Bits);
 		public static bool Supports(this CodeSegmentType type, AddressSize addressSize,
 			out bool withOverride)
 		{

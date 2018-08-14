@@ -27,35 +27,35 @@ namespace Asmuth.X86.Asm
 		VectorLength_16 = 4 << (int)ElementSize_Shift,
 		VectorLength_Mask = 7 << (int)ElementSize_Shift,
 
-		Type_Shift = VectorLength_Shift + 3,
-		Type_Unknown = 0 << (int)Type_Shift,
-		Type_Int = 1 << (int)Type_Shift,
-		Type_Float = 2 << (int)Type_Shift,
-		Type_FarPtr = 3 << (int)Type_Shift,
-		Type_Mask = 0xF << (int)Type_Shift,
+		ElementType_Shift = VectorLength_Shift + 3,
+		ElementType_Unknown = 0 << (int)ElementType_Shift,
+		ElementType_Int = 1 << (int)ElementType_Shift,
+		ElementType_Float = 2 << (int)ElementType_Shift,
+		ElementType_FarPtr = 3 << (int)ElementType_Shift,
+		ElementType_Mask = 0xF << (int)ElementType_Shift,
 
-		Unknown = Type_Unknown | ElementSize_0Bits,
+		Unknown = ElementType_Unknown | ElementSize_0Bits,
 
-		_8 = Type_Unknown | ElementSize_Byte,
-		_16 = Type_Unknown | ElementSize_Word,
-		_32 = Type_Unknown | ElementSize_Dword,
-		_64 = Type_Unknown | ElementSize_Qword,
-		_128 = Type_Unknown | ElementSize_128Bits,
-		_256 = Type_Unknown | ElementSize_256Bits,
-		_512 = Type_Unknown | ElementSize_512Bits,
+		_8 = ElementType_Unknown | ElementSize_Byte,
+		_16 = ElementType_Unknown | ElementSize_Word,
+		_32 = ElementType_Unknown | ElementSize_Dword,
+		_64 = ElementType_Unknown | ElementSize_Qword,
+		_128 = ElementType_Unknown | ElementSize_128Bits,
+		_256 = ElementType_Unknown | ElementSize_256Bits,
+		_512 = ElementType_Unknown | ElementSize_512Bits,
 
-		I8 = Type_Int | ElementSize_Byte,
-		I16 = Type_Int | ElementSize_Word,
-		I32 = Type_Int | ElementSize_Dword,
-		I64 = Type_Int | ElementSize_Qword,
+		I8 = ElementType_Int | ElementSize_Byte,
+		I16 = ElementType_Int | ElementSize_Word,
+		I32 = ElementType_Int | ElementSize_Dword,
+		I64 = ElementType_Int | ElementSize_Qword,
 
-		F32 = Type_Float | ElementSize_Dword,
-		F64 = Type_Float | ElementSize_Qword,
-		F80 = Type_Float | ElementSize_80Bits,
+		F32 = ElementType_Float | ElementSize_Dword,
+		F64 = ElementType_Float | ElementSize_Qword,
+		F80 = ElementType_Float | ElementSize_80Bits,
 
-		FarPtr16 = Type_FarPtr | ElementSize_Dword,
-		FarPtr32 = Type_FarPtr | ElementSize_48Bits,
-		FarPtr64 = Type_FarPtr | ElementSize_80Bits,
+		FarPtr16 = ElementType_FarPtr | ElementSize_Dword,
+		FarPtr32 = ElementType_FarPtr | ElementSize_48Bits,
+		FarPtr64 = ElementType_FarPtr | ElementSize_80Bits,
 	}
 
 	public static class OperandDataTypeEnum
@@ -78,11 +78,12 @@ namespace Asmuth.X86.Asm
 		public static int GetTotalSizeInBits(this OperandDataType type)
 			=> GetTotalSizeInBytes(type) * 8;
 
-		public static int? GetImpliedRegisterSizeInBytes(this OperandDataType type)
+		public static IntegerSize? GetImpliedGprSize(this OperandDataType type)
 		{
-			if ((type & OperandDataType.Type_Mask) == OperandDataType.Type_FarPtr) return null;
-			if ((type & OperandDataType.ElementSize_Mask) == OperandDataType.ElementSize_0Bits) return null;
-			return type.GetTotalSizeInBytes();
+			if ((type & OperandDataType.ElementType_Mask) != OperandDataType.ElementType_Unknown
+				&& (type & OperandDataType.ElementType_Mask) != OperandDataType.ElementType_Int) return null;
+			if (GetVectorLength(type) != 1) return null;
+			return IntegerSizeEnum.TryFromBytes(GetElementSizeInBytes(type));
 		}
 	}
 }

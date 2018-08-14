@@ -87,12 +87,12 @@ namespace Asmuth.X86
 				case ModRM.Mod_IndirectDisplacement8:
 					return DisplacementSize._8Bits;
 				case ModRM.Mod_IndirectLongDisplacement:
-					return addressSize == AddressSize._16 ? DisplacementSize._16Bits : DisplacementSize._32Bits;
+					return addressSize == AddressSize._16Bits ? DisplacementSize._16Bits : DisplacementSize._32Bits;
 				case ModRM.Mod_Direct: return 0;
 			}
 
 			// Mod = 0
-			if (addressSize == AddressSize._16)
+			if (addressSize == AddressSize._16Bits)
 				return GetRM(modRM) == 6 ? DisplacementSize._16Bits : DisplacementSize.None;
 
 			if (GetRM(modRM) == 5) return DisplacementSize._32Bits;
@@ -102,6 +102,6 @@ namespace Asmuth.X86
 		}
 
 		public static bool ImpliesSib(this ModRM modRM, AddressSize addressSize)
-			=> addressSize >= AddressSize._32 && GetRM(modRM) == 4 && GetMod(modRM) != 3;
+			=> addressSize >= AddressSize._32Bits && GetRM(modRM) == 4 && GetMod(modRM) != 3;
 	}
 }

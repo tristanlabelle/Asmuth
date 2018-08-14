@@ -19,7 +19,10 @@ namespace Asmuth.X86.Asm.Nasm
 				return !IsPseudo
 					&& !IsAssembleOnly
 					&& mnemonic != "CALL" && mnemonic != "ENTER" // Can't yet handle imm:imm
-					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_NoOverride)
+					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_NoOverride) && !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_NoOverride)
+					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_Fixed16)
+					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_Fixed32)
+					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_Fixed64)
 					&& !encodingTokens.Contains(NasmEncodingTokenType.OperandSize_NoOverride);
 			}
 		}
@@ -97,7 +100,7 @@ namespace Asmuth.X86.Asm.Nasm
 			public OpcodeEncoding Parse(IEnumerable<NasmEncodingToken> tokens, VexEncoding vexEncoding,
 				OEF codeSegmentTypeFlags, NasmOperandType baseRegOperandType)
 			{
-				codeSegmentTypeFlags &= OEF.CodeSegmentType_Mask;
+				flags = codeSegmentTypeFlags & OEF.CodeSegmentType_Mask;
 				state = State.Prefixes;
 				
 				NasmEncodingTokenType addressSize = 0;
@@ -121,15 +124,15 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						case NasmEncodingTokenType.OperandSize_16:
-							SetOperandSize(OperandSize.Word);
+							SetOperandSize(IntegerSize.Word);
 							break;
 
 						case NasmEncodingTokenType.OperandSize_32:
-							SetOperandSize(OperandSize.Dword);
+							SetOperandSize(IntegerSize.Dword);
 							break;
 
 						case NasmEncodingTokenType.OperandSize_64:
-							SetOperandSize(OperandSize.Qword);
+							SetOperandSize(IntegerSize.Qword);
 							break;
 							
 						// TODO: Not too clear what this means/implies
@@ -330,7 +333,7 @@ namespace Asmuth.X86.Asm.Nasm
 				flags |= @long ? OEF.CodeSegmentType_Long : OEF.CodeSegmentType_IA32;
 			}
 
-			private void SetOperandSize(OperandSize size)
+			private void SetOperandSize(IntegerSize size)
 			{
 				if (state > State.PostSimdPrefix)
 					throw new FormatException("Out-of-order operand size prefix.");
@@ -341,18 +344,18 @@ namespace Asmuth.X86.Asm.Nasm
 
 				switch (size)
 				{
-					case OperandSize.Word:
+					case IntegerSize.Word:
 						flags |= OEF.OperandSize_Word;
 						flags |= OEF.RexW_0;
 						SetLongCodeSegment(false);
 						break;
 
-					case OperandSize.Dword:
+					case IntegerSize.Dword:
 						flags |= OEF.OperandSize_Dword;
 						flags |= OEF.RexW_0;
 						break;
 						
-					case OperandSize.Qword:
+					case IntegerSize.Qword:
 						flags |= OEF.RexW_1;
 						SetLongCodeSegment(true);
 						break;

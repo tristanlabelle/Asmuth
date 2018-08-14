@@ -25,9 +25,9 @@ namespace Asmuth.X86
 		public static bool IsFixed(this ImmediateSize size)
 			=> size <= ImmediateSize.Fixed64;
 
-		public static int InBytes(this ImmediateSize size, OperandSize operandSize)
+		public static int InBytes(this ImmediateSize size, IntegerSize operandSize)
 		{
-			if (operandSize < OperandSize.Word || operandSize > OperandSize.Qword)
+			if (operandSize < IntegerSize.Word || operandSize > IntegerSize.Qword)
 				throw new ArgumentOutOfRangeException(nameof(operandSize));
 			switch (size)
 			{
@@ -38,9 +38,9 @@ namespace Asmuth.X86
 				case ImmediateSize.Fixed32: return 4;
 				case ImmediateSize.Fixed48: return 6;
 				case ImmediateSize.Fixed64: return 8;
-				case ImmediateSize.Operand16Or32: return operandSize == OperandSize.Word ? 2 : 4;
+				case ImmediateSize.Operand16Or32: return operandSize == IntegerSize.Word ? 2 : 4;
 				case ImmediateSize.Operand16Or32Or64: return operandSize.InBytes();
-				case ImmediateSize.Operand32Or48: return operandSize == OperandSize.Word ? 4 : 6;
+				case ImmediateSize.Operand32Or48: return operandSize == IntegerSize.Word ? 4 : 6;
 				default: throw new ArgumentException(nameof(size));
 			}
 		}

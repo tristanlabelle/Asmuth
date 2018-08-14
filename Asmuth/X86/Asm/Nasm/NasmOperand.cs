@@ -29,8 +29,9 @@ namespace Asmuth.X86.Asm.Nasm
 					return ToOperandFormat(operands, sizeMatch: true);
 				else
 				{
-					var defaultSize = NasmInstructionFlags.TryAsDefaultOperandSize(flag);
-					if (defaultSize.HasValue) return ToOperandFormat(operands, defaultSize.Value);
+					var defaultSizeInBytes = NasmInstructionFlags.TryAsDefaultOperandSizeInBytes(flag);
+					if (defaultSizeInBytes.HasValue)
+						return ToOperandFormat(operands, IntegerSizeEnum.TryFromBytes(defaultSizeInBytes.Value).Value);
 				}
 			}
 
@@ -47,7 +48,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 			var operandFormats = new OperandFormat[operands.Count];
 			
-			int? impliedSize = null;
+			int? impliedSizeInBytes = null;
 			for (int i = 0; i < operands.Count; ++i)
 			{
 				var operandFormat = operands[i].TryToOperandFormat(defaultSizeInBytes: null);
@@ -61,10 +62,10 @@ namespace Asmuth.X86.Asm.Nasm
 					operandFormats[i] = operandFormat;
 
 					// Determine the size we'll match on the second pass
-					if (sizeMatch && !impliedSize.HasValue)
+					if (sizeMatch && !impliedSizeInBytes.HasValue)
 					{
-						var operandSize = operandFormat.ImpliedRegisterSizeInBytes;
-						if (operandSize.HasValue) impliedSize = operandSize;
+						var operandSize = operandFormat.ImpliedIntegerOperandSize;
+						if (operandSize.HasValue) impliedSizeInBytes = operandSize.Value.InBytes();
 					}
 				}
 			}
@@ -72,10 +73,10 @@ namespace Asmuth.X86.Asm.Nasm
 			if (sizeMatch)
 			{
 				// Do a second pass with the implied size
-				if (!impliedSize.HasValue) throw new FormatException();
+				if (!impliedSizeInBytes.HasValue) throw new FormatException();
 				for (int i = 0; i < operands.Count; ++i)
 				{
-					var operandFormat = operands[i].TryToOperandFormat(impliedSize);
+					var operandFormat = operands[i].TryToOperandFormat(impliedSizeInBytes);
 					operandFormats[i] = operandFormat ?? throw new FormatException();
 				}
 			}
@@ -84,12 +85,12 @@ namespace Asmuth.X86.Asm.Nasm
 		}
 
 		public static OperandFormat[] ToOperandFormat(
-			IReadOnlyList<NasmOperand> operands, OperandSize unsizedSize)
+			IReadOnlyList<NasmOperand> operands, IntegerSize defaultIntegerSize)
 		{
 			var operandFormats = new OperandFormat[operands.Count];
 			for (int i = 0; i < operands.Count; ++i)
 			{
-				var operandFormat = operands[i].TryToOperandFormat(unsizedSize.InBytes());
+				var operandFormat = operands[i].TryToOperandFormat(defaultIntegerSize.InBytes());
 				operandFormats[i] = operandFormat ?? throw new FormatException();
 			}
 			return operandFormats;

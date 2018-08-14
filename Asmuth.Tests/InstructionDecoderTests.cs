@@ -211,7 +211,7 @@ namespace Asmuth.X86
 				| Vex3Xop.SimdPrefix_66 | Vex3Xop.OpcodeMap_0F;
 			var instruction = DecodeSingle_32Bits(table, vex.GetFirstByte(), vex.GetSecondByte(), vex.GetThirdByte(), 0x58, (byte)modRM);
 			Assert.AreEqual(XexType.Vex3, instruction.Xex.Type);
-			Assert.AreEqual(OperandSize._128, instruction.Xex.VectorSize);
+			Assert.AreEqual(SseVectorSize._128Bits, instruction.Xex.VectorSize);
 			Assert.AreEqual((byte)0, instruction.Xex.NonDestructiveReg);
 			Assert.IsFalse(instruction.Xex.OperandSize64);
 			Assert.IsFalse(instruction.Xex.ModRegExtension);
