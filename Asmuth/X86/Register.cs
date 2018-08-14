@@ -198,7 +198,7 @@ namespace Asmuth.X86
 
 		public Gpr AsSizedGpr()
 		{
-			if (IsSizedGpr) throw new InvalidOperationException();
+			if (!IsSizedGpr) throw new InvalidOperationException();
 			switch (SizeInBytes.Value)
 			{
 				case 1: return new Gpr(Index & 0xF, Index >= 0x10 ? GprPart.HighByte : GprPart.Byte);

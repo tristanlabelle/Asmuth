@@ -480,7 +480,7 @@ namespace Asmuth.X86
 			&& (flags & OpcodeEncodingFlags.ModRM_FixedReg) == 0
 			&& (flags & OpcodeEncodingFlags.ModRM_RM_Mask) == OpcodeEncodingFlags.ModRM_RM_Any;
 
-		public static bool HasDirectModRM_Mod(this OpcodeEncodingFlags flags)
+		public static bool HasModRMDirectMod(this OpcodeEncodingFlags flags)
 			=> (flags & OpcodeEncodingFlags.ModRM_Present) != 0
 			&& ((flags & OpcodeEncodingFlags.ModRM_RM_Mask) == OpcodeEncodingFlags.ModRM_RM_Direct
 			|| (flags & OpcodeEncodingFlags.ModRM_RM_Mask) == OpcodeEncodingFlags.ModRM_RM_Fixed);

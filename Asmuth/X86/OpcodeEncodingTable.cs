@@ -42,19 +42,19 @@ namespace Asmuth.X86
 				var result = OpcodeEncoding.Compare(opcode, existingEntry.Opcode);
 				switch (result)
 				{
-					case OpcodeEncodingComparisonResult.Ambiguous:
-					case OpcodeEncodingComparisonResult.Equal:
+					case SetComparisonResult.Overlapping:
+					case SetComparisonResult.Equal:
 						throw new ArgumentException();
 
-					case OpcodeEncodingComparisonResult.Different:
+					case SetComparisonResult.Disjoint:
 						continue;
 
-					case OpcodeEncodingComparisonResult.LhsMoreGeneral:
+					case SetComparisonResult.SupersetSubset:
 						if (moreGeneral == false) throw new ArgumentException();
 						moreGeneral = true;
 						break;
 
-					case OpcodeEncodingComparisonResult.RhsMoreGeneral:
+					case SetComparisonResult.SubsetSuperset:
 						if (moreGeneral == true) throw new ArgumentException();
 						moreGeneral = false;
 						break;
