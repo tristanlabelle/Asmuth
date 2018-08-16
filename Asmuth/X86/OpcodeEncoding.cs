@@ -110,6 +110,23 @@ namespace Asmuth.X86
 		{
 			var str = new StringBuilder(30);
 
+			str.Append('[');
+
+			if (Flags.GetLongMode().HasValue)
+				str.Append(Flags.GetLongMode().Value ? "x64 " : "ia32 ");
+
+			if (Flags.GetAddressSize().HasValue)
+				str.AppendFormat(CultureInfo.InvariantCulture, "a{0} ",
+					Flags.GetAddressSize().Value.InBits());
+
+			if ((Flags & OpcodeEncodingFlags.OperandSize_Mask) == OpcodeEncodingFlags.OperandSize_Word)
+				str.Append("o16 ");
+			else if ((Flags & OpcodeEncodingFlags.OperandSize_Mask) == OpcodeEncodingFlags.OperandSize_Dword)
+				str.Append("o32 ");
+
+			str.Length--; // Remove '[' or space
+			if (str.Length > 0) str.Append("] ");
+
 			if (Flags.IsEscapeXex())
 				AppendEscapeXex(str);
 			else
@@ -150,7 +167,7 @@ namespace Asmuth.X86
 			int immediateSizeInBytes = Flags.GetImmediateSizeInBytes();
 			if (immediateSizeInBytes > 0)
 			{
-				str.AppendFormat(CultureInfo.InvariantCulture, " imm{0}", immediateSizeInBytes * 8);
+				str.AppendFormat(CultureInfo.InvariantCulture, " i{0}", immediateSizeInBytes * 8);
 			}
 
 			return str.ToString();

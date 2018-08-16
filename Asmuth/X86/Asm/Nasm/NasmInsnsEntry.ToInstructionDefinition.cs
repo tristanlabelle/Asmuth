@@ -19,10 +19,7 @@ namespace Asmuth.X86.Asm.Nasm
 				return !IsPseudo
 					&& !IsAssembleOnly
 					&& mnemonic != "CALL" && mnemonic != "ENTER" // Can't yet handle imm:imm
-					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_NoOverride) && !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_NoOverride)
-					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_Fixed16)
-					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_Fixed32)
-					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_Fixed64)
+					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_NoOverride)
 					&& !encodingTokens.Contains(NasmEncodingTokenType.OperandSize_NoOverride);
 			}
 		}
@@ -103,7 +100,6 @@ namespace Asmuth.X86.Asm.Nasm
 				flags = codeSegmentTypeFlags & OEF.LongMode_Mask;
 				state = State.Prefixes;
 				
-				NasmEncodingTokenType addressSize = 0;
 				foreach (var token in tokens)
 				{
 					switch (token.Type)
@@ -115,13 +111,19 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						case NasmEncodingTokenType.AddressSize_Fixed16:
-						case NasmEncodingTokenType.AddressSize_Fixed32:
-						case NasmEncodingTokenType.AddressSize_Fixed64:
-						case NasmEncodingTokenType.AddressSize_NoOverride:
-							if (state != State.Prefixes) throw new FormatException("Out-of-order address size token.");
-							if (addressSize != 0) throw new FormatException("Multiple address size tokens.");
-							addressSize = token.Type;
+							SetAddressSize(AddressSize._16Bits);
 							break;
+
+						case NasmEncodingTokenType.AddressSize_Fixed32:
+							SetAddressSize(AddressSize._32Bits);
+							break;
+
+						case NasmEncodingTokenType.AddressSize_Fixed64:
+							SetAddressSize(AddressSize._64Bits);
+							break;
+
+						// ?
+						case NasmEncodingTokenType.AddressSize_NoOverride: break;
 
 						case NasmEncodingTokenType.OperandSize_16:
 							SetOperandSize(IntegerSize.Word);
@@ -137,7 +139,7 @@ namespace Asmuth.X86.Asm.Nasm
 							
 						// TODO: Not too clear what this means/implies
 						case NasmEncodingTokenType.OperandSize_64WithoutW:
-							SetLongCodeSegment(true);
+							SetLongMode(true);
 							break;
 
 						case NasmEncodingTokenType.OperandSize_NoOverride:
@@ -325,10 +327,22 @@ namespace Asmuth.X86.Asm.Nasm
 				return new OpcodeEncoding(flags, mainByte, modRM, fixedImm8);
 			}
 
-			private void SetLongCodeSegment(bool @long)
+			private void SetAddressSize(AddressSize size)
 			{
-				if ((this.flags & OEF.LongMode_Mask)
-					== (@long ? OEF.LongMode_No : OEF.LongMode_Yes))
+				if (state != State.Prefixes) throw new FormatException("Out-of-order address size token.");
+				if (flags.GetAddressSize().HasValue) throw new FormatException("Multiple address size tokens.");
+				switch (size)
+				{
+					case AddressSize._16Bits: flags |= OEF.AddressSize_16; break;
+					case AddressSize._32Bits: flags |= OEF.AddressSize_32; break;
+					case AddressSize._64Bits: flags |= OEF.AddressSize_64; break;
+					default: throw new ArgumentOutOfRangeException(nameof(size));
+				}
+			}
+
+			private void SetLongMode(bool @long)
+			{
+				if (flags.GetLongMode().GetValueOrDefault(@long) != @long)
 					throw new FormatException("Conflicting code segment type.");
 				flags |= @long ? OEF.LongMode_Yes : OEF.LongMode_No;
 			}
@@ -347,7 +361,7 @@ namespace Asmuth.X86.Asm.Nasm
 					case IntegerSize.Word:
 						flags |= OEF.OperandSize_Word;
 						flags |= OEF.RexW_0;
-						SetLongCodeSegment(false);
+						SetLongMode(false);
 						break;
 
 					case IntegerSize.Dword:
@@ -357,7 +371,7 @@ namespace Asmuth.X86.Asm.Nasm
 						
 					case IntegerSize.Qword:
 						flags |= OEF.RexW_1;
-						SetLongCodeSegment(true);
+						SetLongMode(true);
 						break;
 
 					default: throw new ArgumentException();
@@ -372,7 +386,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 				if (set)
 				{
-					SetLongCodeSegment(true);
+					SetLongMode(true);
 					flags |= OEF.RexW_1;
 				}
 				else
