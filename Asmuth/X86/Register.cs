@@ -14,6 +14,7 @@ namespace Asmuth.X86
 		AvxOpmask, // k0-k7
 
 		Segment, // ES, CS, SS, DS, FS, GS
+		Bound, // BND0-BND3
 		Debug, // DR0-DR7
 		Control, // CR0-CR8
 
@@ -51,6 +52,7 @@ namespace Asmuth.X86
 				case RegisterFamily.Sse: return 0x40_20_10;
 				case RegisterFamily.AvxOpmask: return 0x08;
 				case RegisterFamily.Segment: return 0x02;
+				case RegisterFamily.Bound: return 0x10;
 				case RegisterFamily.Debug: return 0x08_04;
 				case RegisterFamily.Control: return 0x08_04;
 				case RegisterFamily.Flags: return 0x08_04_02;

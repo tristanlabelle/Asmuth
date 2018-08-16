@@ -25,7 +25,8 @@ namespace Asmuth.X86
 
 			private void Encoding(OpcodeEncoding lhs, OpcodeEncoding rhs)
 			{
-				if (!IgnorableField(lhs.Flags, rhs.Flags, Flags.CodeSegmentType_Mask)) return;
+				if (!IgnorableField(lhs.Flags, rhs.Flags, Flags.LongMode_Mask)) return;
+				if (!IgnorableField(lhs.Flags, rhs.Flags, Flags.AddressSize_Mask)) return;
 				if (!Field(lhs.Flags, rhs.Flags, Flags.XexType_Mask)) return;
 				if (!IgnorableField(lhs.Flags, rhs.Flags, Flags.OperandSize_Mask)) return;
 				if (!IgnorableField(lhs.Flags, rhs.Flags, Flags.VexL_Mask)) return;

@@ -68,9 +68,9 @@ namespace Asmuth.X86.Asm.Nasm
 		{
 			if (encodingTokens == null) throw new ArgumentNullException(nameof(encodingTokens));
 			
-			OEF encodingFlags = OEF.CodeSegmentType_Any;
+			OEF encodingFlags = OEF.LongMode_Any;
 			if (longMode.HasValue)
-				encodingFlags = longMode.Value ? OEF.CodeSegmentType_Long : OEF.CodeSegmentType_IA32;
+				encodingFlags = longMode.Value ? OEF.LongMode_Yes : OEF.LongMode_No;
 
 			var parser = new EncodingParser();
 			return parser.Parse(encodingTokens, vexEncoding.GetValueOrDefault(),
@@ -100,7 +100,7 @@ namespace Asmuth.X86.Asm.Nasm
 			public OpcodeEncoding Parse(IEnumerable<NasmEncodingToken> tokens, VexEncoding vexEncoding,
 				OEF codeSegmentTypeFlags, NasmOperandType baseRegOperandType)
 			{
-				flags = codeSegmentTypeFlags & OEF.CodeSegmentType_Mask;
+				flags = codeSegmentTypeFlags & OEF.LongMode_Mask;
 				state = State.Prefixes;
 				
 				NasmEncodingTokenType addressSize = 0;
@@ -280,7 +280,7 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						case NasmEncodingTokenType.Immediate_RelativeOffset:
-							if ((flags & OEF.CodeSegmentType_Mask) == OEF.CodeSegmentType_Long
+							if ((flags & OEF.LongMode_Mask) == OEF.LongMode_Yes
 								|| (flags & OEF.OperandSize_Mask) == OEF.OperandSize_Dword)
 								AddImmediateWithSizeInBytes(sizeof(int));
 							else if ((flags & OEF.OperandSize_Mask) == OEF.OperandSize_Word)
@@ -327,10 +327,10 @@ namespace Asmuth.X86.Asm.Nasm
 
 			private void SetLongCodeSegment(bool @long)
 			{
-				if ((this.flags & OEF.CodeSegmentType_Mask)
-					== (@long ? OEF.CodeSegmentType_IA32 : OEF.CodeSegmentType_Long))
+				if ((this.flags & OEF.LongMode_Mask)
+					== (@long ? OEF.LongMode_No : OEF.LongMode_Yes))
 					throw new FormatException("Conflicting code segment type.");
-				flags |= @long ? OEF.CodeSegmentType_Long : OEF.CodeSegmentType_IA32;
+				flags |= @long ? OEF.LongMode_Yes : OEF.LongMode_No;
 			}
 
 			private void SetOperandSize(IntegerSize size)

@@ -18,6 +18,7 @@ namespace Asmuth.X86
 		Operand16Or32, // imm16/32, rel16/32
 		Operand16Or32Or64, // MOV: B8+r imm16/32/64
 		Operand32Or48, // JMP: EA ptr16:16/16:32
+		AddressSize, // MOV AX,moffs16/32/64
 	}
 
 	public static class ImmediateSizeEnum

@@ -143,6 +143,28 @@ namespace Asmuth.X86
 		}
 
 		[TestMethod]
+		public void TestAddressSizeAmbiguity()
+		{
+			var table = new OpcodeEncodingTable<string>();
+			table.Add(OEF.LongMode_No | OEF.AddressSize_16 | OEF.ModRM_Present | OEF.ImmediateSize_16, 0xC7, ModRM.Reg_0, "mov ax,moffs16");
+			table.Add(OEF.AddressSize_32 | OEF.ModRM_Present | OEF.ImmediateSize_32, 0xC7, ModRM.Reg_0, "mov eax,moffs32");
+			table.Add(OEF.LongMode_Yes | OEF.AddressSize_64 | OEF.ModRM_Present | OEF.ImmediateSize_64, 0xC7, ModRM.Reg_0, "mov rax,moffs64");
+
+			// In different code segment types
+			Assert.AreEqual(2, DecodeSingle_16Bits(table, 0xC7, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(4, DecodeSingle_32Bits(table, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(8, DecodeSingle_64Bits(table, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+
+			// With address size override
+			Assert.AreEqual(4, DecodeSingle_16Bits(table, 0x67, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(2, DecodeSingle_32Bits(table, 0x67, 0xC7, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(4, DecodeSingle_64Bits(table, 0x67, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+
+			// With operand size override (no impact)
+			Assert.AreEqual(4, DecodeSingle_32Bits(table, 0x66, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+		}
+
+		[TestMethod]
 		public void TestRexAfter0F()
 		{
 			var table = new OpcodeEncodingTable<string>();

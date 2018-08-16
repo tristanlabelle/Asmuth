@@ -31,15 +31,17 @@ namespace Asmuth.X86.Asm
 		ElementType_Unknown = 0 << (int)ElementType_Shift,
 		ElementType_Int = 1 << (int)ElementType_Shift,
 		ElementType_Float = 2 << (int)ElementType_Shift,
-		ElementType_FarPtr = 3 << (int)ElementType_Shift,
+		ElementType_MemoryAddress = 3 << (int)ElementType_Shift, // moffs8/16/32/64
+		ElementType_FarPtr = 4 << (int)ElementType_Shift, // ptr16:16/32,m16:16/32/64
 		ElementType_Mask = 0xF << (int)ElementType_Shift,
+		// Bounds, BCD
 
 		Unknown = ElementType_Unknown | ElementSize_0Bits,
 
-		_8 = ElementType_Unknown | ElementSize_Byte,
-		_16 = ElementType_Unknown | ElementSize_Word,
-		_32 = ElementType_Unknown | ElementSize_Dword,
-		_64 = ElementType_Unknown | ElementSize_Qword,
+		Byte = ElementType_Unknown | ElementSize_Byte,
+		Word = ElementType_Unknown | ElementSize_Word,
+		Dword = ElementType_Unknown | ElementSize_Dword,
+		Qword = ElementType_Unknown | ElementSize_Qword,
 		_128 = ElementType_Unknown | ElementSize_128Bits,
 		_256 = ElementType_Unknown | ElementSize_256Bits,
 		_512 = ElementType_Unknown | ElementSize_512Bits,
@@ -53,9 +55,9 @@ namespace Asmuth.X86.Asm
 		F64 = ElementType_Float | ElementSize_Qword,
 		F80 = ElementType_Float | ElementSize_80Bits,
 
-		FarPtr16 = ElementType_FarPtr | ElementSize_Dword,
-		FarPtr32 = ElementType_FarPtr | ElementSize_48Bits,
-		FarPtr64 = ElementType_FarPtr | ElementSize_80Bits,
+		FarPtr16_16 = ElementType_FarPtr | ElementSize_Dword,
+		FarPtr16_32 = ElementType_FarPtr | ElementSize_48Bits,
+		FarPtr16_64 = ElementType_FarPtr | ElementSize_80Bits,
 	}
 
 	public static class OperandDataTypeEnum

@@ -23,6 +23,10 @@ namespace Asmuth.X86
 			ModRM modRM = default, byte imm8 = 0)
 		{
 			// Flags consistency
+			if (flags.GetAddressSize() == AddressSize._64Bits && flags.GetLongMode() != true)
+				throw new ArgumentException("64-bit addresses imply long mode.");
+			if (flags.GetAddressSize() == AddressSize._16Bits && flags.GetLongMode() != false)
+				throw new ArgumentException("16-bit addresses imply IA32 mode.");
 			if (flags.GetMap() == OpcodeMap.Default && flags.GetSimdPrefix().HasValue)
 				throw new ArgumentException("Default opcode map implies no SIMD prefix.");
 			if (flags.IsVectorXex() && !flags.GetSimdPrefix().HasValue)
@@ -60,6 +64,7 @@ namespace Asmuth.X86
 			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte mainByte)
 		{
 			if (!Flags.AdmitsCodeSegmentType(codeSegmentType)) return false;
+			if (!Flags.AdmitsAddressSize(codeSegmentType.GetEffectiveAddressSize(legacyPrefixes))) return false;
 			if (!Flags.AdmitsXexType(xex.Type)) return false;
 			if (!Flags.AdmitsVectorSize(xex.VectorSize)) return false;
 			var integerSize = codeSegmentType.GetIntegerOperandSize(legacyPrefixes.HasOperandSizeOverride, xex.OperandSize64);
@@ -201,14 +206,23 @@ namespace Asmuth.X86
 	public enum OpcodeEncodingFlags : uint
 	{
 		// The types of code segments in which this opcode can be encoded
-		CodeSegmentType_Shift = 0,
-		CodeSegmentType_Any = 0 << (int)CodeSegmentType_Shift,
-		CodeSegmentType_IA32 = 1 << (int)CodeSegmentType_Shift, // 16 or 32 bits
-		CodeSegmentType_Long = 2 << (int)CodeSegmentType_Shift,
-		CodeSegmentType_Mask = 3 << (int)CodeSegmentType_Shift,
+		LongMode_Shift = 0,
+		LongMode_Any = 0 << (int)LongMode_Shift,
+		LongMode_No = 1 << (int)LongMode_Shift, // 16 or 32 bits
+		LongMode_Yes = 2 << (int)LongMode_Shift,
+		LongMode_Mask = 3 << (int)LongMode_Shift,
+
+		// The effective address size for this encoding.
+		// Mhis distinguishes between MOV AX/EAX/RAX,moffs16/32/64
+		AddressSize_Shift = LongMode_Shift + 2,
+		AddressSize_Any = 0 << (int)AddressSize_Shift,
+		AddressSize_16 = 1 << (int)AddressSize_Shift,
+		AddressSize_32 = 2 << (int)AddressSize_Shift,
+		AddressSize_64 = 3 << (int)AddressSize_Shift,
+		AddressSize_Mask = 3 << (int)AddressSize_Shift,
 
 		// The instruction's xex type
-		XexType_Shift = CodeSegmentType_Shift + 2,
+		XexType_Shift = AddressSize_Shift + 2,
 		XexType_Escapes_RexOpt = 0 << (int)XexType_Shift,
 		XexType_Vex = 1 << (int)XexType_Shift,
 		XexType_Xop = 2 << (int)XexType_Shift,
@@ -346,22 +360,34 @@ namespace Asmuth.X86
 			return vex;
 		}
 
-		public static bool IsIA32Mode(this OpcodeEncodingFlags flags)
-			=> (flags & OpcodeEncodingFlags.CodeSegmentType_Mask) == OpcodeEncodingFlags.CodeSegmentType_IA32;
-
-		public static bool IsLongMode(this OpcodeEncodingFlags flags)
-			=> (flags & OpcodeEncodingFlags.CodeSegmentType_Mask) == OpcodeEncodingFlags.CodeSegmentType_Long;
-
+		public static bool? GetLongMode(this OpcodeEncodingFlags flags)
+		{
+			flags &= OpcodeEncodingFlags.LongMode_Mask;
+			if (flags == OpcodeEncodingFlags.LongMode_Any) return null;
+			return flags == OpcodeEncodingFlags.LongMode_Yes;
+		}
+		
 		public static bool AdmitsCodeSegmentType(
 			this OpcodeEncodingFlags flags, CodeSegmentType codeSegmentType)
 		{
-			switch (flags & OpcodeEncodingFlags.CodeSegmentType_Mask)
+			switch (flags & OpcodeEncodingFlags.LongMode_Mask)
 			{
-				case OpcodeEncodingFlags.CodeSegmentType_Any: return true;
-				case OpcodeEncodingFlags.CodeSegmentType_IA32: return codeSegmentType != CodeSegmentType._64Bits;
-				case OpcodeEncodingFlags.CodeSegmentType_Long: return codeSegmentType == CodeSegmentType._64Bits;
+				case OpcodeEncodingFlags.LongMode_Any: return true;
+				case OpcodeEncodingFlags.LongMode_No: return codeSegmentType != CodeSegmentType._64Bits;
+				case OpcodeEncodingFlags.LongMode_Yes: return codeSegmentType == CodeSegmentType._64Bits;
 				default: throw new ArgumentOutOfRangeException(nameof(flags));
 			}
+		}
+
+		public static bool AdmitsAddressSize(this OpcodeEncodingFlags flags, AddressSize size)
+			=> GetAddressSize(flags).GetValueOrDefault(size) == size;
+
+		public static AddressSize? GetAddressSize(this OpcodeEncodingFlags flags)
+		{
+			flags &= OpcodeEncodingFlags.AddressSize_Mask;
+			if (flags == OpcodeEncodingFlags.AddressSize_Any) return null;
+			return (AddressSize)((int)AddressSize._16Bits
+				+ ((flags - OpcodeEncodingFlags.AddressSize_16) >> (int)OpcodeEncodingFlags.AddressSize_Shift));
 		}
 		
 		public static bool AdmitsXexType(this OpcodeEncodingFlags flags, XexType xexType)
