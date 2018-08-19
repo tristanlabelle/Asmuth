@@ -239,15 +239,15 @@ namespace Asmuth.X86
 		AddressSize_Mask = 3 << (int)AddressSize_Shift,
 
 		// The instruction's xex type
-		XexType_Shift = AddressSize_Shift + 2,
-		XexType_Escapes_RexOpt = 0 << (int)XexType_Shift,
-		XexType_Vex = 1 << (int)XexType_Shift,
-		XexType_Xop = 2 << (int)XexType_Shift,
-		XexType_EVex = 3 << (int)XexType_Shift,
-		XexType_Mask = 3 << (int)XexType_Shift,
+		VexType_Shift = AddressSize_Shift + 2,
+		VexType_None = 0 << (int)VexType_Shift,
+		VexType_Vex = 1 << (int)VexType_Shift,
+		VexType_Xop = 2 << (int)VexType_Shift,
+		VexType_EVex = 3 << (int)VexType_Shift,
+		VexType_Mask = 3 << (int)VexType_Shift,
 
 		// The instruction's operand sizes
-		OperandSize_Shift = XexType_Shift + 2,
+		OperandSize_Shift = VexType_Shift + 2,
 		OperandSize_Ignored = 0 << (int)OperandSize_Shift,
 		OperandSize_Word = 1 << (int)OperandSize_Shift,
 		OperandSize_Dword = 2 << (int)OperandSize_Shift,
@@ -325,56 +325,33 @@ namespace Asmuth.X86
 	{
 		public static VexEncoding ToVexEncoding(this OpcodeEncodingFlags flags)
 		{
-			VexEncoding vex = default;
-			switch (flags & OpcodeEncodingFlags.XexType_Mask)
+			var builder = new VexEncoding.Builder();
+
+			switch (flags & OpcodeEncodingFlags.VexType_Mask)
 			{
-				case OpcodeEncodingFlags.XexType_Escapes_RexOpt: throw new ArgumentException();
-				case OpcodeEncodingFlags.XexType_Vex: vex |= VexEncoding.Type_Vex; break;
-				case OpcodeEncodingFlags.XexType_Xop: vex |= VexEncoding.Type_Xop; break;
-				case OpcodeEncodingFlags.XexType_EVex: vex |= VexEncoding.Type_EVex; break;
+				case OpcodeEncodingFlags.VexType_None: throw new ArgumentException();
+				case OpcodeEncodingFlags.VexType_Vex: builder.Type = VexType.Vex; break;
+				case OpcodeEncodingFlags.VexType_Xop: builder.Type = VexType.Xop; break;
+				case OpcodeEncodingFlags.VexType_EVex: builder.Type = VexType.EVex; break;
 				default: throw new ArgumentOutOfRangeException(nameof(flags));
 			}
 
-			vex |= VexEncoding.NonDestructiveReg_Invalid; // Lost in translation
+			builder.RegOperand = VexRegOperand.Invalid; // Lost in translation
 
 			switch (flags & OpcodeEncodingFlags.VexL_Mask)
 			{
-				case OpcodeEncodingFlags.VexL_Ignored: vex |= VexEncoding.VectorLength_Ignored; break;
-				case OpcodeEncodingFlags.VexL_128: vex |= VexEncoding.VectorLength_128; break;
-				case OpcodeEncodingFlags.VexL_256: vex |= VexEncoding.VectorLength_256; break;
-				case OpcodeEncodingFlags.VexL_512: vex |= VexEncoding.VectorLength_512; break;
+				case OpcodeEncodingFlags.VexL_Ignored: builder.VectorSize = null; break;
+				case OpcodeEncodingFlags.VexL_128: builder.VectorSize = SseVectorSize._128Bits; break;
+				case OpcodeEncodingFlags.VexL_256: builder.VectorSize = SseVectorSize._256Bits; break;
+				case OpcodeEncodingFlags.VexL_512: builder.VectorSize = SseVectorSize._512Bits; break;
 				default: throw new ArgumentOutOfRangeException(nameof(flags));
 			}
 
-			switch (flags & OpcodeEncodingFlags.SimdPrefix_Mask)
-			{
-				case OpcodeEncodingFlags.SimdPrefix_None: vex |= VexEncoding.SimdPrefix_None; break;
-				case OpcodeEncodingFlags.SimdPrefix_66: vex |= VexEncoding.SimdPrefix_66; break;
-				case OpcodeEncodingFlags.SimdPrefix_F2: vex |= VexEncoding.SimdPrefix_F2; break;
-				case OpcodeEncodingFlags.SimdPrefix_F3: vex |= VexEncoding.SimdPrefix_F3; break;
-				default: throw new ArgumentOutOfRangeException(nameof(flags));
-			}
+			builder.SimdPrefix = flags.GetSimdPrefix().Value;
+			builder.OpcodeMap = flags.GetMap();
+			builder.RexW = flags.GetRexW();
 
-			switch (flags & OpcodeEncodingFlags.Map_Mask)
-			{
-				case OpcodeEncodingFlags.Map_0F: vex |= VexEncoding.Map_0F; break;
-				case OpcodeEncodingFlags.Map_0F38: vex |= VexEncoding.Map_0F38; break;
-				case OpcodeEncodingFlags.Map_0F3A: vex |= VexEncoding.Map_0F3A; break;
-				case OpcodeEncodingFlags.Map_Xop8: vex |= VexEncoding.Map_Xop8; break;
-				case OpcodeEncodingFlags.Map_Xop9: vex |= VexEncoding.Map_Xop9; break;
-				case OpcodeEncodingFlags.Map_Xop10: vex |= VexEncoding.Map_Xop10; break;
-				default: throw new ArgumentOutOfRangeException(nameof(flags));
-			}
-			
-			switch (flags & OpcodeEncodingFlags.RexW_Mask)
-			{
-				case OpcodeEncodingFlags.RexW_Ignored: vex |= VexEncoding.RexW_Ignored; break;
-				case OpcodeEncodingFlags.RexW_0: vex |= VexEncoding.RexW_0; break;
-				case OpcodeEncodingFlags.RexW_1: vex |= VexEncoding.RexW_1; break;
-				default: throw new ArgumentOutOfRangeException(nameof(flags));
-			}
-
-			return vex;
+			return builder.Build();
 		}
 
 		public static bool? GetLongMode(this OpcodeEncodingFlags flags)
@@ -409,30 +386,30 @@ namespace Asmuth.X86
 		
 		public static bool AdmitsXexType(this OpcodeEncodingFlags flags, XexType xexType)
 		{
-			switch (flags & OpcodeEncodingFlags.XexType_Mask)
+			switch (flags & OpcodeEncodingFlags.VexType_Mask)
 			{
-				case OpcodeEncodingFlags.XexType_Escapes_RexOpt: return xexType.AllowsEscapes();
-				case OpcodeEncodingFlags.XexType_Vex: return xexType.IsVex();
-				case OpcodeEncodingFlags.XexType_Xop: return xexType == XexType.Xop;
-				case OpcodeEncodingFlags.XexType_EVex: return xexType == XexType.EVex;
+				case OpcodeEncodingFlags.VexType_None: return xexType.AllowsEscapes();
+				case OpcodeEncodingFlags.VexType_Vex: return xexType.IsVex();
+				case OpcodeEncodingFlags.VexType_Xop: return xexType == XexType.Xop;
+				case OpcodeEncodingFlags.VexType_EVex: return xexType == XexType.EVex;
 				default: throw new ArgumentOutOfRangeException(nameof(flags));
 			}
 		}
 
 		public static bool IsEscapeXex(this OpcodeEncodingFlags flags)
-			=> (flags & OpcodeEncodingFlags.XexType_Mask) < OpcodeEncodingFlags.XexType_Vex;
+			=> (flags & OpcodeEncodingFlags.VexType_Mask) < OpcodeEncodingFlags.VexType_Vex;
 
 		public static bool IsVectorXex(this OpcodeEncodingFlags flags)
-			=> (flags & OpcodeEncodingFlags.XexType_Mask) >= OpcodeEncodingFlags.XexType_Vex;
+			=> (flags & OpcodeEncodingFlags.VexType_Mask) >= OpcodeEncodingFlags.VexType_Vex;
 
 		public static bool IsVex(this OpcodeEncodingFlags flags)
-			=> (flags & OpcodeEncodingFlags.XexType_Mask) == OpcodeEncodingFlags.XexType_Vex;
+			=> (flags & OpcodeEncodingFlags.VexType_Mask) == OpcodeEncodingFlags.VexType_Vex;
 
 		public static bool IsXop(this OpcodeEncodingFlags flags)
-			=> (flags & OpcodeEncodingFlags.XexType_Vex) == OpcodeEncodingFlags.XexType_Xop;
+			=> (flags & OpcodeEncodingFlags.VexType_Vex) == OpcodeEncodingFlags.VexType_Xop;
 
 		public static bool IsEVex(this OpcodeEncodingFlags flags)
-			=> (flags & OpcodeEncodingFlags.XexType_Vex) == OpcodeEncodingFlags.XexType_EVex;
+			=> (flags & OpcodeEncodingFlags.VexType_Vex) == OpcodeEncodingFlags.VexType_EVex;
 
 		public static bool AdmitsVectorSize(this OpcodeEncodingFlags flags, SseVectorSize size)
 		{

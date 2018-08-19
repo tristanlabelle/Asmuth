@@ -131,7 +131,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 					// Vex
 					case NasmEncodingTokenType.Vex:
-						if (instruction.Xex.Type != vexEncoding.GetXexType()) return false;
+						if (instruction.Xex.Type.AsVexType() != vexEncoding.Type) return false;
 						throw new NotImplementedException();
 
 					// Rex

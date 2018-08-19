@@ -68,11 +68,11 @@ namespace Asmuth.X86.Asm.Nasm
 		{
 			// Test with different L, pp, mm and w bits
 			AssertEncoding("vex.128.0f 10 /r",
-				OEF.XexType_Vex | OEF.VexL_128 | OEF.SimdPrefix_None | OEF.Map_0F | OEF.ModRM_Present, 0x10); // VMOVUPS
+				OEF.VexType_Vex | OEF.VexL_128 | OEF.SimdPrefix_None | OEF.Map_0F | OEF.ModRM_Present, 0x10); // VMOVUPS
 			AssertEncoding("vex.nds.lig.f2.0f 10 /r",
-				OEF.XexType_Vex | OEF.VexL_Ignored | OEF.SimdPrefix_F2 | OEF.Map_0F | OEF.ModRM_Present, 0x10); // VMOVSS
+				OEF.VexType_Vex | OEF.VexL_Ignored | OEF.SimdPrefix_F2 | OEF.Map_0F | OEF.ModRM_Present, 0x10); // VMOVSS
 			AssertEncoding("vex.dds.256.66.0f38.w1 98 /r",
-				OEF.XexType_Vex | OEF.VexL_256 | OEF.SimdPrefix_66 | OEF.RexW_1 | OEF.Map_0F38 | OEF.ModRM_Present, 0x98); // VFMADD132PD
+				OEF.VexType_Vex | OEF.VexL_256 | OEF.SimdPrefix_66 | OEF.RexW_1 | OEF.Map_0F38 | OEF.ModRM_Present, 0x98); // VFMADD132PD
 		}
 
 		private static void AssertEncoding(string nasmEncodingStr,

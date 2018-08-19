@@ -2,141 +2,118 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Asmuth.X86
 {
+	public enum VexRegOperand : byte
+	{
+		Invalid,
+		Source,
+		SecondSource,
+		Dest,
+	}
+
 	/// <summary>
 	/// Defines the vex-based encoding of an opcode,
 	/// using the syntax from intel's ISA manuals.
 	/// </summary>
-	[Flags]
-	public enum VexEncoding : ushort
+	[StructLayout(LayoutKind.Sequential, Size = 2)]
+	public readonly partial struct VexEncoding : IEquatable<VexEncoding>
 	{
-		// 2 bits
-		Type_Shift = 0,
-		Type_Vex = 0 << (int)Type_Shift,
-		Type_Xop = 1 << (int)Type_Shift,
-		Type_EVex = 2 << (int)Type_Shift,
-		Type_Mask = 3 << (int)Type_Shift,
-
-		// 2 bits
-		NonDestructiveReg_Shift = 2,
-		NonDestructiveReg_Invalid = 0 << (int)NonDestructiveReg_Shift,
-		NonDestructiveReg_Source = 1 << (int)NonDestructiveReg_Shift,
-		NonDestructiveReg_Dest = 2 << (int)NonDestructiveReg_Shift,
-		NonDestructiveReg_SecondSource = 3 << (int)NonDestructiveReg_Shift,
-		NonDestructiveReg_Mask = 3 << (int)NonDestructiveReg_Shift,
-
-		// 2 bits
-		VectorLength_Shift = 4,
-		VectorLength_Ignored = 0 << (int)VectorLength_Shift,
-		VectorLength_0 = 1 << (int)VectorLength_Shift,
-		VectorLength_1 = 2 << (int)VectorLength_Shift,
-		VectorLength_2 = 3 << (int)VectorLength_Shift,
-		VectorLength_128 = VectorLength_0,
-		VectorLength_256 = VectorLength_1,
-		VectorLength_512 = VectorLength_2,
-		VectorLength_Mask = 3 << (int)VectorLength_Shift,
-
-		// 2 bits
-		SimdPrefix_Shift = 6,
-		SimdPrefix_None = 0 << (int)SimdPrefix_Shift,
-		SimdPrefix_66 = 1 << (int)SimdPrefix_Shift,
-		SimdPrefix_F3 = 2 << (int)SimdPrefix_Shift,
-		SimdPrefix_F2 = 3 << (int)SimdPrefix_Shift,
-		SimdPrefix_Mask = 3 << (int)SimdPrefix_Shift,
-
-		// 2 bits
-		Map_Shift = 8,
-		Map_0F = 1 << (int)Map_Shift,
-		Map_0F38 = 2 << (int)Map_Shift,
-		Map_0F3A = 3 << (int)Map_Shift,
-		Map_Xop8 = 1 << (int)Map_Shift,
-		Map_Xop9 = 2 << (int)Map_Shift,
-		Map_Xop10 = 3 << (int)Map_Shift,
-		Map_Mask = 3 << (int)Map_Shift,
-
-		// 2 bits
-		RexW_Shift = 10,
-		RexW_Ignored = 0 << (int)RexW_Shift,
-		RexW_0 = 1 << (int)RexW_Shift,
-		RexW_1 = 2 << (int)RexW_Shift,
-		RexW_Mask = 3 << (int)RexW_Shift,
-	}
-
-	public static class VexEncodingEnum
-	{
-		public static XexType GetXexType(this VexEncoding encoding)
+		public struct Builder
 		{
-			switch (encoding & VexEncoding.Type_Mask)
+			public VexType Type;
+			public VexRegOperand RegOperand;
+			public SseVectorSize? VectorSize;
+			public SimdPrefix SimdPrefix;
+			public OpcodeMap OpcodeMap;
+			public bool? RexW;
+
+			public void EnsureConsistent()
 			{
-				case VexEncoding.Type_Vex: return XexType.Vex3;
-				case VexEncoding.Type_Xop: return XexType.Xop;
-				case VexEncoding.Type_EVex: return XexType.EVex;
-				default: throw new ArgumentException();
+				if (OpcodeMap == OpcodeMap.Default)
+					throw new ArgumentException("VEX instructions cannot encode the default opcode map.");
 			}
+
+			public VexEncoding Build() => new VexEncoding(ref this);
 		}
+
+		private const int TypeShift = 0;
+		private const int RegOperandShift = TypeShift + 2;
+		private const int VectorSizeShift = RegOperandShift + 2;
+		private const int SimdPrefixShift = VectorSizeShift + 2;
+		private const int OpcodeMapShift = SimdPrefixShift + 2;
+		private const int RexWShift = OpcodeMapShift + 4;
+		private const ushort TestOverflow = 3 << RexWShift;
+
+		private readonly ushort data;
+
+		private VexEncoding(ref Builder data)
+		{
+			data.EnsureConsistent();
+
+			this.data = (ushort)(
+				((int)data.Type << TypeShift)
+				| ((int)data.RegOperand << RegOperandShift)
+				| ((data.VectorSize.HasValue ? (int)data.VectorSize.Value + 1 : 0) << VectorSizeShift)
+				| ((int)data.SimdPrefix << SimdPrefixShift)
+				| ((int)data.OpcodeMap << OpcodeMapShift)
+				| ((data.RexW.HasValue ? (data.RexW.Value ? 2 : 1) : 0) << RexWShift));
+		}
+
+		public VexType Type => (VexType)((data >> TypeShift) & 3);
+		public VexRegOperand RegOperand => (VexRegOperand)((data >> RegOperandShift) & 3);
+		public SseVectorSize? VectorSize => (SseVectorSize?)AsZeroIsNullInt((data >> VectorSizeShift) & 3);
+		public SimdPrefix SimdPrefix => (SimdPrefix)((data >> SimdPrefixShift) & 3);
+		public OpcodeMap OpcodeMap => (OpcodeMap)((data >> OpcodeMapShift) & 3);
+		public bool? RexW => AsZeroIsNullBool((data >> RexWShift) & 3);
 		
-		public static OpcodeEncodingFlags AsOpcodeEncodingFlags(this VexEncoding vexEncoding)
+		public OpcodeEncodingFlags AsOpcodeEncodingFlags()
 		{
 			OpcodeEncodingFlags flags = default;
-
-			var vexType = vexEncoding & VexEncoding.Type_Mask;
-			switch (vexType)
+			
+			switch (Type)
 			{
-				case VexEncoding.Type_Vex: flags |= OpcodeEncodingFlags.XexType_Vex; break;
-				case VexEncoding.Type_Xop: flags |= OpcodeEncodingFlags.XexType_Xop; break;
-				case VexEncoding.Type_EVex: flags |= OpcodeEncodingFlags.XexType_EVex; break;
+				case VexType.Vex: flags |= OpcodeEncodingFlags.VexType_Vex; break;
+				case VexType.Xop: flags |= OpcodeEncodingFlags.VexType_Xop; break;
+				case VexType.EVex: flags |= OpcodeEncodingFlags.VexType_EVex; break;
 				default: throw new ArgumentException();
 			}
 
-			switch (vexEncoding & VexEncoding.SimdPrefix_Mask)
+			switch (SimdPrefix)
 			{
-				case VexEncoding.SimdPrefix_None: flags |= OpcodeEncodingFlags.SimdPrefix_None; break;
-				case VexEncoding.SimdPrefix_66: flags |= OpcodeEncodingFlags.SimdPrefix_66; break;
-				case VexEncoding.SimdPrefix_F2: flags |= OpcodeEncodingFlags.SimdPrefix_F2; break;
-				case VexEncoding.SimdPrefix_F3: flags |= OpcodeEncodingFlags.SimdPrefix_F3; break;
+				case SimdPrefix.None: flags |= OpcodeEncodingFlags.SimdPrefix_None; break;
+				case SimdPrefix._66: flags |= OpcodeEncodingFlags.SimdPrefix_66; break;
+				case SimdPrefix._F2: flags |= OpcodeEncodingFlags.SimdPrefix_F2; break;
+				case SimdPrefix._F3: flags |= OpcodeEncodingFlags.SimdPrefix_F3; break;
 				default: throw new ArgumentException();
 			}
 
-			switch (vexEncoding & VexEncoding.VectorLength_Mask)
+			switch (VectorSize)
 			{
-				case VexEncoding.VectorLength_Ignored: flags |= OpcodeEncodingFlags.VexL_Ignored; break;
-				case VexEncoding.VectorLength_0: flags |= OpcodeEncodingFlags.VexL_128; break;
-				case VexEncoding.VectorLength_1: flags |= OpcodeEncodingFlags.VexL_256; break;
-				case VexEncoding.VectorLength_2: flags |= OpcodeEncodingFlags.VexL_512; break;
+				case null: flags |= OpcodeEncodingFlags.VexL_Ignored; break;
+				case SseVectorSize._128Bits: flags |= OpcodeEncodingFlags.VexL_128; break;
+				case SseVectorSize._256Bits: flags |= OpcodeEncodingFlags.VexL_256; break;
+				case SseVectorSize._512Bits: flags |= OpcodeEncodingFlags.VexL_512; break;
 				default: throw new ArgumentException();
 			}
 
-			switch (vexEncoding & VexEncoding.RexW_Mask)
+			flags |= RexW.HasValue
+				? (RexW.Value ? OpcodeEncodingFlags.RexW_1 : OpcodeEncodingFlags.RexW_0)
+				: OpcodeEncodingFlags.RexW_Ignored;
+			
+			switch (OpcodeMap)
 			{
-				case VexEncoding.RexW_Ignored: flags |= OpcodeEncodingFlags.RexW_Ignored; break;
-				case VexEncoding.RexW_0: flags |= OpcodeEncodingFlags.RexW_0; break;
-				case VexEncoding.RexW_1: flags |= OpcodeEncodingFlags.RexW_1; break;
+				case OpcodeMap.Escape0F: flags |= OpcodeEncodingFlags.Map_0F; break;
+				case OpcodeMap.Escape0F38: flags |= OpcodeEncodingFlags.Map_0F38; break;
+				case OpcodeMap.Escape0F3A: flags |= OpcodeEncodingFlags.Map_0F3A; break;
+				case OpcodeMap.Xop8: flags |= OpcodeEncodingFlags.Map_Xop8; break;
+				case OpcodeMap.Xop9: flags |= OpcodeEncodingFlags.Map_Xop9; break;
+				case OpcodeMap.Xop10: flags |= OpcodeEncodingFlags.Map_Xop10; break;
 				default: throw new ArgumentException();
-			}
-
-			if (vexType == VexEncoding.Type_Xop)
-			{
-				switch (vexEncoding & VexEncoding.Map_Mask)
-				{
-					case VexEncoding.Map_Xop8: flags |= OpcodeEncodingFlags.Map_Xop8; break;
-					case VexEncoding.Map_Xop9: flags |= OpcodeEncodingFlags.Map_Xop9; break;
-					case VexEncoding.Map_Xop10: flags |= OpcodeEncodingFlags.Map_Xop10; break;
-					default: throw new ArgumentException();
-				}
-			}
-			else
-			{
-				switch (vexEncoding & VexEncoding.Map_Mask)
-				{
-					case VexEncoding.Map_0F: flags |= OpcodeEncodingFlags.Map_0F; break;
-					case VexEncoding.Map_0F38: flags |= OpcodeEncodingFlags.Map_0F38; break;
-					case VexEncoding.Map_0F3A: flags |= OpcodeEncodingFlags.Map_0F3A; break;
-					default: throw new ArgumentException();
-				}
 			}
 
 			// VEX.Vvvv / NonDestructiveReg is lost here
@@ -144,82 +121,78 @@ namespace Asmuth.X86
 			return flags;
 		}
 
-		public static string ToIntelStyleString(this VexEncoding encoding)
+		public string ToIntelStyleString()
 		{
 			// Encoded length = 12-24:
 			// VEX.L0.0F 42
 			// EVEX.NDS.512.F3.0F3A.WIG
 			var str = new StringBuilder(24);
 
-			switch (encoding & VexEncoding.Type_Mask)
+			switch (Type)
 			{
-				case VexEncoding.Type_Vex: str.Append("vex"); break;
-				case VexEncoding.Type_Xop: str.Append("xop"); break;
-				case VexEncoding.Type_EVex: str.Append("evex"); break;
+				case VexType.Vex: str.Append("vex"); break;
+				case VexType.Xop: str.Append("xop"); break;
+				case VexType.EVex: str.Append("evex"); break;
 				default: throw new ArgumentException();
 			}
 
-			switch (encoding & VexEncoding.NonDestructiveReg_Mask)
+			switch (RegOperand)
 			{
-				case VexEncoding.NonDestructiveReg_Invalid: break;
-				case VexEncoding.NonDestructiveReg_Source: str.Append(".nds"); break;
-				case VexEncoding.NonDestructiveReg_Dest: str.Append(".ndd"); break;
-				case VexEncoding.NonDestructiveReg_SecondSource: str.Append(".dds"); break;
+				case VexRegOperand.Invalid: break;
+				case VexRegOperand.Source: str.Append(".nds"); break;
+				case VexRegOperand.Dest: str.Append(".ndd"); break;
+				case VexRegOperand.SecondSource: str.Append(".dds"); break;
 				default: throw new UnreachableException();
 			}
 
-			bool isEVex = (encoding & VexEncoding.Type_Mask) == VexEncoding.Type_EVex;
-			switch (encoding & VexEncoding.VectorLength_Mask)
+			bool isEVex = Type == VexType.EVex;
+			switch (VectorSize)
 			{
-				case VexEncoding.VectorLength_Ignored: str.Append(".lig"); break;
-				case VexEncoding.VectorLength_0: str.Append(isEVex ? ".128" : ".l0"); break;
-				case VexEncoding.VectorLength_1: str.Append(isEVex ? ".256" : ".l1"); break;
-				case VexEncoding.VectorLength_2:
+				case null: str.Append(".lig"); break;
+				case SseVectorSize._128Bits: str.Append(isEVex ? ".128" : ".l0"); break;
+				case SseVectorSize._256Bits: str.Append(isEVex ? ".256" : ".l1"); break;
+				case SseVectorSize._512Bits:
 					if (!isEVex) throw new ArgumentException();
 					str.Append(".512");
 					break;
 				default: throw new UnreachableException();
 			}
 
-			switch (encoding & VexEncoding.SimdPrefix_Mask)
+			switch (SimdPrefix)
 			{
-				case VexEncoding.SimdPrefix_None: break;
-				case VexEncoding.SimdPrefix_66: str.Append(".66"); break;
-				case VexEncoding.SimdPrefix_F2: str.Append(".f2"); break;
-				case VexEncoding.SimdPrefix_F3: str.Append(".f3"); break;
+				case SimdPrefix.None: break;
+				case SimdPrefix._66: str.Append(".66"); break;
+				case SimdPrefix._F3: str.Append(".f3"); break;
+				case SimdPrefix._F2: str.Append(".f2"); break;
 				default: throw new UnreachableException();
 			}
 
-			if ((encoding & VexEncoding.Type_Mask) == VexEncoding.Type_Xop)
+			switch (OpcodeMap)
 			{
-				switch (encoding & VexEncoding.Map_Mask)
-				{
-					case VexEncoding.Map_Xop8: str.Append(".m8"); break;
-					case VexEncoding.Map_Xop9: str.Append(".m9"); break;
-					case VexEncoding.Map_Xop10: str.Append(".m10"); break;
-					default: throw new ArgumentException();
-				}
-			}
-			else
-			{
-				switch (encoding & VexEncoding.Map_Mask)
-				{
-					case VexEncoding.Map_0F: str.Append(".0f"); break;
-					case VexEncoding.Map_0F38: str.Append(".0f38"); break;
-					case VexEncoding.Map_0F3A: str.Append(".0f3a"); break;
-					default: throw new ArgumentException();
-				}
-			}
-
-			switch (encoding & VexEncoding.RexW_Mask)
-			{
-				case VexEncoding.RexW_Ignored: str.Append(".wig"); break;
-				case VexEncoding.RexW_0: str.Append(".w0"); break;
-				case VexEncoding.RexW_1: str.Append(".w1"); break;
+				case OpcodeMap.Escape0F: str.Append(".0f"); break;
+				case OpcodeMap.Escape0F38: str.Append(".0f38"); break;
+				case OpcodeMap.Escape0F3A: str.Append(".0f3a"); break;
+				case OpcodeMap.Xop8: str.Append(".m8"); break;
+				case OpcodeMap.Xop9: str.Append(".m9"); break;
+				case OpcodeMap.Xop10: str.Append(".m10"); break;
 				default: throw new ArgumentException();
 			}
 
+			str.Append(RexW.HasValue ? (RexW.Value ? ".w1" : ".w0") : ".wig");
+
 			return str.ToString();
 		}
+
+		public bool Equals(VexEncoding other) => data == other.data;
+		public override bool Equals(object obj) => obj is VexEncoding && Equals((VexEncoding)obj);
+		public override int GetHashCode() => data;
+		public override string ToString() => ToIntelStyleString();
+
+		public static bool Equals(VexEncoding lhs, VexEncoding rhs) => lhs.Equals(rhs);
+		public static bool operator ==(VexEncoding lhs, VexEncoding rhs) => Equals(lhs, rhs);
+		public static bool operator !=(VexEncoding lhs, VexEncoding rhs) => !Equals(lhs, rhs);
+
+		private static int? AsZeroIsNullInt(int value) => value == 0 ? null : (int?)(value - 1);
+		private static bool? AsZeroIsNullBool(int value) => value == 0 ? null : (bool?)(value != 1);
 	}
 }

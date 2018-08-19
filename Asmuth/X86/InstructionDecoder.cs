@@ -204,7 +204,7 @@ namespace Asmuth.X86
 				return true;
 			}
 
-			var xexType = XexEnums.SniffType(CodeSegmentType, @byte);
+			var xexType = XexTypeEnum.SniffByte(CodeSegmentType, @byte);
 			if (xexType == XexType.RexAndEscapes)
 			{
 				builder.Xex = new Xex((Rex)@byte);
@@ -238,7 +238,7 @@ namespace Asmuth.X86
 			if (substate.ExpectXexByte.BytesRead == 1)
 			{
 				byte firstByte = (byte)substate.ExpectXexByte.Accumulator;
-				var finalXexType = XexEnums.GetType(CodeSegmentType, firstByte, @byte);
+				var finalXexType = XexTypeEnum.FromBytes(CodeSegmentType, firstByte, @byte);
 				if (finalXexType == XexType.Escapes)
 				{
 					// This was not actually a XEX, but an instruction and its ModRM

@@ -16,7 +16,8 @@ namespace Asmuth.X86
 		Escape0F38 = 2,
 		Escape0F3A = 3,
 		Xop8 = 8,
-		Xop9 = 9
+		Xop9 = 9,
+		Xop10 = 10
 	}
 
 	public static class OpcodeMapEnum

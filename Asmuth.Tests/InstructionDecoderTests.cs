@@ -198,7 +198,7 @@ namespace Asmuth.X86
 			var table = new OpcodeEncodingTable<string>();
 			table.Add(OEF.ModRM_Present | OEF.ModRM_RM_Indirect, 0xC4, "les m/r");
 			table.Add(OEF.ModRM_Present | OEF.ModRM_RM_Indirect, 0xC5, "lds m/r");
-			table.Add(OEF.XexType_Vex | OEF.VexL_128 | OEF.SimdPrefix_F3 | OEF.Map_0F | OEF.ModRM_Present, 0xE6, "VCVTDQ2PD xmm1, xmm2/m64");
+			table.Add(OEF.VexType_Vex | OEF.VexL_128 | OEF.SimdPrefix_F3 | OEF.Map_0F | OEF.ModRM_Present, 0xE6, "VCVTDQ2PD xmm1, xmm2/m64");
 			
 			Assert.AreEqual(0xC4, DecodeSingle_32Bits(table, 0xC4, 0x01).MainOpcodeByte);
 			Assert.AreEqual(0xC5, DecodeSingle_32Bits(table, 0xC5, 0x01).MainOpcodeByte);
@@ -225,7 +225,7 @@ namespace Asmuth.X86
 		public void TestVaddpd()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.XexType_Vex | OEF.VexL_128 | OEF.SimdPrefix_66 | OEF.Map_0F | OEF.ModRM_Present, 0x58, "ADDPD xmm1,xmm2,xmm3/m128");
+			table.Add(OEF.VexType_Vex | OEF.VexL_128 | OEF.SimdPrefix_66 | OEF.Map_0F | OEF.ModRM_Present, 0x58, "ADDPD xmm1,xmm2,xmm3/m128");
 
 			var modRM = ModRMEnum.FromComponents(3, 1, 2);
 			var vex = Vex3Xop.Header_Vex3

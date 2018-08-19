@@ -21,143 +21,19 @@ namespace Asmuth.X86
 		EVex,
 	}
 
-	[Flags]
-	public enum Rex : byte
+	public static class XexTypeEnum
 	{
-		Default = Reserved_Value,
+		public static VexType? AsVexType(this XexType xexType)
+		{
+			switch (xexType)
+			{
+				case XexType.Vex2: case XexType.Vex3: return VexType.Vex;
+				case XexType.Xop: return VexType.Xop;
+				case XexType.EVex: return VexType.EVex;
+				default: return null;
+			}
+		}
 
-		ByteCount = 1,
-		HighNibble = 0x40,
-
-		Reserved_Mask = 0xF0,
-		Reserved_Value = 0x40,
-
-		BaseRegExtension = 1 << 0, // B
-		IndexRegExtension = 1 << 1, // X
-		ModRegExtension = 1 << 2, // R
-		OperandSize64 = 1 << 3 // W
-	}
-
-	[Flags]
-	public enum Vex2 : ushort
-	{
-		ByteCount = 2,
-		FirstByte = 0xC5,
-
-		Reserved_Mask = 0xFF00,
-		Reserved_Value = 0xC500,
-
-		// pp
-		SimdPrefix_Shift = 0,
-		SimdPrefix_None = 0 << SimdPrefix_Shift,
-		SimdPrefix_66 = 1 << SimdPrefix_Shift,
-		SimdPrefix_F3 = 2 << SimdPrefix_Shift,
-		SimdPrefix_F2 = 3 << SimdPrefix_Shift,
-		SimdPrefix_Mask = 3 << SimdPrefix_Shift,
-
-		VectorSize256 = 1 << 2, // L
-
-		// vvvv
-		NotNonDestructiveReg_Shift = 3,
-		NotNonDestructiveReg_Unused = 0xF << NotNonDestructiveReg_Shift,
-		NotNonDestructiveReg_Mask = 0xF << NotNonDestructiveReg_Shift,
-
-		NotModRegExtension = 1 << 7, // R
-	}
-
-	/// <summary>
-	/// Represents either Intel's 3-byte VEX prefix or AMD's XOP prefix.
-	/// </summary>
-	[Flags]
-	public enum Vex3Xop
-	{
-		ByteCount = 3,
-		FirstByte_Vex3 = 0xC4,
-		FirstByte_Xop = 0x8F,
-
-		Header_Mask = 0xFF0000,
-		Header_Vex3 = 0xC40000,
-		Header_Xop = 0x8F0000,
-
-		// pp
-		SimdPrefix_Shift = 0,
-		SimdPrefix_None = 0 << SimdPrefix_Shift,
-		SimdPrefix_66 = 1 << SimdPrefix_Shift,
-		SimdPrefix_F3 = 2 << SimdPrefix_Shift,
-		SimdPrefix_F2 = 3 << SimdPrefix_Shift,
-		SimdPrefix_Mask = 3 << SimdPrefix_Shift,
-
-		VectorSize256 = 1 << 2, // L
-
-		// vvvv
-		NotNonDestructiveReg_Shift = 3,
-		NotNonDestructiveReg_Unused = 0xF << NotNonDestructiveReg_Shift,
-		NotNonDestructiveReg_Mask = 0xF << NotNonDestructiveReg_Shift,
-
-		OperandSize64 = 1 << 7, // W
-
-		// Opcode map
-		OpcodeMap_Shift = 8,
-		OpcodeMap_0F = 1 << OpcodeMap_Shift, // Used with VEX
-		OpcodeMap_0F38 = 2 << OpcodeMap_Shift,
-		OpcodeMap_0F3A = 3 << OpcodeMap_Shift,
-		OpcodeMap_8 = 8 << OpcodeMap_Shift, // Used with XOP
-		OpcodeMap_9 = 9 << OpcodeMap_Shift,
-		OpcodeMap_10 = 10 << OpcodeMap_Shift,
-		OpcodeMap_Mask = 0x1F << OpcodeMap_Shift,
-
-		NotBaseRegExtension = 1 << 13, // B
-		NotIndexRegExtension = 1 << 14, // X
-		NotModRegExtension = 1 << 15, // R
-
-		NoRegExtensions = NotBaseRegExtension | NotIndexRegExtension | NotModRegExtension,
-	}
-
-	[Flags]
-	public enum EVex : uint
-	{
-		ByteCount = 4,
-		FirstByte = 0x62,
-
-		Reserved_Mask = (0xFFU << 24) | (3 << 2) | (1 << 10),
-		Reserved_Value = (0x62U << 24) | (1 << 10),
-
-		// Compressed legacy escape
-		mm_Shift = 0,
-		mm_None = 0U << (int)mm_Shift,
-		mm_0F = 1U << (int)mm_Shift,
-		mm_0F3B = 2U << (int)mm_Shift,
-		mm_0F3A = 3U << (int)mm_Shift,
-		mm_Mask = 3U << (int)mm_Shift,
-
-		R2 = 1 << 4,
-		B = 1 << 5,
-		X = 1 << 6,
-		R = 1 << 7,
-
-		// Compressed legacy prefix
-		pp_Shift = 8,
-		pp_None = 0U << (int)pp_Shift,
-		pp_66 = 1U << (int)pp_Shift,
-		pp_F3 = 2U << (int)pp_Shift,
-		pp_F2 = 3U << (int)pp_Shift,
-		pp_Mask = 3U << (int)pp_Shift,
-
-		// NDS Register specifier
-		vvvv_Shift = 11,
-		vvvv_Mask = 15U << (int)vvvv_Shift,
-
-		W = 1 << 15,
-		V2 = 1 << 19,
-		b = 1 << 20,
-		L = 1 << 21,
-		L2 = 1 << 22,
-		z = 1 << 23
-	}
-
-	public static class XexEnums
-	{
-		#region XexType
 		public static bool AllowsEscapes(this XexType xexType) => xexType <= XexType.RexAndEscapes;
 
 		public static bool IsVex(this XexType xexType)
@@ -166,13 +42,13 @@ namespace Asmuth.X86
 		public static bool IsVex3Xop(this XexType xexType)
 			=> xexType == XexType.Vex3 || xexType == XexType.Xop;
 
-		public static XexType SniffType(CodeSegmentType codeSegmentType, byte @byte)
-			=> SniffOrGetType(codeSegmentType, @byte, second: null);
+		public static XexType SniffByte(CodeSegmentType codeSegmentType, byte @byte)
+			=> SniffByte(codeSegmentType, @byte, second: null);
 
-		public static XexType GetType(CodeSegmentType codeSegmentType, byte first, byte second)
-			=> SniffOrGetType(codeSegmentType, first, second);
+		public static XexType FromBytes(CodeSegmentType codeSegmentType, byte first, byte second)
+			=> SniffByte(codeSegmentType, first, second);
 
-		private static XexType SniffOrGetType(CodeSegmentType codeSegmentType, byte first, byte? second)
+		private static XexType SniffByte(CodeSegmentType codeSegmentType, byte first, byte? second)
 		{
 			ModRM secondRM = (ModRM)second.GetValueOrDefault();
 			switch (first)
@@ -238,95 +114,6 @@ namespace Asmuth.X86
 					throw new ArgumentException(nameof(map));
 			}
 		}
-		#endregion
-
-		#region Rex
-		public static string ToIntelStyleString(this Rex rex)
-		{
-			var stringBuilder = new StringBuilder(8);
-			stringBuilder.Append("rex");
-			if ((rex & ~Rex.Reserved_Mask) != 0)
-			{
-				stringBuilder.Append('.');
-				for (int i = 3; i >= 0; i--)
-					if ((rex & (Rex)(1 << i)) != 0)
-						stringBuilder.Append("bxrw"[i]);
-			}
-			return stringBuilder.ToString();
-		}
-		#endregion
-
-		#region Vex2
-		public static byte GetFirstByte(this Vex2 vex) => (byte)Vex2.FirstByte;
-
-		public static byte GetSecondByte(this Vex2 vex) => unchecked((byte)vex);
-
-		public static SimdPrefix GetSimdPrefix(this Vex2 vex)
-			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.SimdPrefix_Mask, (int)Vex2.SimdPrefix_Shift);
-
-		public static byte GetNonDestructiveReg(this Vex2 vex)
-			=> (byte)(~Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.NotNonDestructiveReg_Mask, (int)Vex2.NotNonDestructiveReg_Shift) & 0xF);
-		#endregion
-
-		#region Vex3
-		public static bool IsVex3(this Vex3Xop xop)
-		{
-			var header = (xop & Vex3Xop.Header_Mask);
-			return header == Vex3Xop.Header_Xop || header == 0;
-		}
-
-		public static bool IsXop(this Vex3Xop xop) => (xop & Vex3Xop.Header_Mask) == Vex3Xop.Header_Xop;
-
-		public static byte GetFirstByte(this Vex3Xop vex) => unchecked((byte)((uint)vex >> 16));
-
-		public static byte GetSecondByte(this Vex3Xop vex) => unchecked((byte)((uint)vex >> 8));
-
-		public static byte GetThirdByte(this Vex3Xop vex) => unchecked((byte)vex);
-
-		public static SimdPrefix GetSimdPrefix(this Vex3Xop vex)
-			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.SimdPrefix_Mask, (int)Vex3Xop.SimdPrefix_Shift);
-
-		public static OpcodeMap GetOpcodeMap(this Vex3Xop vex)
-			=> (OpcodeMap)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.OpcodeMap_Mask, (int)Vex3Xop.OpcodeMap_Shift);
-
-		public static byte GetNonDestructiveReg(this Vex3Xop vex)
-			=> (byte)(~Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.NotNonDestructiveReg_Mask, (int)Vex3Xop.NotNonDestructiveReg_Shift) & 0xF); 
-		
-		public static VexEncoding AsVexEncoding(this Vex3Xop vex)
-		{
-			VexEncoding encoding = 0;
-			if (vex.IsVex3()) encoding |= VexEncoding.Type_Vex;
-			else if (vex.IsXop()) encoding |= VexEncoding.Type_Xop;
-			else throw new ArgumentException();
-
-			encoding |= (vex & Vex3Xop.VectorSize256) == 0
-				? VexEncoding.VectorLength_128 : VexEncoding.VectorLength_256;
-
-			switch (vex.GetSimdPrefix())
-			{
-				case SimdPrefix.None: encoding |= VexEncoding.SimdPrefix_None; break;
-				case SimdPrefix._66: encoding |= VexEncoding.SimdPrefix_66; break;
-				case SimdPrefix._F3: encoding |= VexEncoding.SimdPrefix_F3; break;
-				case SimdPrefix._F2: encoding |= VexEncoding.SimdPrefix_F2; break;
-				default: throw new ArgumentException();
-			}
-			
-			switch (vex.GetOpcodeMap())
-			{
-				case OpcodeMap.Escape0F: encoding |= VexEncoding.Map_0F; break;
-				case OpcodeMap.Escape0F38: encoding |= VexEncoding.Map_0F38; break;
-				case OpcodeMap.Escape0F3A: encoding |= VexEncoding.Map_0F3A; break;
-				case OpcodeMap.Xop8: encoding |= VexEncoding.Map_Xop8; break;
-				case OpcodeMap.Xop9: encoding |= VexEncoding.Map_Xop9; break;
-				default: throw new ArgumentException();
-			}
-
-			encoding |= (vex & Vex3Xop.OperandSize64) == 0
-				? VexEncoding.RexW_0 : VexEncoding.RexW_1;
-
-			return encoding;
-		}
-		#endregion
 	}
 
 	[StructLayout(LayoutKind.Sequential, Size = 4)]
@@ -472,7 +259,7 @@ namespace Asmuth.X86
 		public Rex GetRex()
 		{
 			if (Type != XexType.RexAndEscapes) throw new InvalidOperationException();
-			Rex rex = Rex.Default;
+			Rex rex = Rex.Reserved_Value;
 			if (OperandSize64) rex |= Rex.OperandSize64;
 			if (ModRegExtension) rex |= Rex.ModRegExtension;
 			if (BaseRegExtension) rex |= Rex.BaseRegExtension;

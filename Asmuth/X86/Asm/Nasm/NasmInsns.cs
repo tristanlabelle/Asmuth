@@ -162,7 +162,7 @@ namespace Asmuth.X86.Asm.Nasm
 				{
 					if (vex.HasValue) throw new FormatException("Multiple vector XEX prefixes.");
 					tokens.Add(NasmEncodingTokenType.Vex);
-					vex = ParseVexEncoding(tokenStr);
+					vex = VexEncoding.Parse(tokenStr);
 					continue;
 				}
 
@@ -171,126 +171,6 @@ namespace Asmuth.X86.Asm.Nasm
 
 			return tokens;
 		}
-
-		#region ParseVex
-		public static VexEncoding ParseVexEncoding(string str)
-		{
-			var tokens = str.ToLowerInvariant().Split('.');
-			int tokenIndex = 0;
-
-			VexEncoding encoding = 0;
-			switch (tokens[tokenIndex++])
-			{
-				case "vex": encoding |= VexEncoding.Type_Vex; break;
-				case "xop": encoding |= VexEncoding.Type_Xop; break;
-				case "evex": encoding |= VexEncoding.Type_EVex; break;
-				default: throw new FormatException();
-			}
-
-			if (tokens[tokenIndex][0] == 'm')
-			{
-				// AMD-Style
-				// xop.m8.w0.nds.l0.p0
-				// vex.m3.w0.nds.l0.p1
-				ParseVex_Map(ref encoding, tokens, ref tokenIndex);
-				ParseVex_RexW(ref encoding, tokens, ref tokenIndex);
-				ParseVex_Vvvv(ref encoding, tokens, ref tokenIndex);
-				ParseVex_VectorLength(ref encoding, tokens, ref tokenIndex);
-				ParseVex_SimdPrefix_AmdStyle(ref encoding, tokens, ref tokenIndex);
-			}
-			else
-			{
-				// Intel-Style
-				// vex.nds.256.66.0f3a.w0
-				// evex.nds.512.66.0f3a.w0
-				ParseVex_Vvvv(ref encoding, tokens, ref tokenIndex);
-				ParseVex_VectorLength(ref encoding, tokens, ref tokenIndex);
-				ParseVex_SimdPrefix_IntelStyle(ref encoding, tokens, ref tokenIndex);
-				ParseVex_Map(ref encoding, tokens, ref tokenIndex);
-				ParseVex_RexW(ref encoding, tokens, ref tokenIndex);
-			}
-
-			return encoding;
-		}
-
-		private static void ParseVex_Vvvv(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
-		{
-			switch (tokens[tokenIndex])
-			{
-				case "nds": encoding |= VexEncoding.NonDestructiveReg_Source; break;
-				case "ndd": encoding |= VexEncoding.NonDestructiveReg_Dest; break;
-				case "dds": encoding |= VexEncoding.NonDestructiveReg_SecondSource; break;
-				default: encoding |= VexEncoding.NonDestructiveReg_Invalid; return;
-			}
-
-			++tokenIndex;
-		}
-
-		private static void ParseVex_VectorLength(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
-		{
-			switch (tokens[tokenIndex])
-			{
-				case "lz": case "l0": case "128": encoding |= VexEncoding.VectorLength_0; break;
-				case "l1": case "256": encoding |= VexEncoding.VectorLength_1; break;
-				case "512": encoding |= VexEncoding.VectorLength_2; break;
-				case "lig": encoding |= VexEncoding.VectorLength_Ignored; break;
-				default: encoding |= VexEncoding.VectorLength_Ignored; return;
-			}
-
-			++tokenIndex;
-		}
-
-		private static void ParseVex_SimdPrefix_IntelStyle(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
-		{
-			switch (tokens[tokenIndex])
-			{
-				case "66": encoding |= VexEncoding.SimdPrefix_66; break;
-				case "f2": encoding |= VexEncoding.SimdPrefix_F2; break;
-				case "f3": encoding |= VexEncoding.SimdPrefix_F3; break;
-				default: encoding |= VexEncoding.SimdPrefix_None; return;
-			}
-
-			++tokenIndex;
-		}
-
-		private static void ParseVex_SimdPrefix_AmdStyle(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
-		{
-			switch (tokens[tokenIndex])
-			{
-				case "p0": encoding |= VexEncoding.SimdPrefix_None; break;
-				case "p1": encoding |= VexEncoding.SimdPrefix_66; break;
-				default: encoding |= VexEncoding.SimdPrefix_None; return;
-			}
-
-			++tokenIndex;
-		}
-
-		private static void ParseVex_Map(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
-		{
-			switch (tokens[tokenIndex++]) // Mandatory
-			{
-				case "0f": encoding |= VexEncoding.Map_0F; break;
-				case "0f38": encoding |= VexEncoding.Map_0F38; break;
-				case "m3": case "0f3a": encoding |= VexEncoding.Map_0F3A; break;
-				case "m8": encoding |= VexEncoding.Map_Xop8; break;
-				case "m9": encoding |= VexEncoding.Map_Xop9; break;
-				case "m10": encoding |= VexEncoding.Map_Xop10; break;
-				default: throw new FormatException();
-			}
-		}
-
-		private static void ParseVex_RexW(ref VexEncoding encoding, string[] tokens, ref int tokenIndex)
-		{
-			if (tokenIndex == tokens.Length) return;
-			switch (tokens[tokenIndex++])
-			{
-				case "w0": encoding |= VexEncoding.RexW_0; break;
-				case "w1": encoding |= VexEncoding.RexW_1; break;
-				case "wig": encoding |= VexEncoding.RexW_Ignored; break;
-				default: encoding |= VexEncoding.RexW_Ignored; return;
-			}
-		}
-		#endregion
 
 		private static void ParseOperands(NasmInsnsEntry.Builder entryBuilder, string fieldsString, string valuesString)
 		{

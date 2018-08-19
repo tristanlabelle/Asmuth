@@ -82,9 +82,9 @@ namespace Asmuth.X86
 		{
 			EncodingLookupKey lookupKey;
 			var simdPrefix = encoding.SimdPrefix.GetValueOrDefault();
-			switch (encoding.Flags & OpcodeEncodingFlags.XexType_Mask)
+			switch (encoding.Flags & OpcodeEncodingFlags.VexType_Mask)
 			{
-				case OpcodeEncodingFlags.XexType_Escapes_RexOpt:
+				case OpcodeEncodingFlags.VexType_None:
 					lookupKey = EncodingLookupKey.XexType_Escapes_MaybeRex;
 					// The encoding might know that a SIMD prefix is required,
 					// but given a raw instruction, we do not know, so it
@@ -92,15 +92,15 @@ namespace Asmuth.X86
 					simdPrefix = SimdPrefix.None;
 					break;
 
-				case OpcodeEncodingFlags.XexType_Vex:
+				case OpcodeEncodingFlags.VexType_Vex:
 					lookupKey = EncodingLookupKey.XexType_Vex;
 					break;
 
-				case OpcodeEncodingFlags.XexType_Xop:
+				case OpcodeEncodingFlags.VexType_Xop:
 					lookupKey = EncodingLookupKey.XexType_Xop;
 					break;
 
-				case OpcodeEncodingFlags.XexType_EVex:
+				case OpcodeEncodingFlags.VexType_EVex:
 					lookupKey = EncodingLookupKey.XexType_EVex;
 					break;
 

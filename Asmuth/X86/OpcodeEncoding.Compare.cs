@@ -27,7 +27,7 @@ namespace Asmuth.X86
 			{
 				if (!IgnorableField(lhs.Flags, rhs.Flags, Flags.LongMode_Mask)) return;
 				if (!IgnorableField(lhs.Flags, rhs.Flags, Flags.AddressSize_Mask)) return;
-				if (!Field(lhs.Flags, rhs.Flags, Flags.XexType_Mask)) return;
+				if (!Field(lhs.Flags, rhs.Flags, Flags.VexType_Mask)) return;
 				if (!IgnorableField(lhs.Flags, rhs.Flags, Flags.OperandSize_Mask)) return;
 				if (!IgnorableField(lhs.Flags, rhs.Flags, Flags.VexL_Mask)) return;
 				if (!IgnorableField(lhs.Flags, rhs.Flags, Flags.SimdPrefix_Mask)) return;
