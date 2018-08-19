@@ -52,6 +52,7 @@ namespace Asmuth.X86
 			this.Imm8 = flags.HasFixedImm8() ? imm8 : (byte)0;
 		}
 
+		public VexType? VexType => Flags.GetVexType();
 		public byte MainByteMask => Flags.GetMainByteMask();
 		public bool HasModRM => (Flags & OpcodeEncodingFlags.ModRM_Present) != 0;
 		public bool HasFixedModReg => (Flags & OpcodeEncodingFlags.ModRM_FixedReg) != 0;
@@ -383,7 +384,19 @@ namespace Asmuth.X86
 			return (AddressSize)((int)AddressSize._16Bits
 				+ ((flags - OpcodeEncodingFlags.AddressSize_16) >> (int)OpcodeEncodingFlags.AddressSize_Shift));
 		}
-		
+
+		public static VexType? GetVexType(this OpcodeEncodingFlags flags)
+		{
+			switch (flags & OpcodeEncodingFlags.VexType_Mask)
+			{
+				case OpcodeEncodingFlags.VexType_None: return null;
+				case OpcodeEncodingFlags.VexType_Vex: return VexType.Vex;
+				case OpcodeEncodingFlags.VexType_Xop: return VexType.Xop;
+				case OpcodeEncodingFlags.VexType_EVex: return VexType.EVex;
+				default: throw new ArgumentOutOfRangeException(nameof(flags));
+			}
+		}
+
 		public static bool AdmitsXexType(this OpcodeEncodingFlags flags, XexType xexType)
 		{
 			switch (flags & OpcodeEncodingFlags.VexType_Mask)

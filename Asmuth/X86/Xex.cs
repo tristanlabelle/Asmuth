@@ -202,6 +202,7 @@ namespace Asmuth.X86
 
 		#region Properties
 		public XexType Type => (XexType)GetField(Flags.XexType_Mask, Flags.XexType_Shift);
+		public VexType? VexType => Type.AsVexType();
 		public OpcodeMap OpcodeMap => (OpcodeMap)GetField(Flags.OpcodeMap_Mask, Flags.OpcodeMap_Shift);
 
 		public SimdPrefix? SimdPrefix

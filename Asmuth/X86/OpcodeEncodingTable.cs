@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86
 {
-	public sealed partial class OpcodeEncodingTable<TTag> : IInstructionDecoderLookup
+	public sealed class OpcodeEncodingTable<TTag> : IInstructionDecoderLookup
 	{
 		private readonly struct Entry
 		{
@@ -21,19 +21,19 @@ namespace Asmuth.X86
 			}
 		}
 
-		private readonly Dictionary<EncodingLookupKey, List<Entry>> buckets
-			= new Dictionary<EncodingLookupKey, List<Entry>>();
+		private readonly Dictionary<OpcodeLookup.BucketKey, List<Entry>> buckets
+			= new Dictionary<OpcodeLookup.BucketKey, List<Entry>>();
 
 		public void Add(OpcodeEncoding opcode, TTag tag)
 		{
 			if (tag == null) throw new ArgumentNullException(nameof(tag));
 
-			var lookupKey = GetLookupKey(opcode);
-			buckets.TryGetValue(lookupKey, out List<Entry> bucket);
+			var bucketKey = OpcodeLookup.GetBucketKey(opcode);
+			buckets.TryGetValue(bucketKey, out List<Entry> bucket);
 			if (bucket == null)
 			{
 				bucket = new List<Entry>();
-				buckets.Add(lookupKey, bucket);
+				buckets.Add(bucketKey, bucket);
 			}
 
 			bool? moreGeneral = null;
@@ -80,9 +80,9 @@ namespace Asmuth.X86
 
 		public bool Find(in Instruction instruction, out OpcodeEncoding opcode, out TTag tag)
 		{
-			var key = GetEncodingLookupKey(instruction);
+			var bucketKey = OpcodeLookup.GetBucketKey(instruction);
 
-			if (buckets.TryGetValue(key, out var bucket))
+			if (buckets.TryGetValue(bucketKey, out var bucket))
 			{
 				foreach (var entry in bucket)
 				{
@@ -104,9 +104,9 @@ namespace Asmuth.X86
 			CodeSegmentType codeSegmentType, ImmutableLegacyPrefixList legacyPrefixes,
 			Xex xex, byte mainByte, ModRM? modRM, byte? imm8)
 		{
-			var lookupKey = GetEncodingLookupKey(legacyPrefixes, xex, mainByte);
+			var bucketKey = OpcodeLookup.GetBucketKey(legacyPrefixes, xex, mainByte);
 			
-			if (buckets.TryGetValue(lookupKey, out var bucket))
+			if (buckets.TryGetValue(bucketKey, out var bucket))
 			{
 				foreach (var entry in bucket)
 				{
