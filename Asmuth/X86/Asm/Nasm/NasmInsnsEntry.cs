@@ -13,41 +13,58 @@ namespace Asmuth.X86.Asm.Nasm
 	/// </summary>
 	public sealed partial class NasmInsnsEntry
 	{
+		public struct Data
+		{
+			public string Mnemonic;
+			public IReadOnlyList<NasmOperand> Operands;
+			public IReadOnlyList<NasmEncodingToken> EncodingTokens;
+			public IReadOnlyCollection<string> Flags;
+			public VexEncoding? VexEncoding;
+			public NasmOperandFlags OperandFlags;
+			public NasmEVexTupleType EVexTupleType;
+		}
+
 		#region Fields
-		private string mnemonic;
-		private IList<NasmOperand> operands;
-		private IList<NasmEncodingToken> encodingTokens;
-		private ICollection<string> flags;
-		private VexEncoding vexEncoding;
-		private NasmOperandFlags operandFlags;
-		private NasmEVexTupleType evexTupleType; 
+		private readonly Data data;
 		#endregion
 
-		// Use builder nested class
-		private NasmInsnsEntry() { }
+		public NasmInsnsEntry(in Data data)
+		{
+			this.data.Mnemonic = data.Mnemonic;
+			this.data.Operands = data.Operands == null
+				? EmptyArray<NasmOperand>.Rank1 : data.Operands.ToArray();
+			this.data.EncodingTokens = data.EncodingTokens == null
+				? EmptyArray<NasmEncodingToken>.Rank1 : data.EncodingTokens.ToArray();
+			this.data.Flags = data.Flags == null
+				? EmptyArray<string>.Rank1 : data.Flags.ToArray();
+			this.data.VexEncoding = data.VexEncoding;
+			this.data.OperandFlags = data.OperandFlags;
+			this.data.EVexTupleType = data.EVexTupleType;
+		}
 
 		#region Properties
-		public string Mnemonic => mnemonic;
-		public IReadOnlyList<NasmOperand> Operands => (IReadOnlyList<NasmOperand>)operands;
-		public IReadOnlyList<NasmEncodingToken> EncodingTokens => (IReadOnlyList<NasmEncodingToken>)encodingTokens;
-		public VexEncoding VexEncoding => vexEncoding;
-		public NasmOperandFlags OperandFlags => operandFlags;
-		public NasmEVexTupleType EVexTupleType => evexTupleType;
-		public IReadOnlyCollection<string> Flags => (IReadOnlyCollection<string>)flags;
-		public bool IsAssembleOnly => flags.Contains(NasmInstructionFlags.AssemblerOnly);
-		public bool IsFuture => flags.Contains(NasmInstructionFlags.Future);
-		public bool IsPseudo => encodingTokens.Count == 0 || (encodingTokens.Count == 1 && encodingTokens[0].Type == NasmEncodingTokenType.Misc_Resb);
+		public string Mnemonic => data.Mnemonic;
+		public IReadOnlyList<NasmOperand> Operands => data.Operands;
+		public IReadOnlyList<NasmEncodingToken> EncodingTokens => data.EncodingTokens;
+		public VexEncoding? VexEncoding => data.VexEncoding;
+		public VexType? VexType => data.VexEncoding.HasValue ? data.VexEncoding.Value.Type : (VexType?)null;
+		public NasmOperandFlags OperandFlags => data.OperandFlags;
+		public NasmEVexTupleType EVexTupleType => data.EVexTupleType;
+		public IReadOnlyCollection<string> Flags => data.Flags;
+		public bool IsAssembleOnly => Flags.Contains(NasmInstructionFlags.AssemblerOnly);
+		public bool IsFuture => Flags.Contains(NasmInstructionFlags.Future);
+		public bool IsPseudo => EncodingTokens.Count == 0 || (EncodingTokens.Count == 1 && EncodingTokens[0].Type == NasmEncodingTokenType.Misc_Resb);
 		#endregion
 
 		#region Methods
 		public string GetEncodingString()
 		{
 			var str = new StringBuilder();
-			foreach (var token in encodingTokens)
+			foreach (var token in EncodingTokens)
 			{
 				if (str.Length > 0) str.Append(' ');
 				if (token.Type == NasmEncodingTokenType.Vex)
-					str.Append(vexEncoding.ToIntelStyleString());
+					str.Append(VexEncoding.Value.ToIntelStyleString());
 				else
 					str.Append(token.ToString());
 			}
@@ -57,67 +74,6 @@ namespace Asmuth.X86.Asm.Nasm
 		public override string ToString()
 		{
 			return Mnemonic + ": " + GetEncodingString();
-		}
-		#endregion
-
-		#region Builder Class
-		[Obsolete("Fix the design")]
-		public sealed class Builder
-		{
-			private NasmInsnsEntry entry = CreateEmptyEntry();
-
-			#region Properties
-			public string Mnemonic
-			{
-				get { return entry.mnemonic; }
-				set { entry.mnemonic = value; }
-			}
-
-			public IList<NasmOperand> Operands => entry.operands;
-			public IList<NasmEncodingToken> EncodingTokens => entry.encodingTokens;
-			public ICollection<string> Flags => entry.flags;
-
-			public VexEncoding VexEncoding
-			{
-				get { return entry.vexEncoding; }
-				set { entry.vexEncoding = value; }
-			}
-
-			public NasmOperandFlags OperandFlags
-			{
-				get { return entry.operandFlags; }
-				set { entry.operandFlags = value; }
-			}
-
-			public NasmEVexTupleType EVexTupleType
-			{
-				get { return entry.evexTupleType; }
-				set { entry.evexTupleType = value; }
-			}
-			#endregion
-
-			#region Methods
-			public NasmInsnsEntry Build(bool reuse = true)
-			{
-				if (Mnemonic == null) throw new ArgumentNullException(nameof(Mnemonic));
-
-				var result = entry;
-				result.operands = result.operands.ToArray();
-				result.encodingTokens = result.encodingTokens.ToArray();
-				entry = reuse ? CreateEmptyEntry() : null;
-				return result;
-			}
-
-			private static NasmInsnsEntry CreateEmptyEntry()
-			{
-				return new NasmInsnsEntry
-				{
-					flags = new HashSet<string>(),
-					operands = new List<NasmOperand>(),
-					encodingTokens = new List<NasmEncodingToken>()
-				};
-			}
-			#endregion
 		}
 		#endregion
 	}

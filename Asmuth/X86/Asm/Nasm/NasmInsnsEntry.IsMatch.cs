@@ -53,7 +53,7 @@ namespace Asmuth.X86.Asm.Nasm
 			var expectedXexType = XexType.Escapes;
 			var expectedOpcodeMap = OpcodeMap.Default;
 			var state = NasmEncodingParsingState.Prefixes;
-			foreach (var token in encodingTokens)
+			foreach (var token in EncodingTokens)
 			{
 				switch (token.Type)
 				{
@@ -131,7 +131,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 					// Vex
 					case NasmEncodingTokenType.Vex:
-						if (instruction.Xex.Type.AsVexType() != vexEncoding.Type) return false;
+						if (instruction.Xex.Type.AsVexType() != VexType) return false;
 						throw new NotImplementedException();
 
 					// Rex
@@ -263,7 +263,7 @@ namespace Asmuth.X86.Asm.Nasm
 				}
 			}
 
-			foreach (var operand in operands)
+			foreach (var operand in Operands)
 			{
 				if (operand.Field == OperandField.BaseReg)
 				{

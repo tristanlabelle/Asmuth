@@ -78,13 +78,13 @@ namespace Asmuth.X86.Asm.Nasm
 			var columnMatches = instructionLineColumnRegex.Matches(line);
 			if (columnMatches.Count != 4) throw new FormatException();
 			
-			var entryBuilder = new NasmInsnsEntry.Builder();
+			var entryData = new NasmInsnsEntry.Data();
 
 			// Mnemonic
 			var mnemonicColumn = columnMatches[0].Value;
 			if (!Regex.IsMatch(mnemonicColumn, @"\A[A-Z_0-9]+(cc)?\Z", RegexOptions.CultureInvariant))
 				throw new FormatException("Invalid mnemonic column format.");
-			entryBuilder.Mnemonic = mnemonicColumn;
+			entryData.Mnemonic = mnemonicColumn;
 
 			// Encoding
 			var codeStringColumn = columnMatches[2].Value;
@@ -98,27 +98,24 @@ namespace Asmuth.X86.Asm.Nasm
 				var evexTupleTypesString = codeStringMatch.Groups["evex_tuple_type"].Value;
 				var encodingString = codeStringMatch.Groups["encoding"].Value;
 
-				VexEncoding? vexEncoding;
-				foreach (var encodingToken in ParseEncoding(encodingString, out vexEncoding))
-					entryBuilder.EncodingTokens.Add(encodingToken);
-				entryBuilder.VexEncoding = vexEncoding.GetValueOrDefault();
+				entryData.EncodingTokens = ParseEncoding(encodingString, out entryData.VexEncoding);
 
 				if (evexTupleTypesString.Length > 0)
 				{
-					entryBuilder.EVexTupleType = (NasmEVexTupleType)Enum.Parse(
+					entryData.EVexTupleType = (NasmEVexTupleType)Enum.Parse(
 						typeof(NasmEVexTupleType), evexTupleTypesString, ignoreCase: true);
 				}
 			}
 
 			// Operands
 			var operandsColumn = columnMatches[1].Value;
-			ParseOperands(entryBuilder, operandFieldsString, operandsColumn);
+			entryData.Operands = ParseOperands(operandFieldsString, operandsColumn);
 
 			// Flags
 			var flagsColumn = columnMatches[3].Value;
-			ParseFlags(entryBuilder, flagsColumn);
-			
-			return entryBuilder.Build(reuse: false);
+			entryData.Flags = ParseFlags(flagsColumn);
+
+			return new NasmInsnsEntry(in entryData);
 		}
 
 		public static IReadOnlyList<NasmEncodingToken> ParseEncoding(string str, out VexEncoding? vex)
@@ -172,18 +169,20 @@ namespace Asmuth.X86.Asm.Nasm
 			return tokens;
 		}
 
-		private static void ParseOperands(NasmInsnsEntry.Builder entryBuilder, string fieldsString, string valuesString)
+		private static IReadOnlyList<NasmOperand> ParseOperands(string fieldsString, string valuesString)
 		{
+			var operands = new List<NasmOperand>();
+
 			if (valuesString == "void" || valuesString == "ignore")
 			{
 				Debug.Assert(fieldsString.Length == 0);
-				return;
+				return operands;
 			}
 
 			if (fieldsString.Length == 0)
 			{
 				// This only happens for pseudo-instructions
-				return;
+				return operands;
 			}
 
 			valuesString = valuesString.Replace("*", string.Empty); // '*' is for "relaxed", but it's not clear what this encodes
@@ -206,19 +205,25 @@ namespace Asmuth.X86.Asm.Nasm
 				var valueComponents = values[i].Split('|');
 				var typeString = valueComponents[0];
 				var type = (NasmOperandType)Enum.Parse(typeof(NasmOperandType), valueComponents[0], ignoreCase: true);
-				entryBuilder.Operands.Add(new NasmOperand(field, type));
+				operands.Add(new NasmOperand(field, type));
 				// TODO: Parse NASM operand flags (after the '|')
 				// TODO: Support star'ed types like "xmmreg*"
 			}
+
+			return operands;
 		}
 
-		private static void ParseFlags(NasmInsnsEntry.Builder entryBuilder, string str)
+		private static IReadOnlyCollection<string> ParseFlags(string str)
 		{
-			if (str == "ignore") return;
-			foreach (var flagStr in str.Split(','))
+			var flags = new List<string>();
+
+			if (str != "ignore")
 			{
-				entryBuilder.Flags.Add(flagStr);
+				foreach (var flagStr in str.Split(','))
+					flags.Add(flagStr);
 			}
+
+			return flags;
 		}
     }
 }

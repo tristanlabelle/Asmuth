@@ -18,9 +18,9 @@ namespace Asmuth.X86.Asm.Nasm
 			{
 				return !IsPseudo
 					&& !IsAssembleOnly
-					&& mnemonic != "CALL" && mnemonic != "ENTER" // Can't yet handle imm:imm
-					&& !encodingTokens.Contains(NasmEncodingTokenType.AddressSize_NoOverride)
-					&& !encodingTokens.Contains(NasmEncodingTokenType.OperandSize_NoOverride);
+					&& Mnemonic != "CALL" && Mnemonic != "ENTER" // Can't yet handle imm:imm
+					&& !EncodingTokens.Contains(NasmEncodingTokenType.AddressSize_NoOverride)
+					&& !EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_NoOverride);
 			}
 		}
 		
@@ -29,7 +29,7 @@ namespace Asmuth.X86.Asm.Nasm
 			if (!CanConvertToOpcodeEncoding) throw new InvalidOperationException();
 
 			NasmOperandType? baseRegOperandType = null;
-			foreach (var operand in operands)
+			foreach (var operand in Operands)
 			{
 				if (operand.Field == OperandField.BaseReg)
 				{
@@ -40,9 +40,10 @@ namespace Asmuth.X86.Asm.Nasm
 
 			var data = new InstructionDefinition.Data
 			{
-				Mnemonic = mnemonic,
-				Encoding = ToOpcodeEncoding(encodingTokens, vexEncoding, GetLongMode(flags.Contains), baseRegOperandType),
-				Operands = NasmOperand.ToOperandFormat((IReadOnlyList<NasmOperand>)operands, Flags)
+				Mnemonic = Mnemonic,
+				Encoding = ToOpcodeEncoding(EncodingTokens, VexEncoding.GetValueOrDefault(),
+					GetLongMode(Flags.Contains), baseRegOperandType),
+				Operands = NasmOperand.ToOperandFormat(Operands, Flags)
 			};
 
 			return new InstructionDefinition(in data);
