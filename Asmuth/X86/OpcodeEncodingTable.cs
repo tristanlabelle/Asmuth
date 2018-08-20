@@ -9,6 +9,7 @@ namespace Asmuth.X86
 {
 	public sealed class OpcodeEncodingTable<TTag> : IInstructionDecoderLookup
 	{
+		[DebuggerDisplay("{Opcode} => {Tag}")]
 		private readonly struct Entry
 		{
 			public readonly OpcodeEncoding Opcode;
@@ -68,16 +69,7 @@ namespace Asmuth.X86
 			else
 				bucket.Insert(0, new Entry(opcode, tag));
 		}
-
-		public void Add(OpcodeEncodingFlags opcodeFlags, byte mainByte, TTag tag)
-			=> Add(new OpcodeEncoding(opcodeFlags, mainByte), tag);
-
-		public void Add(OpcodeEncodingFlags opcodeFlags, byte mainByte, ModRM modRM, TTag tag)
-			=> Add(new OpcodeEncoding(opcodeFlags, mainByte, modRM), tag);
-
-		public void Add(OpcodeEncodingFlags opcodeFlags, byte mainByte, ModRM modRM, byte imm8, TTag tag)
-			=> Add(new OpcodeEncoding(opcodeFlags, mainByte, modRM, imm8), tag);
-
+		
 		public bool Find(in Instruction instruction, out OpcodeEncoding opcode, out TTag tag)
 		{
 			var bucketKey = OpcodeLookup.GetBucketKey(instruction);
@@ -118,22 +110,22 @@ namespace Asmuth.X86
 						if (!entry.Opcode.HasModRM)
 							throw new ArgumentException("ModRM specified for opcode which takes none.");
 
-						if (!entry.Opcode.AdmitsModRM(modRM.Value))
+						if (!entry.Opcode.ModRM.IsValid(modRM.Value))
 							continue;
 					}
-					else if (entry.Opcode.HasModRM && !entry.Opcode.Flags.HasAnyModRM())
+					else if (entry.Opcode.HasModRM && entry.Opcode.ModRM != ModRMEncoding.Any)
 					{
 						return InstructionDecoderLookupResult.Ambiguous_RequireModRM;
 					}
 
-					if (entry.Opcode.HasFixedImm8)
+					if (entry.Opcode.Imm8Ext.HasValue)
 					{
 						if (!imm8.HasValue)
 						{
 							return InstructionDecoderLookupResult.Ambiguous_RequireImm8(
 								hasModRM: entry.Opcode.HasModRM);
 						}
-						else if (imm8.Value != entry.Opcode.Imm8)
+						else if (imm8.Value != entry.Opcode.Imm8Ext)
 						{
 							continue;
 						}

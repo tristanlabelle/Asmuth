@@ -8,8 +8,8 @@ namespace Asmuth.X86
 	/// Provides helper functions for two-stage opcode lookup,
 	/// the first of which is a simple key-based lookup.
 	/// </summary>
-    public static class OpcodeLookup
-    {
+	public static class OpcodeLookup
+	{
 		public enum BucketKey : ushort { }
 
 		private const int NullableVexTypeShift = 0;
@@ -49,5 +49,5 @@ namespace Asmuth.X86
 		public static BucketKey GetBucketKey(in OpcodeEncoding encoding)
 			=> GetBucketKey(encoding.VexType, encoding.SimdPrefix.GetValueOrDefault(),
 				encoding.Map, encoding.MainByte);
-    }
+	}
 }

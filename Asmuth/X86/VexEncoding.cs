@@ -32,7 +32,7 @@ namespace Asmuth.X86
 			public OpcodeMap OpcodeMap;
 			public bool? RexW;
 
-			public void EnsureConsistent()
+			public void Validate()
 			{
 				if (OpcodeMap == OpcodeMap.Default)
 					throw new ArgumentException("VEX instructions cannot encode the default opcode map.");
@@ -53,7 +53,7 @@ namespace Asmuth.X86
 
 		private VexEncoding(ref Builder data)
 		{
-			data.EnsureConsistent();
+			data.Validate();
 
 			this.data = (ushort)(
 				((int)data.Type << TypeShift)
@@ -70,56 +70,6 @@ namespace Asmuth.X86
 		public SimdPrefix SimdPrefix => (SimdPrefix)((data >> SimdPrefixShift) & 3);
 		public OpcodeMap OpcodeMap => (OpcodeMap)((data >> OpcodeMapShift) & 3);
 		public bool? RexW => AsZeroIsNullBool((data >> RexWShift) & 3);
-		
-		public OpcodeEncodingFlags AsOpcodeEncodingFlags()
-		{
-			OpcodeEncodingFlags flags = default;
-			
-			switch (Type)
-			{
-				case VexType.Vex: flags |= OpcodeEncodingFlags.VexType_Vex; break;
-				case VexType.Xop: flags |= OpcodeEncodingFlags.VexType_Xop; break;
-				case VexType.EVex: flags |= OpcodeEncodingFlags.VexType_EVex; break;
-				default: throw new ArgumentException();
-			}
-
-			switch (SimdPrefix)
-			{
-				case SimdPrefix.None: flags |= OpcodeEncodingFlags.SimdPrefix_None; break;
-				case SimdPrefix._66: flags |= OpcodeEncodingFlags.SimdPrefix_66; break;
-				case SimdPrefix._F2: flags |= OpcodeEncodingFlags.SimdPrefix_F2; break;
-				case SimdPrefix._F3: flags |= OpcodeEncodingFlags.SimdPrefix_F3; break;
-				default: throw new ArgumentException();
-			}
-
-			switch (VectorSize)
-			{
-				case null: flags |= OpcodeEncodingFlags.VexL_Ignored; break;
-				case SseVectorSize._128Bits: flags |= OpcodeEncodingFlags.VexL_128; break;
-				case SseVectorSize._256Bits: flags |= OpcodeEncodingFlags.VexL_256; break;
-				case SseVectorSize._512Bits: flags |= OpcodeEncodingFlags.VexL_512; break;
-				default: throw new ArgumentException();
-			}
-
-			flags |= RexW.HasValue
-				? (RexW.Value ? OpcodeEncodingFlags.RexW_1 : OpcodeEncodingFlags.RexW_0)
-				: OpcodeEncodingFlags.RexW_Ignored;
-			
-			switch (OpcodeMap)
-			{
-				case OpcodeMap.Escape0F: flags |= OpcodeEncodingFlags.Map_0F; break;
-				case OpcodeMap.Escape0F38: flags |= OpcodeEncodingFlags.Map_0F38; break;
-				case OpcodeMap.Escape0F3A: flags |= OpcodeEncodingFlags.Map_0F3A; break;
-				case OpcodeMap.Xop8: flags |= OpcodeEncodingFlags.Map_Xop8; break;
-				case OpcodeMap.Xop9: flags |= OpcodeEncodingFlags.Map_Xop9; break;
-				case OpcodeMap.Xop10: flags |= OpcodeEncodingFlags.Map_Xop10; break;
-				default: throw new ArgumentException();
-			}
-
-			// VEX.Vvvv / NonDestructiveReg is lost here
-
-			return flags;
-		}
 
 		public string ToIntelStyleString()
 		{

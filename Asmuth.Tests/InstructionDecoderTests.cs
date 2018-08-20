@@ -5,16 +5,32 @@ using System.IO;
 
 namespace Asmuth.X86
 {
-	using OEF = OpcodeEncodingFlags;
-
 	[TestClass]
 	public sealed class InstructionDecoderTests
 	{
+		private static readonly OpcodeEncoding Nop = new OpcodeEncoding.Builder
+		{
+			MainByte = 0x90
+		};
+
+		private static readonly OpcodeEncoding Nop_RM = new OpcodeEncoding.Builder
+		{
+			Map = OpcodeMap.Escape0F,
+			ModRM = ModRMEncoding.Any,
+			MainByte = 0x1F
+		};
+
+		private static readonly OpcodeEncoding Add_RM_R = new OpcodeEncoding.Builder
+		{
+			MainByte = 0x01,
+			ModRM = ModRMEncoding.Any
+		};
+		
 		[TestMethod]
 		public void TestNop()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(default, 0x90, "nop");
+			table.Add(Nop, "nop");
 
 			var instruction = DecodeSingle_32Bits(table, 0x90);
 			Assert.AreEqual(XexType.Escapes, instruction.Xex.Type);
@@ -25,8 +41,8 @@ namespace Asmuth.X86
 		public void TestMultiByteNops()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(default, 0x90, "nop");
-			table.Add(OEF.Map_0F | OEF.ModRM_Present, 0x1F, "nop"); // 3+ byte nop
+			table.Add(Nop, "nop");
+			table.Add(Nop_RM, "nop");
 
 			var nops = new byte[]
 			{
@@ -73,9 +89,9 @@ namespace Asmuth.X86
 		private static void AssertModRMSibRoundTrip(ModRM modRM, Sib sib)
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.OperandSize_Dword | OEF.RexW_0 | OEF.ModRM_Present | OEF.ModRM_FixedReg, 0xF7, ModRM.Reg_3, "neg r/m32");
+			table.Add(Add_RM_R, "add r/m, r");
 
-			var instruction = DecodeSingle_32Bits(table, 0xF7, (byte)modRM, (byte)sib);
+			var instruction = DecodeSingle_32Bits(table, Add_RM_R.MainByte, (byte)modRM, (byte)sib);
 			Assert.AreEqual(modRM, instruction.ModRM);
 			Assert.AreEqual(sib, instruction.Sib);
 		}
@@ -84,8 +100,18 @@ namespace Asmuth.X86
 		public void TestModRMFixedIndirectAmbiguity()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.ModRM_Present | OEF.ModRM_FixedReg | OEF.ModRM_RM_Indirect, 0xD9, ModRM.Reg_2, "fst");
-			table.Add(OEF.ModRM_Present | OEF.ModRM_FixedReg | OEF.ModRM_RM_Fixed, 0xD9, (ModRM)0xD0, "fnop");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				MainByte = 0xD9,
+				ModRM = ModRMEncoding.FromFixedRegMemRM(2)
+			}, "fst");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				MainByte = 0xD9,
+				ModRM = ModRMEncoding.FromFixedValue(0xD0)
+			}, "fnop");
 
 			Assert.AreEqual("fst", DecodeSingleForTag_32Bits(table, 0xD9, 0b00_010_000)); // Indirect eax /2
 			Assert.AreEqual("fnop", DecodeSingleForTag_32Bits(table, 0xD9, 0b11_010_000)); // Direct eax /2
@@ -95,7 +121,7 @@ namespace Asmuth.X86
 		public void TestDisplacementSizes()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.Map_0F | OEF.ModRM_Present, 0x1F, "nop");
+			table.Add(Nop_RM, "nop");
 
 			// TODO: Test 16 bits too
 			Assert.AreEqual(DisplacementSize.None, DecodeSingle_32Bits(table, 0x0F, 0x1F, (byte)ModRM.Mod_Direct).DisplacementSize);
@@ -109,10 +135,42 @@ namespace Asmuth.X86
 		public void TestImmSizes()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.HasMainByteReg | OEF.ImmediateSize_8, 0xB0, "mov r8, imm8");
-			table.Add(OEF.OperandSize_Word | OEF.RexW_0 | OEF.HasMainByteReg | OEF.ImmediateSize_16, 0xB8, "mov r16, imm16");
-			table.Add(OEF.OperandSize_Dword | OEF.RexW_0 | OEF.HasMainByteReg | OEF.ImmediateSize_32, 0xB8, "mov r32, imm32");
-			table.Add(OEF.RexW_1 | OEF.HasMainByteReg | OEF.ImmediateSize_64, 0xB8, "mov r64, imm64");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				MainByte = 0xB0,
+				ModRM = ModRMEncoding.MainByteReg,
+				ImmediateSizeInBytes = sizeof(sbyte)
+			}, "mov r8, imm8");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				LongMode = false,
+				OperandSize = IntegerSize.Word,
+				RexW = false,
+				MainByte = 0xB8,
+				ModRM = ModRMEncoding.MainByteReg,
+				ImmediateSizeInBytes = sizeof(short)
+			}, "mov r16, imm16");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				OperandSize = IntegerSize.Dword,
+				RexW = false,
+				MainByte = 0xB8,
+				ModRM = ModRMEncoding.MainByteReg,
+				ImmediateSizeInBytes = sizeof(int)
+			}, "mov r32, imm32");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				LongMode = true,
+				OperandSize = IntegerSize.Qword,
+				RexW = true,
+				MainByte = 0xB8,
+				ModRM = ModRMEncoding.MainByteReg,
+				ImmediateSizeInBytes = sizeof(long)
+			}, "mov r64, imm64");
 
 			var instructions = new[]
 			{
@@ -134,9 +192,23 @@ namespace Asmuth.X86
 		public void TestModRMRequiredForImmediateSize()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			var commonFlags = OEF.OperandSize_Dword | OEF.RexW_0 | OEF.ModRM_Present | OEF.ModRM_FixedReg;
-			table.Add(commonFlags | OEF.ImmediateSize_32, 0xF7, ModRM.Reg_0, "test r/m32, imm32");
-			table.Add(commonFlags, 0xF7, ModRM.Reg_3, "neg r/m32");
+			
+			table.Add(new OpcodeEncoding.Builder
+			{
+				OperandSize = IntegerSize.Dword,
+				RexW = false,
+				MainByte = 0xF7,
+				ModRM = ModRMEncoding.FromFixedRegAnyRM(0),
+				ImmediateSizeInBytes = sizeof(int)
+			}, "test r/m32, imm32");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				OperandSize = IntegerSize.Dword,
+				RexW = false,
+				MainByte = 0xF7,
+				ModRM = ModRMEncoding.FromFixedRegAnyRM(3)
+			}, "neg r/m32");
 			
 			Assert.AreEqual(4, DecodeSingle_32Bits(table, 0xF7, ModRM_Reg(0), 0x00, 0x01, 0x02, 0x03).ImmediateSizeInBytes);
 			Assert.AreEqual(0, DecodeSingle_32Bits(table, 0xF7, ModRM_Reg(3)).ImmediateSizeInBytes);
@@ -146,9 +218,29 @@ namespace Asmuth.X86
 		public void TestAddressSizeAmbiguity()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.LongMode_No | OEF.AddressSize_16 | OEF.ModRM_Present | OEF.ImmediateSize_16, 0xC7, ModRM.Reg_0, "mov ax,moffs16");
-			table.Add(OEF.AddressSize_32 | OEF.ModRM_Present | OEF.ImmediateSize_32, 0xC7, ModRM.Reg_0, "mov eax,moffs32");
-			table.Add(OEF.LongMode_Yes | OEF.AddressSize_64 | OEF.ModRM_Present | OEF.ImmediateSize_64, 0xC7, ModRM.Reg_0, "mov rax,moffs64");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				LongMode = false,
+				AddressSize = AddressSize._16Bits,
+				MainByte = 0xC7,
+				ImmediateSizeInBytes = sizeof(short)
+			}, "mov ax,moffs16");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				AddressSize = AddressSize._32Bits,
+				MainByte = 0xC7,
+				ImmediateSizeInBytes = sizeof(int)
+			}, "mov eax,moffs32");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				LongMode = true,
+				AddressSize = AddressSize._64Bits,
+				MainByte = 0xC7,
+				ImmediateSizeInBytes = sizeof(long)
+			}, "mov rax,moffs64");
 
 			// In different code segment types
 			Assert.AreEqual(2, DecodeSingle_16Bits(table, 0xC7, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
@@ -167,8 +259,15 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void TestRexAfter0F()
 		{
+			var CMovNE = new OpcodeEncoding.Builder
+			{
+				Map = OpcodeMap.Escape0F,
+				MainByte = 0x45, // 0x45 should not be interpreted as REX
+				ModRM = ModRMEncoding.Any
+			};
+
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.Map_0F | OEF.ModRM_Present, 0x45, "cmovne"); // 0x45 should not be interpreted as REX
+			table.Add(CMovNE, "cmovne");
 
 			var instruction = DecodeSingle_64Bits(table, 0x0F, 0x45, 0xC8); // cmovne ecx, eax
 			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
@@ -180,9 +279,26 @@ namespace Asmuth.X86
 		public void TestRexIncDecAmbiguity()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.HasMainByteReg, 0x40, "inc r16/32");
-			table.Add(OEF.HasMainByteReg, 0x48, "dec r16/32");
-			table.Add(OEF.ModRM_Present, 01, "add rm, r");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				LongMode = false,
+				MainByte = 0x40,
+				ModRM = ModRMEncoding.MainByteReg
+			}, "inc r16/32");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				LongMode = false,
+				MainByte = 0x48,
+				ModRM = ModRMEncoding.MainByteReg
+			}, "dec r16/32");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				MainByte = 0x01,
+				ModRM = ModRMEncoding.Any
+			}, "add rm, r");
 			
 			Assert.AreEqual(0x42, DecodeSingle_32Bits(table, 0x42).MainOpcodeByte);
 			Assert.AreEqual(0x4C, DecodeSingle_32Bits(table, 0x4C).MainOpcodeByte);
@@ -196,9 +312,27 @@ namespace Asmuth.X86
 			// In IA32 mode, VEX prefixes can be ambiguous with other instructions
 			// See intel reference vol 2A 2.3.5
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.ModRM_Present | OEF.ModRM_RM_Indirect, 0xC4, "les m/r");
-			table.Add(OEF.ModRM_Present | OEF.ModRM_RM_Indirect, 0xC5, "lds m/r");
-			table.Add(OEF.VexType_Vex | OEF.VexL_128 | OEF.SimdPrefix_F3 | OEF.Map_0F | OEF.ModRM_Present, 0xE6, "VCVTDQ2PD xmm1, xmm2/m64");
+			table.Add(new OpcodeEncoding.Builder
+			{
+				MainByte = 0xC4,
+				ModRM = ModRMEncoding.AnyReg_MemRM
+			}, "les m/r");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				MainByte = 0xC5,
+				ModRM = ModRMEncoding.AnyReg_MemRM
+			}, "lds m/r");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				VexType = VexType.Vex,
+				VectorSize = SseVectorSize._128Bits,
+				SimdPrefix = SimdPrefix._F3,
+				Map = OpcodeMap.Escape0F,
+				MainByte = 0xE6,
+				ModRM = ModRMEncoding.Any
+			}, "VCVTDQ2PD xmm1, xmm2/m64");
 			
 			Assert.AreEqual(0xC4, DecodeSingle_32Bits(table, 0xC4, 0x01).MainOpcodeByte);
 			Assert.AreEqual(0xC5, DecodeSingle_32Bits(table, 0xC5, 0x01).MainOpcodeByte);
@@ -210,7 +344,14 @@ namespace Asmuth.X86
 		public void TestAddpd()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.SimdPrefix_66 | OEF.Map_0F | OEF.ModRM_Present, 0x58, "ADDPD xmm1,xmm2/m128");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				SimdPrefix = SimdPrefix._66,
+				Map = OpcodeMap.Escape0F,
+				MainByte = 0x58,
+				ModRM = ModRMEncoding.Any
+			}, "ADDPD xmm1,xmm2/m128");
 			
 			var modRM = ModRMEnum.FromComponents(3, 1, 2);
 			var instruction = DecodeSingle_32Bits(table, 0x66, 0x0F, 0x58, (byte)modRM);
@@ -225,7 +366,16 @@ namespace Asmuth.X86
 		public void TestVaddpd()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			table.Add(OEF.VexType_Vex | OEF.VexL_128 | OEF.SimdPrefix_66 | OEF.Map_0F | OEF.ModRM_Present, 0x58, "ADDPD xmm1,xmm2,xmm3/m128");
+
+			table.Add(new OpcodeEncoding.Builder
+			{
+				VexType = VexType.Vex,
+				VectorSize = SseVectorSize._128Bits,
+				SimdPrefix = SimdPrefix._66,
+				Map = OpcodeMap.Escape0F,
+				MainByte = 0x58,
+				ModRM = ModRMEncoding.Any
+			}, "ADDPD xmm1,xmm2,xmm3/m128");
 
 			var modRM = ModRMEnum.FromComponents(3, 1, 2);
 			var vex = Vex3Xop.Header_Vex3
@@ -249,9 +399,21 @@ namespace Asmuth.X86
 		public void TestImm8ExtAmbiguity()
 		{
 			var table = new OpcodeEncodingTable<string>();
-			var flags = OEF.SimdPrefix_None | OEF.Map_0F | OEF.ModRM_Present | OEF.Imm8Ext_Fixed | OEF.ImmediateSize_8;
-			table.Add(flags, 0xC2, default(ModRM), 0x00, "cmpeqps");
-			table.Add(flags, 0xC2, default(ModRM), 0x01, "cmpltps");
+
+			var builder = new OpcodeEncoding.Builder
+			{
+				SimdPrefix = SimdPrefix.None,
+				Map = OpcodeMap.Escape0F,
+				MainByte = 0xC2,
+				ModRM = ModRMEncoding.Any,
+				ImmediateSizeInBytes = 1
+			};
+
+			builder.Imm8Ext = 0x00;
+			table.Add(builder, "cmpeqps");
+
+			builder.Imm8Ext = 0x01;
+			table.Add(builder, "cmpltps");
 
 			Assert.AreEqual("cmpeqps", DecodeSingleForTag_32Bits(table, 0x0F, 0xC2, 0x00, 0x00));
 			Assert.AreEqual("cmpltps", DecodeSingleForTag_32Bits(table, 0x0F, 0xC2, 0x00, 0x01));
