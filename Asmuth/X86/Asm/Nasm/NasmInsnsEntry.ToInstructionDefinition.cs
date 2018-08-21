@@ -60,13 +60,13 @@ namespace Asmuth.X86.Asm.Nasm
 		public static OpcodeEncoding ToOpcodeEncoding(
 			IEnumerable<NasmEncodingToken> encodingTokens,
 			VexEncoding? vexEncoding, bool? longMode,
-			NasmOperandType? baseRegOperandType = null)
+			NasmOperandType? rmOperandType = null)
 		{
 			if (encodingTokens == null) throw new ArgumentNullException(nameof(encodingTokens));
 			
 			var parser = new EncodingParser(longMode);
 			return parser.Parse(encodingTokens, vexEncoding.GetValueOrDefault(),
-				baseRegOperandType.GetValueOrDefault(NasmOperandType.OpType_RegisterOrMemory));
+				rmOperandType.GetValueOrDefault(NasmOperandType.OpType_RegisterOrMemory));
 		}
 
 		private struct EncodingParser

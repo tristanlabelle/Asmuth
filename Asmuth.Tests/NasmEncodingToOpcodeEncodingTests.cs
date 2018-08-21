@@ -33,12 +33,17 @@ namespace Asmuth.X86.Asm.Nasm
 		{
 			AssertEncoding("00 /r", new OpcodeEncoding.Builder
 			{
-				MainByte = 0x10,
+				MainByte = 0x00,
 				ModRM = ModRMEncoding.Any
 			}); // ADD r/m8, r8
 
-			// TODO: mem only vs any mod rm
-			AssertEncoding("d8 /0", new OpcodeEncoding.Builder
+			AssertEncoding("f6 /3", NasmOperandType.RM8, new OpcodeEncoding.Builder
+			{
+				MainByte = 0xF6,
+				ModRM = ModRMEncoding.FromFixedRegAnyRM(3)
+			}); // NEG r/m8
+
+			AssertEncoding("d8 /0", NasmOperandType.Mem32, new OpcodeEncoding.Builder
 			{
 				MainByte = 0xD8,
 				ModRM = ModRMEncoding.FromFixedRegMemRM(0)
@@ -184,7 +189,7 @@ namespace Asmuth.X86.Asm.Nasm
 			{
 				VexType = VexType.Vex,
 				VectorSize = SseVectorSize._256Bits,
-				SimdPrefix = SimdPrefix.None,
+				SimdPrefix = SimdPrefix._66,
 				RexW = true,
 				Map = OpcodeMap.Escape0F38,
 				MainByte = 0x98,
@@ -192,13 +197,17 @@ namespace Asmuth.X86.Asm.Nasm
 			}); // VFMADD132PD
 		}
 
-		private static void AssertEncoding(string nasmEncodingStr, OpcodeEncoding expectedEncoding)
+		private static void AssertEncoding(string nasmEncodingStr,
+			NasmOperandType? rmOperandType, OpcodeEncoding expectedEncoding)
 		{
 			var nasmEncodingTokens = NasmInsns.ParseEncoding(
 				nasmEncodingStr, out VexEncoding? vexEncoding);
 
-			var actualEncoding = NasmInsnsEntry.ToOpcodeEncoding(nasmEncodingTokens, vexEncoding, longMode: null);
+			var actualEncoding = NasmInsnsEntry.ToOpcodeEncoding(nasmEncodingTokens, vexEncoding, longMode: null, rmOperandType);
 			Assert.AreEqual(SetComparisonResult.Equal, OpcodeEncoding.Compare(actualEncoding, expectedEncoding));
 		}
+
+		private static void AssertEncoding(string nasmEncodingStr, OpcodeEncoding expectedEncoding)
+			=> AssertEncoding(nasmEncodingStr, null, expectedEncoding);
 	}
 }

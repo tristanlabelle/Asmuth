@@ -162,9 +162,8 @@ namespace Asmuth.X86
 			// Handle fixed vs direct
 			if (!lhs.FixedRM.HasValue && rhs.FixedRM.HasValue) return SetComparisonResult.SupersetSubset;
 			if (lhs.FixedRM.HasValue && !rhs.FixedRM.HasValue) return SetComparisonResult.SubsetSuperset;
-
-			Debug.Assert(lhs.FixedRM == rhs.FixedRM);
-			return lhs.FixedRM.Value == rhs.FixedRM.Value
+			
+			return lhs.FixedRM == rhs.FixedRM
 				? SetComparisonResult.Equal : SetComparisonResult.Disjoint;
 		}
 

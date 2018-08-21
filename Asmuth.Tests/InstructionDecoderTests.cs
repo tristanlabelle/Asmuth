@@ -243,17 +243,17 @@ namespace Asmuth.X86
 			}, "mov rax,moffs64");
 
 			// In different code segment types
-			Assert.AreEqual(2, DecodeSingle_16Bits(table, 0xC7, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
-			Assert.AreEqual(4, DecodeSingle_32Bits(table, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
-			Assert.AreEqual(8, DecodeSingle_64Bits(table, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(2, DecodeSingle_16Bits(table, 0xC7, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(4, DecodeSingle_32Bits(table, 0xC7, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(8, DecodeSingle_64Bits(table, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
 
 			// With address size override
-			Assert.AreEqual(4, DecodeSingle_16Bits(table, 0x67, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
-			Assert.AreEqual(2, DecodeSingle_32Bits(table, 0x67, 0xC7, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
-			Assert.AreEqual(4, DecodeSingle_64Bits(table, 0x67, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(4, DecodeSingle_16Bits(table, 0x67, 0xC7, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(2, DecodeSingle_32Bits(table, 0x67, 0xC7, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(4, DecodeSingle_64Bits(table, 0x67, 0xC7, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
 
 			// With operand size override (no impact)
-			Assert.AreEqual(4, DecodeSingle_32Bits(table, 0x66, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(4, DecodeSingle_32Bits(table, 0x66, 0xC7, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
 		}
 
 		[TestMethod]
