@@ -213,7 +213,7 @@ namespace Asmuth.X86.Asm.Nasm
 						break;
 
 					case NasmEncodingTokenType.ModRM_FixedReg:
-						if (!upToOpcode && (!instruction.ModRM.HasValue || instruction.ModRM.Value.GetReg() != token.Byte)) return false;
+						if (!upToOpcode && (!instruction.ModRM.HasValue || instruction.ModRM.Value.Reg != token.Byte)) return false;
 						hasModRM = true;
 						state = NasmEncodingParsingState.PostModRM;
 						break;
@@ -268,7 +268,7 @@ namespace Asmuth.X86.Asm.Nasm
 				if (operand.Field == OperandField.BaseReg)
 				{
 					var optype = operand.Type & NasmOperandType.OpType_Mask;
-					var isReg = !instruction.ModRM.HasValue || (instruction.ModRM.Value & ModRM.Mod_Mask) == ModRM.Mod_Direct;
+					var isReg = !instruction.ModRM.HasValue || instruction.ModRM.Value.IsDirect;
 					if (optype == NasmOperandType.OpType_Register && !isReg) return false;
 					if (optype == NasmOperandType.OpType_Memory && isReg) return false;
 				}

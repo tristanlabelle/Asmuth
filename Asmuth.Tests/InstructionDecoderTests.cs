@@ -82,7 +82,7 @@ namespace Asmuth.X86
 		public void TestSib()
 		{
 			AssertModRMSibRoundTrip(
-				ModRM.Mod_Indirect | ModRM.Reg_3 | ModRM.RM_Sib,
+				ModRM.WithSib(ModRMMod.Indirect, reg: 3),
 				Sib.Base_A | Sib.Index_A | Sib.Scale_1);
 		}
 
@@ -123,12 +123,16 @@ namespace Asmuth.X86
 			var table = new OpcodeEncodingTable<string>();
 			table.Add(Nop_RM, "nop");
 
-			// TODO: Test 16 bits too
-			Assert.AreEqual(DisplacementSize.None, DecodeSingle_32Bits(table, 0x0F, 0x1F, (byte)ModRM.Mod_Direct).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._8Bits, DecodeSingle_32Bits(table, 0x0F, 0x1F, (byte)ModRM.Mod_IndirectDisplacement8, 0x00).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._16Bits, DecodeSingle_32Bits(table, 0x67, 0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._32Bits, DecodeSingle_32Bits(table, 0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._32Bits, DecodeSingle_64Bits(table, 0x0F, 0x1F, (byte)ModRM.Mod_IndirectLongDisplacement, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
+			var directModRM = new ModRM(ModRMMod.Direct, (byte)0, 0);
+			var indirectDisp8ModRM = new ModRM(ModRMMod.IndirectDisp8, (byte)0, 0);
+			var indirectLongDispModRM = new ModRM(ModRMMod.IndirectLongDisp, (byte)0, 0);
+			Assert.AreEqual(DisplacementSize.None, DecodeSingle_32Bits(table, 0x0F, 0x1F, directModRM).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._8Bits, DecodeSingle_32Bits(table, 0x0F, 0x1F, indirectDisp8ModRM, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._32Bits, DecodeSingle_32Bits(table, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._16Bits, DecodeSingle_32Bits(table, 0x67, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._16Bits, DecodeSingle_16Bits(table, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._32Bits, DecodeSingle_16Bits(table, 0x67, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize._32Bits, DecodeSingle_64Bits(table, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
 		}
 
 		[TestMethod]
@@ -353,8 +357,8 @@ namespace Asmuth.X86
 				ModRM = ModRMEncoding.Any
 			}, "ADDPD xmm1,xmm2/m128");
 			
-			var modRM = ModRMEnum.FromComponents(3, 1, 2);
-			var instruction = DecodeSingle_32Bits(table, 0x66, 0x0F, 0x58, (byte)modRM);
+			var modRM = ModRM.WithDirectRM(1, 2);
+			var instruction = DecodeSingle_32Bits(table, 0x66, 0x0F, 0x58, modRM);
 			Assert.AreEqual(SimdPrefix._66, instruction.PotentialSimdPrefix);
 			Assert.AreEqual(XexType.Escapes, instruction.Xex.Type);
 			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
@@ -377,7 +381,7 @@ namespace Asmuth.X86
 				ModRM = ModRMEncoding.Any
 			}, "ADDPD xmm1,xmm2,xmm3/m128");
 
-			var modRM = ModRMEnum.FromComponents(3, 1, 2);
+			var modRM = ModRM.WithDirectRM(1, 2);
 			var vex = Vex3Xop.Header_Vex3
 				| Vex3Xop.NoRegExtensions | Vex3Xop.NotNonDestructiveReg_Unused
 				| Vex3Xop.SimdPrefix_66 | Vex3Xop.OpcodeMap_0F;
@@ -419,7 +423,7 @@ namespace Asmuth.X86
 			Assert.AreEqual("cmpltps", DecodeSingleForTag_32Bits(table, 0x0F, 0xC2, 0x00, 0x01));
 		}
 
-		private static byte ModRM_Reg(byte reg) => (byte)ModRMEnum.FromComponents(mod: 3, reg: reg, rm: 0);
+		private static byte ModRM_Reg(byte reg) => ModRM.WithDirectRM(reg, 0);
 
 		private static Instruction[] Decode(IInstructionDecoderLookup lookup,
 			CodeSegmentType codeSegmentType, params byte[] bytes)

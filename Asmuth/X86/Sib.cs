@@ -60,8 +60,8 @@ namespace Asmuth.X86
 
 		public static GprCode? GetBaseReg(this Sib sib, ModRM modRM)
 		{
-			if ((sib & Sib.Base_Mask) == Sib.Base_Special && modRM.GetMod() == 0)
-				return null;
+			if ((sib & Sib.Base_Mask) == Sib.Base_Special && modRM.Mod == ModRMMod.Indirect)
+				return null; // No base
 			return (GprCode)GetBase(sib);
 		}
 

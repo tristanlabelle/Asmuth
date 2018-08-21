@@ -73,7 +73,7 @@ namespace Asmuth.X86
 		public OpcodeMap OpcodeMap => xex.OpcodeMap;
 		public byte MainOpcodeByte => mainOpcodeByte;
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;
-		public bool HasMemoryRM => ModRM.HasValue && ModRM.Value.IsMemoryRM();
+		public bool HasMemoryRM => ModRM.HasValue && ModRM.Value.IsMemoryRM;
 
 		public SimdPrefix PotentialSimdPrefix
 		{
@@ -103,7 +103,7 @@ namespace Asmuth.X86
 			get
 			{
 				if ((flags & Flags.HasModRM) == 0) return 0;
-				return modRM.GetDisplacementSize(sib, EffectiveAddressSize);
+				return modRM.GetDisplacementSize(EffectiveAddressSize, sib);
 			}
 		}
 
@@ -123,7 +123,7 @@ namespace Asmuth.X86
 					size++;
 					var addressSize = EffectiveAddressSize;
 					if (modRM.ImpliesSib(addressSize)) size++;
-					size += modRM.GetDisplacementSize(sib, addressSize).InBytes();
+					size += modRM.GetDisplacementSize(addressSize, sib).InBytes();
 				}
 
 				size += ImmediateSizeInBytes;

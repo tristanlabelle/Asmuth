@@ -337,7 +337,7 @@ namespace Asmuth.X86
 
 		public static EffectiveAddress FromEncoding(CodeSegmentType codeSegmentType, Encoding encoding)
 		{
-			if ((encoding.ModRM & ModRM.Mod_Mask) == ModRM.Mod_Direct)
+			if (encoding.ModRM.IsDirect)
 				throw new ArgumentException("ModRM does not encode a memory operand.");
 
 			if ((encoding.BaseRegExtension || encoding.IndexRegExtension) && codeSegmentType != CodeSegmentType._64Bits)
@@ -350,28 +350,29 @@ namespace Asmuth.X86
 			{
 				if ((short)encoding.Displacement != encoding.Displacement)
 					throw new ArgumentException("Displacement too big for 16-bit effective address.");
-				if (encoding.ModRM.GetMod() == 0 && encoding.ModRM.GetRM() == 6)
+				if (encoding.ModRM.IsAbsoluteRM_16)
 					return Absolute(addressSize, encoding.Displacement);
 
-				int displacementSize = encoding.ModRM.GetMod();
+				int displacementSize = (int)encoding.ModRM.Mod;
 				Debug.Assert(displacementSize != 0 || encoding.Displacement == 0);
 				Debug.Assert(displacementSize != 1 || unchecked((sbyte)encoding.Displacement) == encoding.Displacement);
 				return FromIndirect16Encoding(encoding.SegmentOverride,
-					encoding.ModRM.GetRM(), (short)encoding.Displacement);
+					encoding.ModRM.RM, (short)encoding.Displacement);
 			}
 			else
 			{
-				if (encoding.ModRM.GetMod() == 0 && encoding.ModRM.GetRM() == 5)
+				if (encoding.ModRM.IsAbsoluteRM_32)
 				{
+					// Absolute in 32 bits, rip-relative in 64 bits
 					return codeSegmentType.IsLongMode()
 						? RipRelative(addressSize, encoding.SegmentOverride, encoding.Displacement)
 						: Absolute(addressSize, encoding.Displacement);
 				}
 
-				var displacementSize = encoding.ModRM.GetDisplacementSize(encoding.Sib.GetValueOrDefault(), addressSize);
+				var displacementSize = encoding.ModRM.GetDisplacementSize(addressSize, encoding.Sib.GetValueOrDefault());
 				Debug.Assert(displacementSize.CanEncodeValue(encoding.Displacement));
 
-				GprCode? baseReg = (GprCode)encoding.ModRM.GetRM();
+				GprCode? baseReg = encoding.ModRM.RMGpr;
 
 				if (baseReg != GprCode.Esp)
 				{
@@ -541,12 +542,12 @@ namespace Asmuth.X86
 
 			if (AddressSize == AddressSize._16Bits) throw new NotImplementedException();
 
-			byte mod;
+			ModRMMod mod;
 			switch (displacementSize)
 			{
-				case DisplacementSize.None: mod = 0; break;
-				case DisplacementSize._8Bits: mod = 1; break;
-				default: mod = 2; break;
+				case DisplacementSize.None: mod = ModRMMod.Indirect; break;
+				case DisplacementSize._8Bits: mod = ModRMMod.IndirectDisp8; break;
+				default: mod = ModRMMod.IndirectLongDisp; break;
 			}
 
 			var @base = Base;
@@ -567,7 +568,7 @@ namespace Asmuth.X86
 			{
 				if (@base == AddressBaseRegister.BP) throw new NotImplementedException();
 
-				modRM = ModRMEnum.FromComponents(mod, modReg, 0) | ModRM.RM_Sib;
+				modRM = ModRM.WithSib(mod, modReg);
 				sib = SibEnum.FromComponents(
 					ss: (byte)((int)(flags & Flags.Scale_Mask) >> (int)Flags.Scale_Shift),
 					index: (IndexAsGprCode ?? GprCode.SP).GetLow3Bits(),
@@ -575,7 +576,7 @@ namespace Asmuth.X86
 			}
 			else
 			{
-				modRM = ModRMEnum.FromComponents(mod, modReg, (byte)((byte)@base.Value & 0x7));
+				modRM = new ModRM(mod, modReg, (byte)((byte)@base.Value & 0x7));
 			}
 
 			var encodingFlags = EncodingFlags.None;

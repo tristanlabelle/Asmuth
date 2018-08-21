@@ -426,7 +426,7 @@ namespace Asmuth.X86
 			if (!builder.ModRM.HasValue) return 0;
 
 			return builder.ModRM.Value.GetDisplacementSize(
-				builder.Sib.GetValueOrDefault(), GetEffectiveAddressSize());
+				GetEffectiveAddressSize(), builder.Sib.GetValueOrDefault());
 		}
 
 		#region AdvanceTo***

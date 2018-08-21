@@ -97,7 +97,7 @@ namespace Asmuth.X86
 						{
 							// Unary group 3: TEST/???/NOT/NEG/MUL/IMUL/DIV/IDIV
 							if (!modRM.HasValue) return null;
-							byte modReg = modRM.Value.GetReg();
+							byte modReg = modRM.Value.Reg;
 							if (modReg == 1) throw new NotSupportedException();
 							if (modReg > 1) return ImmediateSize.Zero;
 							return mainByte == 0xF6 ? ImmediateSize.Fixed8 : ImmediateSize.Operand16Or32;

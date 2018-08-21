@@ -231,7 +231,7 @@ namespace Asmuth.X86.Asm.Nasm
 							if (state < State.PostModRM)
 							{
 								SetModRM(ModRMEncoding.FromFixedRegDirectRM(
-									reg: ((ModRM)token.Byte).GetReg()));
+									reg: ((ModRM)token.Byte).Reg));
 								break;
 							}
 

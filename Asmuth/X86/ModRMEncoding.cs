@@ -65,9 +65,9 @@ namespace Asmuth.X86
 
 		public bool IsValid(ModRM modRM)
 		{
-			if (RegNibble != 2 && modRM.GetReg() != (RegNibble - 3)) return false;
-			if (modRM.GetMod() == 0b11 ? RMNibble == 2 : DirectMod) return false;
-			return RMNibble < 4 || (modRM.GetRM() == RMNibble - 4);
+			if (RegNibble != 2 && modRM.Reg != (RegNibble - 3)) return false;
+			if (modRM.IsDirect ? RMNibble == 2 : DirectMod) return false;
+			return RMNibble < 4 || (modRM.RM == RMNibble - 4);
 		}
 
 		public bool IsValid(ModRM? modRM)
@@ -87,8 +87,8 @@ namespace Asmuth.X86
 			
 			if (Reg.HasValue && DirectMod)
 			{
-				var value = (byte)ModRMEnum.FromComponents(
-					mod: 3, reg: Reg.Value, rm: FixedRM.GetValueOrDefault());
+				var value = (byte)new ModRM(
+					mod: ModRMMod.Direct, reg: Reg.Value, rm: FixedRM.GetValueOrDefault());
 				var str = value.ToString("x2", CultureInfo.InvariantCulture);
 				if (AllowsOnlyRegRM) str += "+r";
 				return str;
@@ -122,12 +122,10 @@ namespace Asmuth.X86
 
 		public static ModRMEncoding FromFixedValue(ModRM value)
 		{
-			if (value.GetMod() != 0b11) throw new ArgumentOutOfRangeException(nameof(value));
+			if (value.IsIndirect) throw new ArgumentOutOfRangeException(nameof(value));
 			return new ModRMEncoding(
-				(byte)(((value.GetRM() + 4) << 4) | (value.GetReg() + 3)));
+				(byte)(((value.RM + 4) << 4) | (value.Reg + 3)));
 		}
-
-		public static ModRMEncoding FromFixedValue(byte value) => FromFixedValue((ModRM)value);
 
 		public static SetComparisonResult Compare(ModRMEncoding lhs, ModRMEncoding rhs)
 		{

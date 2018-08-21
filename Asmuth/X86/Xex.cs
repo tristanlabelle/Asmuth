@@ -54,22 +54,22 @@ namespace Asmuth.X86
 			switch (first)
 			{
 				case (byte)Vex2.FirstByte:
-					if (codeSegmentType.IsIA32() && second.HasValue && secondRM.IsMemoryRM())
+					if (codeSegmentType.IsIA32() && second.HasValue && secondRM.IsMemoryRM)
 						return XexType.Escapes; // This is no VEX2, it's an LDS (C5 /r)
 					return XexType.Vex2;
 
 				case (byte)Vex3Xop.FirstByte_Vex3:
-					if (codeSegmentType.IsIA32() && second.HasValue && secondRM.IsMemoryRM())
+					if (codeSegmentType.IsIA32() && second.HasValue && secondRM.IsMemoryRM)
 						return XexType.Escapes; // This is no VEX3, it's an LES (C4 /r)
 					return XexType.Vex3;
 
 				case (byte)Vex3Xop.FirstByte_Xop:
-					if (second.HasValue && secondRM.GetReg() == 0)
+					if (second.HasValue && secondRM.Reg == 0)
 						return XexType.Escapes; // This is no XOP, it's a POP (8F /0)
 					return XexType.Xop;
 
 				case (byte)EVex.FirstByte:
-					if (codeSegmentType.IsIA32() && second.HasValue && secondRM.IsMemoryRM())
+					if (codeSegmentType.IsIA32() && second.HasValue && secondRM.IsMemoryRM)
 						return XexType.Escapes; // This is no EVEX, it's a BOUND (62 /r)
 					return XexType.EVex;
 
