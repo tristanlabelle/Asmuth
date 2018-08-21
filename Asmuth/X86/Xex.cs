@@ -74,7 +74,7 @@ namespace Asmuth.X86
 					return XexType.EVex;
 
 				default:
-					if (codeSegmentType.IsLongMode() && (first & 0xF0) == (byte)Rex.HighNibble)
+					if (codeSegmentType.IsLongMode() && Rex.Test(first))
 						return XexType.RexAndEscapes;
 					return XexType.Escapes;
 			}
@@ -163,10 +163,10 @@ namespace Asmuth.X86
 		{
 			if (!escapes.IsEncodableAsEscapeBytes()) throw new ArgumentException();
 			flags = BaseFlags(XexType.Escapes, X86.SimdPrefix.None, escapes);
-			if ((rex & Rex.OperandSize64) != 0) flags |= Flags.OperandSize64;
-			if ((rex & Rex.ModRegExtension) != 0) flags |= Flags.ModRegExtension;
-			if ((rex & Rex.BaseRegExtension) != 0) flags |= Flags.BaseRegExtension;
-			if ((rex & Rex.IndexRegExtension) != 0) flags |= Flags.IndexRegExtension;
+			if (rex.OperandSize64) flags |= Flags.OperandSize64;
+			if (rex.ModRegExtension) flags |= Flags.ModRegExtension;
+			if (rex.BaseRegExtension) flags |= Flags.BaseRegExtension;
+			if (rex.IndexRegExtension) flags |= Flags.IndexRegExtension;
 		}
 
 		public Xex(Vex2 vex2)
@@ -260,11 +260,12 @@ namespace Asmuth.X86
 		public Rex GetRex()
 		{
 			if (Type != XexType.RexAndEscapes) throw new InvalidOperationException();
-			Rex rex = Rex.Reserved_Value;
-			if (OperandSize64) rex |= Rex.OperandSize64;
-			if (ModRegExtension) rex |= Rex.ModRegExtension;
-			if (BaseRegExtension) rex |= Rex.BaseRegExtension;
-			if (IndexRegExtension) rex |= Rex.IndexRegExtension;
+
+			byte rex = Rex.ReservedValue;
+			if (OperandSize64) rex |= Rex.WBit;
+			if (ModRegExtension) rex |= Rex.RBit;
+			if (BaseRegExtension) rex |= Rex.RBit;
+			if (IndexRegExtension) rex |= Rex.XBit;
 			return rex;
 		}
 

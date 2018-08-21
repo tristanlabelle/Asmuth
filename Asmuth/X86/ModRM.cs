@@ -80,8 +80,7 @@ namespace Asmuth.X86
 			if (RM == 5) return DisplacementSize._32Bits;
 
 			// 32-bit mode, mod = 0, RM = 6 (sib byte)
-			return (sib & Sib.Base_Mask) == Sib.Base_Special
-				? DisplacementSize._32Bits : DisplacementSize.None;
+			return sib.IsSpecialBase ? DisplacementSize._32Bits : DisplacementSize.None;
 		}
 
 		public bool Equals(ModRM other) => Value == other.Value;

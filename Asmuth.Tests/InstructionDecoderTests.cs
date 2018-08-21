@@ -83,7 +83,7 @@ namespace Asmuth.X86
 		{
 			AssertModRMSibRoundTrip(
 				ModRM.WithSib(ModRMMod.Indirect, reg: 3),
-				Sib.Base_A | Sib.Index_A | Sib.Scale_1);
+				new Sib(SibScale._1, GprCode.A, GprCode.A));
 		}
 
 		private static void AssertModRMSibRoundTrip(ModRM modRM, Sib sib)

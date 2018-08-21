@@ -118,7 +118,7 @@ namespace Asmuth.X86
 		{
 			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._64Bits, new EffectiveAddress.Encoding(
 				ModRM.WithSib(ModRMMod.Indirect, reg: 0),
-				Sib.Base_B | Sib.Scale_1 | Sib.Index_Zero));
+				new Sib(SibScale._1, index: null, @base: GprCode.B)));
 
 			Assert.AreEqual(AddressSize._64Bits, effectiveAddress.AddressSize);
 			Assert.AreEqual(AddressBaseRegister.B, effectiveAddress.Base);
@@ -131,7 +131,7 @@ namespace Asmuth.X86
 			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType._64Bits, new EffectiveAddress.Encoding(
 				EffectiveAddress.EncodingFlags.BaseRegExtension | EffectiveAddress.EncodingFlags.IndexRegExtension,
 				ModRM.WithSib(ModRMMod.Indirect, reg: 0),
-				Sib.Base_B | Sib.Scale_1 | Sib.Index_C));
+				new Sib(SibScale._1, index: GprCode.C, @base: GprCode.B)));
 
 			Assert.AreEqual(AddressSize._64Bits, effectiveAddress.AddressSize);
 			Assert.AreEqual(AddressBaseRegister.B + 8, effectiveAddress.Base);

@@ -388,11 +388,11 @@ namespace Asmuth.X86
 				baseReg = sib.GetBaseReg(encoding.ModRM);
 				if (baseReg.HasValue && encoding.BaseRegExtension) baseReg += 8;
 
-				var indexReg = sib.GetIndexReg();
+				var indexReg = sib.IndexReg;
 				if (indexReg.HasValue && encoding.IndexRegExtension) indexReg += 8;
 				
 				return Indirect(addressSize, encoding.SegmentOverride,
-					baseReg, indexReg, (byte)sib.GetScale(), encoding.Displacement);
+					baseReg, indexReg, (byte)sib.Scale, encoding.Displacement);
 			}
 		}
 		#endregion
@@ -569,8 +569,8 @@ namespace Asmuth.X86
 				if (@base == AddressBaseRegister.BP) throw new NotImplementedException();
 
 				modRM = ModRM.WithSib(mod, modReg);
-				sib = SibEnum.FromComponents(
-					ss: (byte)((int)(flags & Flags.Scale_Mask) >> (int)Flags.Scale_Shift),
+				sib = new Sib(
+					scale: (SibScale)((int)(flags & Flags.Scale_Mask) >> (int)Flags.Scale_Shift),
 					index: (IndexAsGprCode ?? GprCode.SP).GetLow3Bits(),
 					@base: (BaseAsGprCode ?? GprCode.BP).GetLow3Bits());
 			}

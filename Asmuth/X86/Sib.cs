@@ -1,83 +1,77 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Asmuth.X86
 {
-	[Flags]
-	public enum Sib : byte
+	public enum SibScale : byte
 	{
-		Base_Shift = 0,
-		Base_A = 0 << Base_Shift,
-		Base_C = 1 << Base_Shift,
-		Base_D = 2 << Base_Shift,
-		Base_B = 3 << Base_Shift,
-		Base_SP = 4 << Base_Shift,
-		Base_Special = 5 << Base_Shift, // Either rBP or zero
-		Base_SI = 6 << Base_Shift,
-		Base_DI = 7 << Base_Shift,
-		Base_Mask = 7 << Base_Shift,
-
-		Index_Shift = 3,
-		Index_A = 0 << Index_Shift,
-		Index_C = 1 << Index_Shift,
-		Index_D = 2 << Index_Shift,
-		Index_B = 3 << Index_Shift,
-		Index_Zero = 4 << Index_Shift,
-		Index_BP = 5 << Index_Shift,
-		Index_SI = 6 << Index_Shift,
-		Index_DI = 7 << Index_Shift,
-		Index_Mask = 7 << Index_Shift,
-
-		Scale_Shift = 6,
-		Scale_1 = 0 << Scale_Shift,
-		Scale_2 = 1 << Scale_Shift,
-		Scale_4 = 2 << Scale_Shift,
-		Scale_8 = 3 << Scale_Shift,
-		Scale_Mask = 3 << Scale_Shift,
+		_1,
+		_2,
+		_4,
+		_8
 	}
 
-	public static class SibEnum
+	[StructLayout(LayoutKind.Sequential, Size = sizeof(byte))]
+	public readonly struct Sib : IEquatable<Sib>
 	{
-		public static Sib FromComponents(byte ss, byte index, byte @base)
+		public const byte ZeroIndex = 4;
+		public const byte SpecialBase = 5;
+
+		public readonly byte Value;
+
+		public Sib(byte value) => Value = value;
+
+		public Sib(SibScale scale, byte index, byte @base)
 		{
-			if (ss >= 4) throw new ArgumentOutOfRangeException(nameof(ss));
-			if (index >= 8) throw new ArgumentOutOfRangeException(nameof(index));
-			if (@base >= 8) throw new ArgumentOutOfRangeException(nameof(@base));
-			
-			return (Sib)((ss << (int)Sib.Scale_Shift)
-				| (index << (int)Sib.Index_Shift)
-				| (@base << (int)Sib.Base_Shift));
+			if ((byte)scale > 3) throw new ArgumentOutOfRangeException(nameof(scale));
+			if (index > 7) throw new ArgumentOutOfRangeException(nameof(index));
+			if (@base > 7) throw new ArgumentOutOfRangeException(nameof(@base));
+			Value = (byte)(((byte)scale << 6) | (index << 3) | @base);
 		}
 
-		public static string ToDebugString(this Sib sib)
-			=> $"ss = {GetSS(sib)}, index = {GetIndex(sib)}, base = {GetBase(sib)}";
-
-		public static byte GetBase(this Sib sib)
-			=> (byte)((uint)(sib & Sib.Base_Mask) >> (int)Sib.Base_Shift);
-
-		public static GprCode? GetBaseReg(this Sib sib, ModRM modRM)
+		public Sib(SibScale scale, GprCode? index, GprCode? @base)
 		{
-			if ((sib & Sib.Base_Mask) == Sib.Base_Special && modRM.Mod == ModRMMod.Indirect)
+			if ((byte)scale > 3) throw new ArgumentOutOfRangeException(nameof(scale));
+			if (index == (GprCode)ZeroIndex) throw new ArgumentException();
+			if (index > (GprCode)7) throw new ArgumentOutOfRangeException(nameof(index));
+			if (@base == (GprCode)SpecialBase) throw new ArgumentException();
+			if (@base > (GprCode)7) throw new ArgumentOutOfRangeException(nameof(@base));
+			Value = (byte)(((byte)scale << 6)
+				| ((byte)index.GetValueOrDefault((GprCode)ZeroIndex) << 3)
+				| (byte)@base.GetValueOrDefault((GprCode)SpecialBase));
+		}
+
+		public SibScale Scale => (SibScale)(Value >> 6);
+		public byte Index => (byte)((Value >> 3) & 7);
+		public byte Base => (byte)(Value & 7);
+
+		public bool IsSpecialBase => Base == SpecialBase;
+		public bool IsZeroIndex => Index == ZeroIndex;
+		public GprCode? IndexReg => Index == ZeroIndex ? null : (GprCode?)Index;
+		public bool IsIndexed => Index != ZeroIndex;
+
+		public GprCode? GetBaseReg(ModRM modRM)
+		{
+			if (Base == SpecialBase && modRM.Mod == ModRMMod.Indirect)
 				return null; // No base
-			return (GprCode)GetBase(sib);
+			return (GprCode)Base;
 		}
 
-		public static byte GetIndex(this Sib sib)
-			=> (byte)((uint)(sib & Sib.Index_Mask) >> (int)Sib.Index_Shift);
+		public bool Equals(Sib other) => Value == other.Value;
+		public override bool Equals(object obj) => obj is Sib && Equals((Sib)obj);
+		public override int GetHashCode() => Value;
+		public static bool Equals(Sib lhs, Sib rhs) => lhs.Equals(rhs);
+		public static bool operator ==(Sib lhs, Sib rhs) => Equals(lhs, rhs);
+		public static bool operator !=(Sib lhs, Sib rhs) => !Equals(lhs, rhs);
 
-		public static GprCode? GetIndexReg(this Sib sib)
-		{
-			if ((sib & Sib.Index_Mask) == Sib.Index_Zero) return null;
-			return (GprCode)GetIndex(sib);
-		}
-
-		public static byte GetSS(this Sib sib)
-			=> (byte)((uint)(sib & Sib.Scale_Mask) >> (int)Sib.Scale_Shift);
-
-		public static byte GetScale(this Sib sib)
-			=> (byte)(1 >> GetSS(sib));
+		public override string ToString()
+			=> new string(new char[] { (char)('0' + (byte)Scale), ':', (char)('0' + Index), ':', (char)('0' + Base) });
+		
+		public static implicit operator byte(Sib sib) => sib.Value;
+		public static implicit operator Sib(byte value) => new Sib(value);
 	}
 }

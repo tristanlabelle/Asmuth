@@ -75,10 +75,7 @@ namespace Asmuth.X86
 				default: throw new ArgumentOutOfRangeException(nameof(map));
 			}
 		}
-
-		private void Write(Rex rex) => Write((byte)((rex & ~Rex.Reserved_Mask) | Rex.Reserved_Value));
-		private void Write(ModRM modRM) => Write((byte)modRM);
-		private void Write(Sib sib) => Write((byte)sib);
+		
 		private void Write(sbyte value) => Write(unchecked((byte)value));
 
 		private void Write(short value)
@@ -105,11 +102,11 @@ namespace Asmuth.X86
 			}
 
 			// Rex
-			Rex? rex = null;
+			byte rex = Rex.ReservedValue;
 			if (reg.Size == IntegerSize.Qword)
 			{
 				if (!codeSegmentType.IsLongMode()) throw new ArgumentException("reg");
-				rex = rex.GetValueOrDefault() | Rex.OperandSize64;
+				rex |= Rex.WBit;
 			}
 			else if (reg.Size == IntegerSize.Byte)
 			{
@@ -117,10 +114,10 @@ namespace Asmuth.X86
 				throw new NotImplementedException();
 			}
 
-			if (reg.Code >= GprCode.R8) rex = rex.GetValueOrDefault() | Rex.ModRegExtension;
-			if (effectiveAddress.BaseAsGprCode >= GprCode.R8) rex = rex.GetValueOrDefault() | Rex.BaseRegExtension;
-			if (effectiveAddress.IndexAsGprCode >= GprCode.R8) rex = rex.GetValueOrDefault() | Rex.IndexRegExtension;
-			if (rex.HasValue) Write(rex.Value);
+			if (reg.Code >= GprCode.R8) rex |= Rex.RBit;
+			if (effectiveAddress.BaseAsGprCode >= GprCode.R8) rex |= Rex.BBit;
+			if (effectiveAddress.IndexAsGprCode >= GprCode.R8) rex |= Rex.XBit;
+			if (rex != Rex.ReservedValue) Write(rex);
 		} 
 		#endregion
 	}
