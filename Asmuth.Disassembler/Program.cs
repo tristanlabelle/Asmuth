@@ -24,9 +24,18 @@ namespace Asmuth.Disassembler
 			{
 				if (!insnsEntry.CanConvertToOpcodeEncoding) continue;
 
-				var instructionDefinition = insnsEntry.ToInstructionDefinition();
-				Console.WriteLine(instructionDefinition.ToString());
-				instructionDictionary.Add(instructionDefinition.Encoding, instructionDefinition);
+				try
+				{
+					var instructionDefinition = insnsEntry.ToInstructionDefinition();
+					Console.WriteLine(instructionDefinition.ToString());
+					instructionDictionary.Add(instructionDefinition.Encoding, instructionDefinition);
+				}
+				catch (Exception e)
+				{
+					Console.ForegroundColor = ConsoleColor.Red;
+					Console.WriteLine(insnsEntry.ToString() + " - " + e.Message);
+					Console.ResetColor();
+				}
 			}
 
 			var filePath = Path.GetFullPath(args[1]);
