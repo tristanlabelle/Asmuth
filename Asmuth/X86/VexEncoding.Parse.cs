@@ -93,6 +93,7 @@ namespace Asmuth.X86
 			{
 				case "0f": return OpcodeMap.Escape0F;
 				case "0f38": return OpcodeMap.Escape0F38;
+				case "0f3a": return OpcodeMap.Escape0F38;
 				case "m3": return OpcodeMap.Escape0F3A;
 				case "m8": return OpcodeMap.Xop8;
 				case "m9": return OpcodeMap.Xop9;
