@@ -225,11 +225,9 @@ namespace Asmuth.X86
 		}
 
 		public static EffectiveAddress Indirect(
-			AddressSize addressSize, SegmentRegister? segment, 
-			AddressBaseRegister? @base, GprCode? index = null, byte scale = 1, int displacement = 0)
+			AddressSize addressSize, SegmentRegister? segment, AddressBaseRegister? @base,
+			GprCode? index = null, SibScale scale = SibScale._1, int displacement = 0)
 		{
-			if (scale != 1 && scale != 2 && scale != 4 && scale != 8 && (scale != 0 || !index.HasValue))
-				throw new ArgumentOutOfRangeException(nameof(scale));
 			if (@base == AddressBaseRegister.Rip && (addressSize == AddressSize._16Bits || index.HasValue))
 				throw new ArgumentException("IP-relative addressing is incompatible with 16-bit addresses or indexed forms.");
 			if (addressSize == AddressSize._16Bits)
@@ -278,21 +276,21 @@ namespace Asmuth.X86
 				else flags |= (Flags)((int)index.Value << (int)Flags.IndexReg_Shift);
 			}
 
-			if (scale == 2) flags |= Flags.Scale_2x;
-			else if (scale == 4) flags |= Flags.Scale_4x;
-			else if (scale == 8) flags |= Flags.Scale_8x;
+			if (scale == SibScale._2) flags |= Flags.Scale_2x;
+			else if (scale == SibScale._4) flags |= Flags.Scale_4x;
+			else if (scale == SibScale._8) flags |= Flags.Scale_8x;
 			return new EffectiveAddress(flags, displacement);
 		}
 
 		public static EffectiveAddress Indirect(
-			AddressSize addressSize, SegmentRegister? segment,
-			GprCode? @base, GprCode? index = null, byte scale = 1, int displacement = 0)
+			AddressSize addressSize, SegmentRegister? segment, GprCode? @base,
+			GprCode? index = null, SibScale scale = SibScale._1, int displacement = 0)
 			=> Indirect(addressSize, segment, (AddressBaseRegister?)@base, index, scale, displacement);
 
 		public static EffectiveAddress Indirect(
 			AddressSize addressSize, SegmentRegister? segment,
 			AddressBaseRegister @base, int displacement = 0)
-			=> Indirect(addressSize, segment, @base, index: null, scale: 1, displacement: displacement);
+			=> Indirect(addressSize, segment, @base, index: null, scale: SibScale._1, displacement: displacement);
 
 		public static EffectiveAddress Indirect(
 			AddressSize addressSize, SegmentRegister? segment,
@@ -311,7 +309,7 @@ namespace Asmuth.X86
 		{
 			if (@base.Size == IntegerSize.Byte)
 				throw new ArgumentException("Byte register cannot be used as indirect bases.", nameof(@base));
-			return Indirect(@base.Size.ToAddressSize(), null, @base.Code, null, 1, displacement);
+			return Indirect(@base.Size.ToAddressSize(), null, @base.Code, null, SibScale._1, displacement);
 		}
 
 		public static EffectiveAddress FromIndirect16Encoding(
@@ -332,7 +330,7 @@ namespace Asmuth.X86
 				default: throw new ArgumentOutOfRangeException(nameof(rm));
 			}
 
-			return Indirect(AddressSize._16Bits, segment, @base, index, 1, displacement);
+			return Indirect(AddressSize._16Bits, segment, @base, index, SibScale._1, displacement);
 		}
 
 		public static EffectiveAddress FromEncoding(CodeSegmentType codeSegmentType, Encoding encoding)
@@ -392,7 +390,7 @@ namespace Asmuth.X86
 				if (indexReg.HasValue && encoding.IndexRegExtension) indexReg += 8;
 				
 				return Indirect(addressSize, encoding.SegmentOverride,
-					baseReg, indexReg, (byte)sib.Scale, encoding.Displacement);
+					baseReg, indexReg, sib.Scale, encoding.Displacement);
 			}
 		}
 		#endregion

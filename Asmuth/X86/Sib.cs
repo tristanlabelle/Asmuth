@@ -15,6 +15,11 @@ namespace Asmuth.X86
 		_8
 	}
 
+	public static class SibScaleEnum
+	{
+		public static int ToInt(this SibScale value) => 1 << (int)value;
+	}
+
 	[StructLayout(LayoutKind.Sequential, Size = sizeof(byte))]
 	public readonly struct Sib : IEquatable<Sib>
 	{
