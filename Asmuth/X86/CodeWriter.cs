@@ -106,7 +106,7 @@ namespace Asmuth.X86
 			if (reg.Size == IntegerSize.Qword)
 			{
 				if (!codeSegmentType.IsLongMode()) throw new ArgumentException("reg");
-				rex |= Rex.WBit;
+				rex |= Rex.OperandSize64Bit;
 			}
 			else if (reg.Size == IntegerSize.Byte)
 			{
@@ -114,9 +114,9 @@ namespace Asmuth.X86
 				throw new NotImplementedException();
 			}
 
-			if (reg.Code >= GprCode.R8) rex |= Rex.RBit;
-			if (effectiveAddress.BaseAsGprCode >= GprCode.R8) rex |= Rex.BBit;
-			if (effectiveAddress.IndexAsGprCode >= GprCode.R8) rex |= Rex.XBit;
+			if (reg.Code >= GprCode.R8) rex |= Rex.ModRegExtensionBit;
+			if (effectiveAddress.BaseAsGprCode >= GprCode.R8) rex |= Rex.BaseRegExtensionBit;
+			if (effectiveAddress.IndexAsGprCode >= GprCode.R8) rex |= Rex.IndexRegExtensionBit;
 			if (rex != Rex.ReservedValue) Write(rex);
 		} 
 		#endregion

@@ -11,10 +11,10 @@ namespace Asmuth.X86
 		public const byte ReservedValue = 0x40;
 		public const byte ReservedMask = 0xF0;
 		public const byte FlagsMask = 0x0F;
-		public const byte BBit = 0b0001;
-		public const byte XBit = 0b0010;
-		public const byte RBit = 0b0100;
-		public const byte WBit = 0b1000;
+		public const byte BaseRegExtensionBit = 0b0001;
+		public const byte IndexRegExtensionBit = 0b0010;
+		public const byte ModRegExtensionBit = 0b0100;
+		public const byte OperandSize64Bit = 0b1000;
 
 		public byte LowNibble { get; }
 
@@ -27,22 +27,17 @@ namespace Asmuth.X86
 		public Rex(bool modRegExt, bool baseRegExt, bool indexRegExt, bool op64)
 		{
 			LowNibble = 0;
-			if (modRegExt) LowNibble |= RBit;
-			if (baseRegExt) LowNibble |= BBit;
-			if (indexRegExt) LowNibble |= XBit;
-			if (op64) LowNibble |= WBit;
+			if (modRegExt) LowNibble |= ModRegExtensionBit;
+			if (baseRegExt) LowNibble |= BaseRegExtensionBit;
+			if (indexRegExt) LowNibble |= IndexRegExtensionBit;
+			if (op64) LowNibble |= OperandSize64Bit;
 		}
 		
 		public byte Value => (byte)(ReservedValue | LowNibble);
-		public bool B => (LowNibble & BBit) != 0;
-		public bool X => (LowNibble & XBit) != 0;
-		public bool R => (LowNibble & RBit) != 0;
-		public bool W => (LowNibble & WBit) != 0;
-
-		public bool BaseRegExtension => B;
-		public bool IndexRegExtension => X;
-		public bool ModRegExtension => R;
-		public bool OperandSize64 => W;
+		public bool BaseRegExtension => (LowNibble & BaseRegExtensionBit) != 0;
+		public bool IndexRegExtension => (LowNibble & IndexRegExtensionBit) != 0;
+		public bool ModRegExtension => (LowNibble & ModRegExtensionBit) != 0;
+		public bool OperandSize64 => (LowNibble & OperandSize64Bit) != 0;
 
 		public bool Equals(Rex other) => LowNibble == other.LowNibble;
 		public override bool Equals(object obj) => obj is Rex && Equals((Rex)obj);
