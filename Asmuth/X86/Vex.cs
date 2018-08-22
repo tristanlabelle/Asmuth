@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Asmuth.X86
@@ -8,34 +9,38 @@ namespace Asmuth.X86
 	{
 		Vex, Xop, EVex
 	}
-	
-	[Flags]
-	public enum Vex2 : ushort
+
+	[StructLayout(LayoutKind.Sequential, Size = sizeof(byte))]
+	public readonly struct Vex2 : IEquatable<Vex2>
 	{
-		ByteCount = 2,
-		FirstByte = 0xC5,
+		public const int SizeInBytes = 2;
+		public const byte FirstByte = 0xC5;
+		public const byte NotModRegExtensionBit = 0b1000_0000;
+		public const byte VectorSize256Bit = 0b0000_0100;
 
-		Reserved_Mask = 0xFF00,
-		Reserved_Value = 0xC500,
+		// RvvvvLpp
+		public readonly byte SecondByte;
 
-		// pp
-		SimdPrefix_Shift = 0,
-		SimdPrefix_None = 0 << SimdPrefix_Shift,
-		SimdPrefix_66 = 1 << SimdPrefix_Shift,
-		SimdPrefix_F3 = 2 << SimdPrefix_Shift,
-		SimdPrefix_F2 = 3 << SimdPrefix_Shift,
-		SimdPrefix_Mask = 3 << SimdPrefix_Shift,
+		public Vex2(byte secondByte) => SecondByte = secondByte;
 
-		VectorSize256 = 1 << 2, // L
+		public bool ModRegExtension => (SecondByte & NotModRegExtensionBit) == 0; // 1's complement
+		public byte NonDestructiveReg => (byte)(~(SecondByte >> 3) & 0xF);
+		public bool VectorSize256 => (SecondByte & VectorSize256Bit) != 0;
+		public SseVectorSize VectorSize => VectorSize256 ? SseVectorSize._256Bits : SseVectorSize._128Bits;
+		public SimdPrefix SimdPrefix => (SimdPrefix)(SecondByte & 0x3);
+		
+		public bool Equals(Vex2 other) => SecondByte == other.SecondByte;
+		public override bool Equals(object obj) => obj is Vex2 && Equals((Vex2)obj);
+		public override int GetHashCode() => SecondByte;
+		public static bool Equals(Vex2 lhs, Vex2 rhs) => lhs.Equals(rhs);
+		public static bool operator ==(Vex2 lhs, Vex2 rhs) => Equals(lhs, rhs);
+		public static bool operator !=(Vex2 lhs, Vex2 rhs) => !Equals(lhs, rhs);
 
-		// vvvv
-		NotNonDestructiveReg_Shift = 3,
-		NotNonDestructiveReg_Unused = 0xF << NotNonDestructiveReg_Shift,
-		NotNonDestructiveReg_Mask = 0xF << NotNonDestructiveReg_Shift,
-
-		NotModRegExtension = 1 << 7, // R
+		public static bool Test(CodeSegmentType codeSegmentType, byte firstByte, byte secondByte)
+			=> (firstByte == FirstByte) &&
+				(codeSegmentType.IsLongMode() || !((ModRM)secondByte).IsMemoryRM);
 	}
-
+	
 	/// <summary>
 	/// Represents either Intel's 3-byte VEX prefix or AMD's XOP prefix.
 	/// </summary>
@@ -140,19 +145,7 @@ namespace Asmuth.X86
 			}
 		}
 		#endregion
-
-		#region Vex2
-		public static byte GetFirstByte(this Vex2 vex) => (byte)Vex2.FirstByte;
-
-		public static byte GetSecondByte(this Vex2 vex) => unchecked((byte)vex);
-
-		public static SimdPrefix GetSimdPrefix(this Vex2 vex)
-			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.SimdPrefix_Mask, (int)Vex2.SimdPrefix_Shift);
-
-		public static byte GetNonDestructiveReg(this Vex2 vex)
-			=> (byte)(~Bits.MaskAndShiftRight((uint)vex, (uint)Vex2.NotNonDestructiveReg_Mask, (int)Vex2.NotNonDestructiveReg_Shift) & 0xF);
-		#endregion
-
+		
 		#region Vex3
 		public static bool IsVex3(this Vex3Xop xop)
 		{

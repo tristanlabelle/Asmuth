@@ -264,7 +264,7 @@ namespace Asmuth.X86
 			switch (substate.ExpectXexByte.XexType)
 			{
 				case XexType.Vex2:
-					builder.Xex = new Xex((Vex2)substate.ExpectXexByte.Accumulator);
+					builder.Xex = new Xex(new Vex2(secondByte: (byte)substate.ExpectXexByte.Accumulator));
 					break;
 
 				case XexType.Vex3:
