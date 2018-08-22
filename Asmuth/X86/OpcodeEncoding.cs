@@ -5,6 +5,29 @@ using System.Text;
 
 namespace Asmuth.X86
 {
+	public enum OperandSizeEncoding : byte
+	{
+		Any,
+		// No Byte because r/m8 are different opcodes
+		Word,
+		Dword
+		// No Qword because disambiguation is done through bool? LongMode/RexW
+	}
+
+	public static class OperandSizeEncodingEnum
+	{
+		public static IntegerSize? AsIntegerSize(this OperandSizeEncoding value)
+		{
+			switch (value)
+			{
+				case OperandSizeEncoding.Any: return null;
+				case OperandSizeEncoding.Word: return IntegerSize.Word;
+				case OperandSizeEncoding.Dword: return IntegerSize.Dword;
+				default: throw new ArgumentOutOfRangeException(nameof(value));
+			}
+		}
+	}
+
 	public readonly partial struct OpcodeEncoding
 	{
 		#region Builder Struct
@@ -12,7 +35,7 @@ namespace Asmuth.X86
 		{
 			public bool? LongMode;
 			public AddressSize? AddressSize;
-			public IntegerSize? OperandSize;
+			public OperandSizeEncoding OperandSize;
 			public VexType? VexType;
 			public SseVectorSize? VectorSize;
 			public bool? RexW;
@@ -29,10 +52,8 @@ namespace Asmuth.X86
 					throw new ArgumentException("64-bit addresses imply long mode.");
 				if (AddressSize == X86.AddressSize._16Bits && LongMode != false)
 					throw new ArgumentException("16-bit addresses imply IA32 mode.");
-				if (OperandSize == IntegerSize.Byte)
-					throw new ArgumentException("Operand size cannot be byte, use null.");
-				if (OperandSize == IntegerSize.Qword && LongMode != true)
-					throw new ArgumentException("64-bit operands imply long mode.");
+				if (OperandSize == OperandSizeEncoding.Word && LongMode != false)
+					throw new ArgumentException("16-bit operands imply IA32 mode.");
 				if (Map == OpcodeMap.Default && SimdPrefix.HasValue)
 					throw new ArgumentException("Default opcode map implies no SIMD prefix.");
 				if (VexType.HasValue && !SimdPrefix.HasValue)
@@ -56,11 +77,11 @@ namespace Asmuth.X86
 		private readonly byte preXexFields;
 		public bool? LongMode => AsBool_ZeroIsNull((preXexFields >> 4) & 3);
 		public AddressSize? AddressSize => (AddressSize?)AsInt_ZeroIsNull((preXexFields >> 2) & 3);
-		public IntegerSize? OperandSize => (IntegerSize?)AsInt_ZeroIsNull(preXexFields & 3) + 1;
-		private static byte MakePreXexFields(bool? longMode, AddressSize? addressSize, IntegerSize? operandSize)
+		public OperandSizeEncoding OperandSize => (OperandSizeEncoding)(preXexFields & 3);
+		private static byte MakePreXexFields(bool? longMode, AddressSize? addressSize, OperandSizeEncoding operandSize)
 			=> (byte)((AsZeroIsNull(longMode) << 4)
 			| (AsZeroIsNull((int?)addressSize) << 2)
-			| AsZeroIsNull((int?)operandSize - 1));
+			| (byte)operandSize);
 
 		// 0b00AABBCC: VexType, VectorSize, RexW
 		private readonly byte vexFields;
@@ -128,7 +149,7 @@ namespace Asmuth.X86
 			if (xex.VectorSize != VectorSize.GetValueOrDefault(xex.VectorSize)) return false;
 
 			var integerSize = codeSegmentType.GetIntegerOperandSize(legacyPrefixes.HasOperandSizeOverride, xex.OperandSize64);
-			if (integerSize != OperandSize.GetValueOrDefault(integerSize)) return false;
+			if (integerSize != OperandSize.AsIntegerSize().GetValueOrDefault(integerSize)) return false;
 			
 			var potentialSimdPrefix = xex.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix;
 			if (potentialSimdPrefix != SimdPrefix.GetValueOrDefault(potentialSimdPrefix)) return false;
@@ -187,9 +208,9 @@ namespace Asmuth.X86
 				str.AppendFormat(CultureInfo.InvariantCulture, "a{0} ",
 					AddressSize.Value.InBits());
 
-			if (OperandSize.HasValue)
+			if (OperandSize != OperandSizeEncoding.Any)
 				str.AppendFormat(CultureInfo.InvariantCulture, "o{0} ",
-					OperandSize.Value.InBits());
+					OperandSize.AsIntegerSize().Value.InBits());
 
 			str.Length--; // Remove '[' or space
 			if (str.Length > 0) str.Append("] ");

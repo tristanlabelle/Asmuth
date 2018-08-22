@@ -150,7 +150,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				LongMode = false,
-				OperandSize = IntegerSize.Word,
+				OperandSize = OperandSizeEncoding.Word,
 				RexW = false,
 				MainByte = 0xB8,
 				ModRM = ModRMEncoding.MainByteReg,
@@ -159,7 +159,7 @@ namespace Asmuth.X86
 
 			table.Add(new OpcodeEncoding.Builder
 			{
-				OperandSize = IntegerSize.Dword,
+				OperandSize = OperandSizeEncoding.Dword,
 				RexW = false,
 				MainByte = 0xB8,
 				ModRM = ModRMEncoding.MainByteReg,
@@ -169,7 +169,6 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				LongMode = true,
-				OperandSize = IntegerSize.Qword,
 				RexW = true,
 				MainByte = 0xB8,
 				ModRM = ModRMEncoding.MainByteReg,
@@ -199,7 +198,7 @@ namespace Asmuth.X86
 			
 			table.Add(new OpcodeEncoding.Builder
 			{
-				OperandSize = IntegerSize.Dword,
+				OperandSize = OperandSizeEncoding.Dword,
 				RexW = false,
 				MainByte = 0xF7,
 				ModRM = ModRMEncoding.FromFixedRegAnyRM(0),
@@ -208,7 +207,7 @@ namespace Asmuth.X86
 
 			table.Add(new OpcodeEncoding.Builder
 			{
-				OperandSize = IntegerSize.Dword,
+				OperandSize = OperandSizeEncoding.Dword,
 				RexW = false,
 				MainByte = 0xF7,
 				ModRM = ModRMEncoding.FromFixedRegAnyRM(3)

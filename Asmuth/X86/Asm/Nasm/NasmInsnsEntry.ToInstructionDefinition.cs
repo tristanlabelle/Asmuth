@@ -12,14 +12,7 @@ namespace Asmuth.X86.Asm.Nasm
 	{
 		public bool CanConvertToOpcodeEncoding
 		{
-			get
-			{
-				return !IsPseudo
-					&& !IsAssembleOnly
-					&& Mnemonic != "CALL" && Mnemonic != "ENTER" // Can't yet handle imm:imm
-					&& !EncodingTokens.Contains(NasmEncodingTokenType.AddressSize_NoOverride)
-					&& !EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_NoOverride);
-			}
+			get { return !IsPseudo && !IsAssembleOnly; }
 		}
 		
 		public InstructionDefinition ToInstructionDefinition()
@@ -277,9 +270,9 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						case NasmEncodingTokenType.Immediate_RelativeOffset:
-							if (builder.LongMode == true || builder.OperandSize == IntegerSize.Dword)
+							if (builder.LongMode == true || builder.OperandSize == OperandSizeEncoding.Dword)
 								AddImmediateWithSizeInBytes(sizeof(int));
-							else if (builder.OperandSize == IntegerSize.Word)
+							else if (builder.OperandSize == OperandSizeEncoding.Word)
 								AddImmediateWithSizeInBytes(sizeof(short));
 							else
 								throw new FormatException("Ambiguous relative offset size.");
@@ -341,24 +334,23 @@ namespace Asmuth.X86.Asm.Nasm
 			{
 				if (state > State.PostSimdPrefix)
 					throw new FormatException("Out-of-order operand size prefix.");
-				if (builder.OperandSize.HasValue || builder.RexW.HasValue)
+				if (builder.OperandSize != OperandSizeEncoding.Any || builder.RexW.HasValue)
 					throw new FormatException("Multiple operand size prefixes.");
 
 				switch (size)
 				{
 					case IntegerSize.Word:
-						builder.OperandSize = IntegerSize.Word;
+						builder.OperandSize = OperandSizeEncoding.Word;
 						SetRexW(false); // TODO: Is this always the case?
 						SetLongMode(false);
 						break;
 
 					case IntegerSize.Dword:
-						builder.OperandSize = IntegerSize.Dword;
+						builder.OperandSize = OperandSizeEncoding.Dword;
 						SetRexW(false); // TODO: Is this always the case?
 						break;
 						
 					case IntegerSize.Qword:
-						builder.OperandSize = IntegerSize.Qword;
 						SetRexW(true); // TODO: Is this always the case?
 						SetLongMode(true);
 						break;
