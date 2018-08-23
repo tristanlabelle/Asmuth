@@ -66,6 +66,10 @@ namespace Asmuth.X86.Asm
 			public static readonly Reg Gpr32 = new Reg(RegisterClass.GprDword);
 			public static readonly Reg Gpr64 = new Reg(RegisterClass.GprQword);
 			public static readonly Reg X87 = new Reg(RegisterClass.X87);
+			public static readonly Reg Mmx = new Reg(RegisterClass.Mmx);
+			public static readonly Reg Segment = new Reg(RegisterClass.Segment);
+			public static readonly Reg Debug = new Reg(RegisterClass.DebugUnsized);
+			public static readonly Reg Control = new Reg(RegisterClass.ControlUnsized);
 		}
 
 		// FDIV m32fp
@@ -87,6 +91,9 @@ namespace Asmuth.X86.Asm
 			public static readonly Mem I16 = new Mem(OperandDataType.I16);
 			public static readonly Mem I32 = new Mem(OperandDataType.I32);
 			public static readonly Mem I64 = new Mem(OperandDataType.I64);
+			public static readonly Mem F32 = new Mem(OperandDataType.F32);
+			public static readonly Mem F64 = new Mem(OperandDataType.F64);
+			public static readonly Mem F80 = new Mem(OperandDataType.F80);
 			public static readonly Mem M80 = new Mem(OperandDataType.ElementSize_80Bits);
 			public static readonly Mem M128 = new Mem(OperandDataType.ElementSize_128Bits);
 			public static readonly Mem M256 = new Mem(OperandDataType.ElementSize_256Bits);
@@ -124,6 +131,7 @@ namespace Asmuth.X86.Asm
 			public static readonly RegOrMem RM16 = new RegOrMem(Reg.Gpr16, Mem.I16);
 			public static readonly RegOrMem RM32 = new RegOrMem(Reg.Gpr32, Mem.I32);
 			public static readonly RegOrMem RM64 = new RegOrMem(Reg.Gpr64, Mem.I64);
+			public static readonly RegOrMem Mmx = new RegOrMem(Reg.Mmx, Mem.F64);
 		}
 
 		// PUSH imm32 

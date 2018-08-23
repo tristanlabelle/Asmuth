@@ -113,14 +113,25 @@ namespace Asmuth.X86.Asm.Nasm
 				case NasmOperandType.Reg16: return OperandFormat.Reg.Gpr16;
 				case NasmOperandType.Reg32: return OperandFormat.Reg.Gpr32;
 				case NasmOperandType.Reg64: return OperandFormat.Reg.Gpr64;
-
-				case NasmOperandType.Fpu0: return OperandFormat.FixedReg.ST0;
-				case NasmOperandType.FpuReg: return OperandFormat.Reg.X87;
-
 				case NasmOperandType.RM8: return OperandFormat.RegOrMem.RM8;
 				case NasmOperandType.RM16: return OperandFormat.RegOrMem.RM16;
 				case NasmOperandType.RM32: return OperandFormat.RegOrMem.RM32;
 				case NasmOperandType.RM64: return OperandFormat.RegOrMem.RM64;
+
+				case NasmOperandType.Fpu0: return OperandFormat.FixedReg.ST0;
+				case NasmOperandType.FpuReg: return OperandFormat.Reg.X87;
+
+				case NasmOperandType.Reg_SReg: return OperandFormat.Reg.Segment;
+				case NasmOperandType.Reg_CReg: return OperandFormat.Reg.Control;
+				case NasmOperandType.Reg_DReg: return OperandFormat.Reg.Debug;
+
+				case NasmOperandType.MmxReg: return OperandFormat.Reg.Mmx;
+				case NasmOperandType.MmxRM: return OperandFormat.RegOrMem.Mmx;
+				case NasmOperandType.MmxRM64: return OperandFormat.RegOrMem.Mmx;
+
+				// case NasmOperandType.Xmm0: return OperandFormat.FixedReg.Xmm0;
+				// case NasmOperandType.XmmReg: return OperandFormat.Reg.Xmm;
+				// case NasmOperandType.XmmRM: return OperandFormat.RegOrMem.Xmm;
 
 				case NasmOperandType.Mem:
 				{

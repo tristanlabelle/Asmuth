@@ -264,6 +264,7 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						case NasmEncodingTokenType.Immediate_WordOrDword:
+						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword:
 							throw new NotImplementedException();
 
 						case NasmEncodingTokenType.Immediate_Qword:
