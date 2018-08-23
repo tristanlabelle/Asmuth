@@ -47,7 +47,7 @@ namespace Asmuth.X86.Asm.Nasm
 		public IReadOnlyList<NasmOperand> Operands => data.Operands;
 		public IReadOnlyList<NasmEncodingToken> EncodingTokens => data.EncodingTokens;
 		public VexEncoding? VexEncoding => data.VexEncoding;
-		public VexType? VexType => data.VexEncoding.HasValue ? data.VexEncoding.Value.Type : (VexType?)null;
+		public VexType VexType => data.VexEncoding.HasValue ? data.VexEncoding.Value.Type : VexType.None;
 		public NasmOperandFlags OperandFlags => data.OperandFlags;
 		public NasmEVexTupleType EVexTupleType => data.EVexTupleType;
 		public IReadOnlyCollection<string> Flags => data.Flags;

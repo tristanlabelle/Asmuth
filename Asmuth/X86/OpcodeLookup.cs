@@ -18,19 +18,19 @@ namespace Asmuth.X86
 		private const int MainByteHigh5Bits = MapShift + 4;
 		private const ushort TestOverflow = 0x1F << MainByteHigh5Bits;
 
-		public static BucketKey GetBucketKey(VexType? vexType, SimdPrefix potentialSimdPrefix,
+		public static BucketKey GetBucketKey(VexType vexType, SimdPrefix potentialSimdPrefix,
 			OpcodeMap map, byte mainByte)
 		{
 			int key = 0;
-			if (vexType.HasValue)
-			{
-				key |= ((int)vexType.Value + 1) << NullableVexTypeShift;
-				key |= (int)potentialSimdPrefix << SimdPrefixShift;
-			}
-			else
+			if (vexType == VexType.None)
 			{
 				// The potential SIMD prefix might or not be one, so don't take it
 				// into account.
+			}
+			else
+			{
+				key |= (int)vexType << NullableVexTypeShift;
+				key |= (int)potentialSimdPrefix << SimdPrefixShift;
 			}
 
 			key |= (int)map << MapShift;

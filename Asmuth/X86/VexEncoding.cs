@@ -34,8 +34,10 @@ namespace Asmuth.X86
 
 			public void Validate()
 			{
+				if (Type == VexType.None)
+					throw new ArgumentException("VEX instructions must have a VEX type.", nameof(Type));
 				if (OpcodeMap == OpcodeMap.Default)
-					throw new ArgumentException("VEX instructions cannot encode the default opcode map.");
+					throw new ArgumentException("VEX instructions cannot encode the default opcode map.", nameof(OpcodeMap));
 			}
 
 			public VexEncoding Build() => new VexEncoding(ref this);
@@ -56,7 +58,7 @@ namespace Asmuth.X86
 			data.Validate();
 
 			this.data = (ushort)(
-				((int)data.Type << TypeShift)
+				((data.Type - VexType.Vex) << TypeShift)
 				| ((int)data.RegOperand << RegOperandShift)
 				| ((data.VectorSize.HasValue ? (int)data.VectorSize.Value + 1 : 0) << VectorSizeShift)
 				| ((int)data.SimdPrefix << SimdPrefixShift)
@@ -64,7 +66,7 @@ namespace Asmuth.X86
 				| ((data.RexW.HasValue ? (data.RexW.Value ? 2 : 1) : 0) << RexWShift));
 		}
 
-		public VexType Type => (VexType)((data >> TypeShift) & 3);
+		public VexType Type => (VexType)((int)VexType.Vex + ((data >> TypeShift) & 3));
 		public VexRegOperand RegOperand => (VexRegOperand)((data >> RegOperandShift) & 3);
 		public SseVectorSize? VectorSize => (SseVectorSize?)AsZeroIsNullInt((data >> VectorSizeShift) & 3);
 		public SimdPrefix SimdPrefix => (SimdPrefix)((data >> SimdPrefixShift) & 3);

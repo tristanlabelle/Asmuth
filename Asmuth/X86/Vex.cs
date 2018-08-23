@@ -7,6 +7,7 @@ namespace Asmuth.X86
 {
 	public enum VexType : byte
 	{
+		None, // No VEX prefix, allows REX and/or escape bytes
 		Vex, Xop, EVex
 	}
 

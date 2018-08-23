@@ -127,6 +127,8 @@ namespace Asmuth.X86
 				(byte)(((value.RM + 4) << 4) | (value.Reg + 3)));
 		}
 
+		public static ModRMEncoding FromFixedValue(byte value) => FromFixedValue((ModRM)value);
+
 		public static SetComparisonResult Compare(ModRMEncoding lhs, ModRMEncoding rhs)
 		{
 			// Compare ModRM presence

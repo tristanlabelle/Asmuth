@@ -94,7 +94,8 @@ namespace Asmuth.X86.Asm.Nasm
 					switch (token.Type)
 					{
 						case NasmEncodingTokenType.Vex:
-							if (builder.VexType.HasValue) throw new FormatException("VEX may only be the first token.");
+							if (builder.VexType != VexType.None)
+								throw new FormatException("VEX may only be the first token.");
 							builder.VexType = vexEncoding.Type;
 							builder.VectorSize = vexEncoding.VectorSize;
 							builder.SimdPrefix = vexEncoding.SimdPrefix;
@@ -177,7 +178,7 @@ namespace Asmuth.X86.Asm.Nasm
 								}
 							}
 
-							if (state < State.PostEscape0F && !builder.VexType.HasValue && token.Byte == 0x0F)
+							if (state < State.PostEscape0F && builder.VexType == VexType.None && token.Byte == 0x0F)
 							{
 								builder.Map = OpcodeMap.Escape0F;
 								AdvanceTo(State.PostEscape0F);

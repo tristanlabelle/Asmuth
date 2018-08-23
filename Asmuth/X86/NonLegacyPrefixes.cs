@@ -20,14 +20,14 @@ namespace Asmuth.X86
 
 	public static class NonLegacyPrefixesFormEnum
 	{
-		public static VexType? GetVexType(this NonLegacyPrefixesForm form)
+		public static VexType GetVexType(this NonLegacyPrefixesForm form)
 		{
 			switch (form)
 			{
 				case NonLegacyPrefixesForm.Vex2: case NonLegacyPrefixesForm.Vex3: return VexType.Vex;
 				case NonLegacyPrefixesForm.Xop: return VexType.Xop;
 				case NonLegacyPrefixesForm.EVex: return VexType.EVex;
-				default: return null;
+				default: return VexType.None;
 			}
 		}
 
@@ -194,7 +194,7 @@ namespace Asmuth.X86
 
 		#region Properties
 		public NonLegacyPrefixesForm Form => (NonLegacyPrefixesForm)GetField(Flags.Form_Mask, Flags.Form_Shift);
-		public VexType? VexType => Form.GetVexType();
+		public VexType VexType => Form.GetVexType();
 		public OpcodeMap OpcodeMap => (OpcodeMap)GetField(Flags.OpcodeMap_Mask, Flags.OpcodeMap_Shift);
 
 		public SimdPrefix? SimdPrefix

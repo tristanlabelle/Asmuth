@@ -36,7 +36,7 @@ namespace Asmuth.X86
 			public bool? LongMode;
 			public AddressSize? AddressSize;
 			public OperandSizeEncoding OperandSize;
-			public VexType? VexType;
+			public VexType VexType;
 			public SseVectorSize? VectorSize;
 			public bool? RexW;
 			public SimdPrefix? SimdPrefix;
@@ -56,9 +56,9 @@ namespace Asmuth.X86
 					throw new ArgumentException("16-bit operands imply IA32 mode.");
 				if (Map == OpcodeMap.Default && SimdPrefix.HasValue)
 					throw new ArgumentException("Default opcode map implies no SIMD prefix.");
-				if (VexType.HasValue && !SimdPrefix.HasValue)
+				if (VexType != VexType.None && !SimdPrefix.HasValue)
 					throw new ArgumentException("Vex encoding implies SIMD prefixes.");
-				if (!VexType.HasValue && VectorSize.HasValue)
+				if (VexType == VexType.None && VectorSize.HasValue)
 					throw new ArgumentException("Escape-based non-legacy prefixes implies ignored VEX.L.");
 				if (ModRM == ModRMEncoding.MainByteReg && MainOpcodeByte.GetEmbeddedReg(MainByte) != 0)
 					throw new ArgumentException("Main byte-embedded reg implies multiple-of-8 main byte.");
@@ -85,11 +85,11 @@ namespace Asmuth.X86
 
 		// 0b00AABBCC: VexType, VectorSize, RexW
 		private readonly byte vexFields;
-		public VexType? VexType => (VexType?)AsInt_ZeroIsNull((vexFields >> 4) & 3);
+		public VexType VexType => (VexType)((vexFields >> 4) & 3);
 		public SseVectorSize? VectorSize => (SseVectorSize?)AsInt_ZeroIsNull((vexFields >> 2) & 3);
 		public bool? RexW => AsBool_ZeroIsNull(vexFields & 3);
-		private static byte MakeVexFields(VexType? vexType, SseVectorSize? vectorSize, bool? rexW)
-			=> (byte)((AsZeroIsNull((int?)vexType) << 4)
+		private static byte MakeVexFields(VexType vexType, SseVectorSize? vectorSize, bool? rexW)
+			=> (byte)(((int)vexType << 4)
 			| (AsZeroIsNull((int?)vectorSize) << 2)
 			| AsZeroIsNull(rexW));
 
@@ -182,10 +182,10 @@ namespace Asmuth.X86
 		
 		public VexEncoding ToVexEncoding()
 		{
-			if (!VexType.HasValue) throw new InvalidOperationException();
+			if (VexType == VexType.None) throw new InvalidOperationException();
 			return new VexEncoding.Builder
 			{
-				Type = VexType.Value,
+				Type = VexType,
 				RegOperand = VexRegOperand.Invalid, // Lost in translation
 				VectorSize = VectorSize,
 				SimdPrefix = SimdPrefix.Value,
@@ -215,13 +215,12 @@ namespace Asmuth.X86
 			str.Length--; // Remove '[' or space
 			if (str.Length > 0) str.Append("] ");
 
-			if (VexType.HasValue)
+			if (VexType == VexType.None) AppendNonVexPrefixes(str);
+			else
 			{
 				str.Append(ToVexEncoding().ToIntelStyleString());
 				str.Append(' ');
 			}
-			else
-				AppendEscapes(str);
 
 			// String tail: opcode byte and what follows: 0B /r ib
 
@@ -244,7 +243,7 @@ namespace Asmuth.X86
 			return str.ToString();
 		}
 
-		private void AppendEscapes(StringBuilder str)
+		private void AppendNonVexPrefixes(StringBuilder str)
 		{
 			// 66 REX.W 0F 38
 			if (SimdPrefix.HasValue)
