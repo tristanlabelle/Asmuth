@@ -381,10 +381,13 @@ namespace Asmuth.X86
 			}, "ADDPD xmm1,xmm2,xmm3/m128");
 
 			var modRM = ModRM.WithDirectRM(1, 2);
-			var vex = Vex3Xop.Header_Vex3
-				| Vex3Xop.NoRegExtensions | Vex3Xop.NotNonDestructiveReg_Unused
-				| Vex3Xop.SimdPrefix_66 | Vex3Xop.OpcodeMap_0F;
-			var instruction = DecodeSingle_32Bits(table, vex.GetFirstByte(), vex.GetSecondByte(), vex.GetThirdByte(), 0x58, (byte)modRM);
+			var vex = new Vex3Xop.Builder
+			{
+				SimdPrefix = SimdPrefix._66,
+				OpcodeMap = OpcodeMap.Escape0F
+			}.Build();
+
+			var instruction = DecodeSingle_32Bits(table, vex.FirstByte, vex.SecondByte, vex.ThirdByte, 0x58, modRM);
 			Assert.AreEqual(XexType.Vex3, instruction.Xex.Type);
 			Assert.AreEqual(SseVectorSize._128Bits, instruction.Xex.VectorSize);
 			Assert.AreEqual((byte)0, instruction.Xex.NonDestructiveReg);

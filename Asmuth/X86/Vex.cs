@@ -15,23 +15,30 @@ namespace Asmuth.X86
 	{
 		public const int SizeInBytes = 2;
 		public const byte FirstByte = 0xC5;
-		public const byte NotModRegExtensionBit = 0b1000_0000;
-		public const byte VectorSize256Bit = 0b0000_0100;
+		private const byte XorMask = 0b1_1111_000;
+		private const byte ModRegExtensionBit = 0b1000_0000;
+		private const byte VectorSize256Bit = 0b0000_0100;
 
 		// RvvvvLpp
-		public readonly byte SecondByte;
+		private readonly byte xoredValue;
 
-		public Vex2(byte secondByte) => SecondByte = secondByte;
+		public Vex2(byte secondByte) => xoredValue = (byte)(secondByte ^ XorMask);
+		public Vex2(byte firstByte, byte secondByte)
+			: this(secondByte)
+		{
+			if (firstByte != FirstByte) throw new ArgumentException();
+		}
 
-		public bool ModRegExtension => (SecondByte & NotModRegExtensionBit) == 0; // 1's complement
-		public byte NonDestructiveReg => (byte)(~(SecondByte >> 3) & 0xF);
-		public bool VectorSize256 => (SecondByte & VectorSize256Bit) != 0;
+		public byte SecondByte => (byte)(xoredValue ^ XorMask);
+		public bool ModRegExtension => (xoredValue & ModRegExtensionBit) != 0;
+		public byte NonDestructiveReg => (byte)((xoredValue >> 3) & 0xF);
+		public bool VectorSize256 => (xoredValue & VectorSize256Bit) != 0;
 		public SseVectorSize VectorSize => VectorSize256 ? SseVectorSize._256Bits : SseVectorSize._128Bits;
-		public SimdPrefix SimdPrefix => (SimdPrefix)(SecondByte & 0x3);
+		public SimdPrefix SimdPrefix => (SimdPrefix)(xoredValue & 0x3);
 		
-		public bool Equals(Vex2 other) => SecondByte == other.SecondByte;
+		public bool Equals(Vex2 other) => xoredValue == other.xoredValue;
 		public override bool Equals(object obj) => obj is Vex2 && Equals((Vex2)obj);
-		public override int GetHashCode() => SecondByte;
+		public override int GetHashCode() => xoredValue;
 		public static bool Equals(Vex2 lhs, Vex2 rhs) => lhs.Equals(rhs);
 		public static bool operator ==(Vex2 lhs, Vex2 rhs) => Equals(lhs, rhs);
 		public static bool operator !=(Vex2 lhs, Vex2 rhs) => !Equals(lhs, rhs);
@@ -40,53 +47,131 @@ namespace Asmuth.X86
 			=> (firstByte == FirstByte) &&
 				(codeSegmentType.IsLongMode() || !((ModRM)secondByte).IsMemoryRM);
 	}
-	
-	/// <summary>
-	/// Represents either Intel's 3-byte VEX prefix or AMD's XOP prefix.
-	/// </summary>
-	[Flags]
-	public enum Vex3Xop
+
+	[StructLayout(LayoutKind.Sequential, Size = sizeof(ushort))]
+	public readonly struct Vex3Xop : IEquatable<Vex3Xop>
 	{
-		ByteCount = 3,
-		FirstByte_Vex3 = 0xC4,
-		FirstByte_Xop = 0x8F,
+		public struct Builder
+		{
+			public bool ModRegExtension;
+			public bool BaseRegExtension;
+			public bool IndexRegExtension;
+			public bool RexW;
+			public SseVectorSize VectorSize;
+			public OpcodeMap OpcodeMap;
+			public SimdPrefix SimdPrefix;
+			public byte NonDestructiveReg;
 
-		Header_Mask = 0xFF0000,
-		Header_Vex3 = 0xC40000,
-		Header_Xop = 0x8F0000,
+			public void Validate()
+			{
+				if (VectorSize >= SseVectorSize._512Bits)
+					throw new ArgumentOutOfRangeException(nameof(VectorSize));
+			}
 
-		// pp
-		SimdPrefix_Shift = 0,
-		SimdPrefix_None = 0 << SimdPrefix_Shift,
-		SimdPrefix_66 = 1 << SimdPrefix_Shift,
-		SimdPrefix_F3 = 2 << SimdPrefix_Shift,
-		SimdPrefix_F2 = 3 << SimdPrefix_Shift,
-		SimdPrefix_Mask = 3 << SimdPrefix_Shift,
+			public Vex3Xop Build() => new Vex3Xop(ref this);
 
-		VectorSize256 = 1 << 2, // L
+			public static implicit operator Vex3Xop(Builder builder) => builder.Build();
+		}
 
-		// vvvv
-		NotNonDestructiveReg_Shift = 3,
-		NotNonDestructiveReg_Unused = 0xF << NotNonDestructiveReg_Shift,
-		NotNonDestructiveReg_Mask = 0xF << NotNonDestructiveReg_Shift,
+		public const int ByteCount = 3;
+		public const byte FirstByte_Vex3 = 0xC4;
+		public const byte FirstByte_Xop = 0x8F;
+		private const ushort XorMask = 0b11100000_01111000;
+		private const ushort ModRegExtensionBit = 1 << 15;
+		private const ushort BaseRegExtensionBit = 1 << 14;
+		private const ushort IndexRegExtensionBit = 1 << 13;
+		private const ushort RexWBit = 1 << 7;
+		private const ushort VectorSize256Bit = 1 << 2;
+		private const int OpcodeMapShift = 8;
+		private const int NonDestructiveRegShift = 3;
+		private const int SimdPrefixShift = 0;
 
-		OperandSize64 = 1 << 7, // W
+		// 0bRXBmmmmm_WvvvvLpp
+		private readonly ushort xoredValue;
 
-		// Opcode map
-		OpcodeMap_Shift = 8,
-		OpcodeMap_0F = 1 << OpcodeMap_Shift, // Used with VEX
-		OpcodeMap_0F38 = 2 << OpcodeMap_Shift,
-		OpcodeMap_0F3A = 3 << OpcodeMap_Shift,
-		OpcodeMap_8 = 8 << OpcodeMap_Shift, // Used with XOP
-		OpcodeMap_9 = 9 << OpcodeMap_Shift,
-		OpcodeMap_10 = 10 << OpcodeMap_Shift,
-		OpcodeMap_Mask = 0x1F << OpcodeMap_Shift,
+		public Vex3Xop(byte secondByte, byte thirdByte)
+		{
+			xoredValue = (ushort)((((ushort)secondByte << 8) | thirdByte) ^ XorMask);
+		}
 
-		NotBaseRegExtension = 1 << 13, // B
-		NotIndexRegExtension = 1 << 14, // X
-		NotModRegExtension = 1 << 15, // R
+		public Vex3Xop(byte firstByte, byte secondByte, byte thirdByte)
+			: this(secondByte, thirdByte)
+		{
+			switch (firstByte)
+			{
+				case FirstByte_Vex3:
+					if (!IsVex3) throw new ArgumentException("Invalid VEX3 opcode map.");
+					break;
 
-		NoRegExtensions = NotBaseRegExtension | NotIndexRegExtension | NotModRegExtension,
+				case FirstByte_Xop:
+					if (!IsXop) throw new ArgumentException("Invalid XOP opcode map.");
+					break;
+
+				default: throw new ArgumentException("Invalid first VEX3/XOP byte.", nameof(firstByte));
+			}
+		}
+
+		public Vex3Xop(ref Builder builder)
+		{
+			builder.Validate();
+
+			xoredValue = (ushort)(((int)builder.OpcodeMap << OpcodeMapShift)
+				| ((int)builder.NonDestructiveReg << NonDestructiveRegShift)
+				| ((int)builder.SimdPrefix << SimdPrefixShift));
+			if (builder.ModRegExtension) xoredValue |= ModRegExtensionBit;
+			if (builder.BaseRegExtension) xoredValue |= BaseRegExtensionBit;
+			if (builder.IndexRegExtension) xoredValue |= IndexRegExtensionBit;
+			if (builder.RexW) xoredValue |= RexWBit;
+			if (builder.VectorSize == SseVectorSize._256Bits) xoredValue |= VectorSize256Bit;
+		}
+
+		public bool IsVex3 => OpcodeMap <= OpcodeMap.Escape0F3A;
+		public bool IsXop => OpcodeMap >= OpcodeMap.Xop8;
+		public VexType VexType => IsVex3 ? VexType.Vex : VexType.Xop;
+		public bool ModRegExtension => (xoredValue & ModRegExtensionBit) != 0;
+		public bool BaseRegExtension => (xoredValue & BaseRegExtensionBit) != 0;
+		public bool IndexRegExtension => (xoredValue & IndexRegExtensionBit) != 0;
+		public bool VectorSize256 => (xoredValue & VectorSize256Bit) != 0;
+		public SseVectorSize VectorSize => VectorSize256 ? SseVectorSize._256Bits : SseVectorSize._128Bits;
+		public bool RexW => (xoredValue & RexWBit) != 0;
+		public OpcodeMap OpcodeMap => (OpcodeMap)((xoredValue >> OpcodeMapShift) & 0x1F);
+		public byte NonDestructiveReg => (byte)((xoredValue >> NonDestructiveRegShift) & 0xF);
+		public SimdPrefix SimdPrefix => (SimdPrefix)(xoredValue & 3);
+
+		public byte FirstByte => IsVex3 ? FirstByte_Vex3 : FirstByte_Xop;
+		public byte SecondByte => (byte)((xoredValue ^ XorMask) >> 8);
+		public byte ThirdByte => (byte)(xoredValue ^ XorMask);
+
+		public VexEncoding AsVexEncoding()
+		{
+			return new VexEncoding.Builder
+			{
+				Type = VexType,
+				VectorSize = VectorSize,
+				SimdPrefix = SimdPrefix,
+				OpcodeMap = OpcodeMap,
+				RexW = RexW
+			}.Build();
+		}
+
+		public bool Equals(Vex3Xop other) => xoredValue == other.xoredValue;
+		public override bool Equals(object obj) => obj is Vex3Xop && Equals((Vex3Xop)obj);
+		public override int GetHashCode() => xoredValue;
+		public static bool Equals(Vex3Xop lhs, Vex3Xop rhs) => lhs.Equals(rhs);
+		public static bool operator ==(Vex3Xop lhs, Vex3Xop rhs) => Equals(lhs, rhs);
+		public static bool operator !=(Vex3Xop lhs, Vex3Xop rhs) => !Equals(lhs, rhs);
+		
+		public static bool Test(CodeSegmentType codeSegmentType, byte firstByte, byte secondByte)
+		{
+			// VEX3 is ambiguous with LES (C4 /r)
+			// XOP is ambiguous with POP (8F /0)
+			if (firstByte == FirstByte_Vex3)
+				return codeSegmentType.IsLongMode() || ((ModRM)secondByte).IsRegRM;
+			else if (firstByte == FirstByte_Xop)
+				return ((ModRM)secondByte).Reg != 0;
+			else
+				return false;
+		}
 	}
 
 	[Flags]
@@ -143,46 +228,6 @@ namespace Asmuth.X86
 				case VexType.EVex: return XexType.EVex;
 				default: throw new ArgumentOutOfRangeException(nameof(type));
 			}
-		}
-		#endregion
-		
-		#region Vex3
-		public static bool IsVex3(this Vex3Xop xop)
-		{
-			var header = (xop & Vex3Xop.Header_Mask);
-			return header == Vex3Xop.Header_Xop || header == 0;
-		}
-
-		public static bool IsXop(this Vex3Xop xop) => (xop & Vex3Xop.Header_Mask) == Vex3Xop.Header_Xop;
-
-		public static byte GetFirstByte(this Vex3Xop vex) => unchecked((byte)((uint)vex >> 16));
-
-		public static byte GetSecondByte(this Vex3Xop vex) => unchecked((byte)((uint)vex >> 8));
-
-		public static byte GetThirdByte(this Vex3Xop vex) => unchecked((byte)vex);
-
-		public static SimdPrefix GetSimdPrefix(this Vex3Xop vex)
-			=> (SimdPrefix)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.SimdPrefix_Mask, (int)Vex3Xop.SimdPrefix_Shift);
-
-		public static OpcodeMap GetOpcodeMap(this Vex3Xop vex)
-			=> (OpcodeMap)Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.OpcodeMap_Mask, (int)Vex3Xop.OpcodeMap_Shift);
-
-		public static byte GetNonDestructiveReg(this Vex3Xop vex)
-			=> (byte)(~Bits.MaskAndShiftRight((uint)vex, (uint)Vex3Xop.NotNonDestructiveReg_Mask, (int)Vex3Xop.NotNonDestructiveReg_Shift) & 0xF);
-
-		public static VexEncoding AsVexEncoding(this Vex3Xop vex)
-		{
-			return new VexEncoding.Builder
-			{
-				Type = vex.IsVex3() ? VexType.Vex
-					: vex.IsXop() ? VexType.Xop
-					: throw new ArgumentException(),
-				VectorSize = (vex & Vex3Xop.VectorSize256) == 0
-					? SseVectorSize._128Bits : SseVectorSize._256Bits,
-				SimdPrefix = vex.GetSimdPrefix(),
-				OpcodeMap = vex.GetOpcodeMap(),
-				RexW = (vex & Vex3Xop.OperandSize64) != 0
-			}.Build();
 		}
 		#endregion
 	}

@@ -179,14 +179,13 @@ namespace Asmuth.X86
 
 		public Xex(Vex3Xop vex3)
 		{
-			flags = BaseFlags(vex3.IsXop() ? XexType.Xop : XexType.Vex3,
-				vex3.GetSimdPrefix(), vex3.GetOpcodeMap());
-			flags |= (Flags)((uint)vex3.GetNonDestructiveReg() << (int)Flags.NonDestructiveReg_Shift);
-			if ((vex3 & Vex3Xop.NotModRegExtension) == 0) flags |= Flags.ModRegExtension;
-			if ((vex3 & Vex3Xop.NotBaseRegExtension) == 0) flags |= Flags.BaseRegExtension;
-			if ((vex3 & Vex3Xop.NotIndexRegExtension) == 0) flags |= Flags.IndexRegExtension;
-			if ((vex3 & Vex3Xop.OperandSize64) != 0) flags |= Flags.OperandSize64;
-			if ((vex3 & Vex3Xop.VectorSize256) != 0) flags |= Flags.VectorSize_256;
+			flags = BaseFlags(vex3.IsXop? XexType.Xop : XexType.Vex3, vex3.SimdPrefix, vex3.OpcodeMap);
+			flags |= (Flags)((uint)vex3.NonDestructiveReg << (int)Flags.NonDestructiveReg_Shift);
+			if (vex3.ModRegExtension) flags |= Flags.ModRegExtension;
+			if (vex3.BaseRegExtension) flags |= Flags.BaseRegExtension;
+			if (vex3.IndexRegExtension) flags |= Flags.IndexRegExtension;
+			if (vex3.RexW) flags |= Flags.OperandSize64;
+			if (vex3.VectorSize256) flags |= Flags.VectorSize_256;
 		}
 
 		public Xex(EVex evex)
@@ -261,12 +260,13 @@ namespace Asmuth.X86
 		{
 			if (Type != XexType.RexAndEscapes) throw new InvalidOperationException();
 
-			byte rex = Rex.ReservedValue;
-			if (OperandSize64) rex |= Rex.OperandSize64Bit;
-			if (ModRegExtension) rex |= Rex.ModRegExtensionBit;
-			if (BaseRegExtension) rex |= Rex.ModRegExtensionBit;
-			if (IndexRegExtension) rex |= Rex.IndexRegExtensionBit;
-			return rex;
+			return new Rex.Builder
+			{
+				ModRegExtension = ModRegExtension,
+				BaseRegExtension = BaseRegExtension,
+				IndexRegExtension = IndexRegExtension,
+				OperandSize64 = OperandSize64
+			};
 		}
 
 		public Xex WithOpcodeMap(OpcodeMap map)

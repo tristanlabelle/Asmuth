@@ -8,32 +8,44 @@ namespace Asmuth.X86
 	[StructLayout(LayoutKind.Sequential, Size = sizeof(byte))]
 	public readonly struct Rex : IEquatable<Rex>
 	{
+		public struct Builder
+		{
+			public bool ModRegExtension;
+			public bool BaseRegExtension;
+			public bool IndexRegExtension;
+			public bool OperandSize64;
+
+			public Rex Build() => new Rex(this);
+
+			public static implicit operator Rex(Builder builder) => builder.Build();
+		}
+
 		public const byte ReservedValue = 0x40;
 		public const byte ReservedMask = 0xF0;
 		public const byte FlagsMask = 0x0F;
-		public const byte BaseRegExtensionBit = 0b0001;
-		public const byte IndexRegExtensionBit = 0b0010;
-		public const byte ModRegExtensionBit = 0b0100;
-		public const byte OperandSize64Bit = 0b1000;
+		private const byte BaseRegExtensionBit = 0b0001;
+		private const byte IndexRegExtensionBit = 0b0010;
+		private const byte ModRegExtensionBit = 0b0100;
+		private const byte OperandSize64Bit = 0b1000;
 
 		public byte LowNibble { get; }
 
-		public Rex(byte value)
+		public Rex(byte @byte)
 		{
-			if (!Test(value)) throw new ArgumentException();
-			LowNibble = (byte)(value & FlagsMask);
+			if (!Test(@byte)) throw new ArgumentException();
+			LowNibble = (byte)(@byte & FlagsMask);
 		}
 
-		public Rex(bool modRegExt, bool baseRegExt, bool indexRegExt, bool op64)
+		private Rex(Builder builder)
 		{
 			LowNibble = 0;
-			if (modRegExt) LowNibble |= ModRegExtensionBit;
-			if (baseRegExt) LowNibble |= BaseRegExtensionBit;
-			if (indexRegExt) LowNibble |= IndexRegExtensionBit;
-			if (op64) LowNibble |= OperandSize64Bit;
+			if (builder.ModRegExtension) LowNibble |= ModRegExtensionBit;
+			if (builder.BaseRegExtension) LowNibble |= BaseRegExtensionBit;
+			if (builder.IndexRegExtension) LowNibble |= IndexRegExtensionBit;
+			if (builder.OperandSize64) LowNibble |= OperandSize64Bit;
 		}
 		
-		public byte Value => (byte)(ReservedValue | LowNibble);
+		public byte Byte => (byte)(ReservedValue | LowNibble);
 		public bool BaseRegExtension => (LowNibble & BaseRegExtensionBit) != 0;
 		public bool IndexRegExtension => (LowNibble & IndexRegExtensionBit) != 0;
 		public bool ModRegExtension => (LowNibble & ModRegExtensionBit) != 0;
@@ -64,7 +76,7 @@ namespace Asmuth.X86
 
 		public static bool Test(byte value) => (value & ReservedMask) == ReservedValue;
 
-		public static implicit operator byte(Rex rex) => rex.Value;
-		public static implicit operator Rex(byte value) => new Rex(value);
+		public static implicit operator byte(Rex rex) => rex.Byte;
+		public static implicit operator Rex(byte @byte) => new Rex(@byte);
 	}
 }

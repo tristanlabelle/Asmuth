@@ -269,7 +269,10 @@ namespace Asmuth.X86
 
 				case XexType.Vex3:
 				case XexType.Xop:
-					builder.Xex = new Xex((Vex3Xop)substate.ExpectXexByte.Accumulator);
+					builder.Xex = new Xex(new Vex3Xop(
+						(byte)(substate.ExpectXexByte.Accumulator >> 16),
+						(byte)(substate.ExpectXexByte.Accumulator >> 8),
+						(byte)substate.ExpectXexByte.Accumulator));
 					break;
 
 				case XexType.EVex:

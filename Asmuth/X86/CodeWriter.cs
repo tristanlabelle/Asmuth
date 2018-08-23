@@ -102,11 +102,10 @@ namespace Asmuth.X86
 			}
 
 			// Rex
-			byte rex = Rex.ReservedValue;
+			var rexBuilder = new Rex.Builder();
 			if (reg.Size == IntegerSize.Qword)
 			{
-				if (!codeSegmentType.IsLongMode()) throw new ArgumentException("reg");
-				rex |= Rex.OperandSize64Bit;
+				rexBuilder.OperandSize64 = true;
 			}
 			else if (reg.Size == IntegerSize.Byte)
 			{
@@ -114,10 +113,16 @@ namespace Asmuth.X86
 				throw new NotImplementedException();
 			}
 
-			if (reg.Code >= GprCode.R8) rex |= Rex.ModRegExtensionBit;
-			if (effectiveAddress.BaseAsGprCode >= GprCode.R8) rex |= Rex.BaseRegExtensionBit;
-			if (effectiveAddress.IndexAsGprCode >= GprCode.R8) rex |= Rex.IndexRegExtensionBit;
-			if (rex != Rex.ReservedValue) Write(rex);
+			rexBuilder.ModRegExtension = (reg.Code >= GprCode.R8);
+			rexBuilder.BaseRegExtension = effectiveAddress.BaseAsGprCode >= GprCode.R8;
+			rexBuilder.IndexRegExtension = effectiveAddress.IndexAsGprCode >= GprCode.R8;
+
+			var rex = rexBuilder.Build();
+			if (rex != default)
+			{
+				if (!codeSegmentType.IsLongMode()) throw new ArgumentException();
+				Write(rex);
+			}
 		} 
 		#endregion
 	}
