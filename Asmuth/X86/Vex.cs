@@ -215,20 +215,4 @@ namespace Asmuth.X86
 		L2 = 1 << 22,
 		z = 1 << 23
 	}
-
-	public static class VexEnums
-	{
-		#region VexType
-		public static XexType AsLargestXexType(this VexType type)
-		{
-			switch (type)
-			{
-				case VexType.Vex: return XexType.Vex3;
-				case VexType.Xop: return XexType.Xop;
-				case VexType.EVex: return XexType.EVex;
-				default: throw new ArgumentOutOfRangeException(nameof(type));
-			}
-		}
-		#endregion
-	}
 }

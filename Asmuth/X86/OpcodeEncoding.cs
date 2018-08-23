@@ -59,7 +59,7 @@ namespace Asmuth.X86
 				if (VexType.HasValue && !SimdPrefix.HasValue)
 					throw new ArgumentException("Vex encoding implies SIMD prefixes.");
 				if (!VexType.HasValue && VectorSize.HasValue)
-					throw new ArgumentException("Escape XEX implies ignored VEX.L.");
+					throw new ArgumentException("Escape-based non-legacy prefixes implies ignored VEX.L.");
 				if (ModRM == ModRMEncoding.MainByteReg && MainOpcodeByte.GetEmbeddedReg(MainByte) != 0)
 					throw new ArgumentException("Main byte-embedded reg implies multiple-of-8 main byte.");
 				if (Imm8Ext.HasValue && ImmediateSizeInBytes != 1)
@@ -74,11 +74,11 @@ namespace Asmuth.X86
 
 		#region Packed Fields
 		// 0b00AABBCC: LongMode, AddressSize, OperandSize
-		private readonly byte preXexFields;
-		public bool? LongMode => AsBool_ZeroIsNull((preXexFields >> 4) & 3);
-		public AddressSize? AddressSize => (AddressSize?)AsInt_ZeroIsNull((preXexFields >> 2) & 3);
-		public OperandSizeEncoding OperandSize => (OperandSizeEncoding)(preXexFields & 3);
-		private static byte MakePreXexFields(bool? longMode, AddressSize? addressSize, OperandSizeEncoding operandSize)
+		private readonly byte contextFields;
+		public bool? LongMode => AsBool_ZeroIsNull((contextFields >> 4) & 3);
+		public AddressSize? AddressSize => (AddressSize?)AsInt_ZeroIsNull((contextFields >> 2) & 3);
+		public OperandSizeEncoding OperandSize => (OperandSizeEncoding)(contextFields & 3);
+		private static byte MakeContextFields(bool? longMode, AddressSize? addressSize, OperandSizeEncoding operandSize)
 			=> (byte)((AsZeroIsNull(longMode) << 4)
 			| (AsZeroIsNull((int?)addressSize) << 2)
 			| (byte)operandSize);
@@ -115,7 +115,7 @@ namespace Asmuth.X86
 		public OpcodeEncoding(ref Builder builder)
 		{
 			builder.Validate();
-			preXexFields = MakePreXexFields(builder.LongMode, builder.AddressSize, builder.OperandSize);
+			contextFields = MakeContextFields(builder.LongMode, builder.AddressSize, builder.OperandSize);
 			vexFields = MakeVexFields(builder.VexType, builder.VectorSize, builder.RexW);
 			mapFields = MakeMapFields(builder.SimdPrefix, builder.Map);
 			MainByte = builder.MainByte;
@@ -138,33 +138,33 @@ namespace Asmuth.X86
 
 		#region Matching
 		public bool IsMatchUpToMainByte(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte mainByte)
+			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes, byte mainByte)
 		{
 			if (!IsValidInCodeSegment(codeSegmentType)) return false;
 
 			var effectiveAddressSize = codeSegmentType.GetEffectiveAddressSize(legacyPrefixes);
 			if (effectiveAddressSize != AddressSize.GetValueOrDefault(effectiveAddressSize)) return false;
 
-			if (xex.VexType != VexType) return false;
-			if (xex.VectorSize != VectorSize.GetValueOrDefault(xex.VectorSize)) return false;
+			if (nonLegacyPrefixes.VexType != VexType) return false;
+			if (nonLegacyPrefixes.VectorSize != VectorSize.GetValueOrDefault(nonLegacyPrefixes.VectorSize)) return false;
 
-			var integerSize = codeSegmentType.GetIntegerOperandSize(legacyPrefixes.HasOperandSizeOverride, xex.OperandSize64);
+			var integerSize = codeSegmentType.GetIntegerOperandSize(legacyPrefixes.HasOperandSizeOverride, nonLegacyPrefixes.OperandSize64);
 			if (integerSize != OperandSize.AsIntegerSize().GetValueOrDefault(integerSize)) return false;
 			
-			var potentialSimdPrefix = xex.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix;
+			var potentialSimdPrefix = nonLegacyPrefixes.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix;
 			if (potentialSimdPrefix != SimdPrefix.GetValueOrDefault(potentialSimdPrefix)) return false;
 
-			if (xex.OpcodeMap != Map) return false;
+			if (nonLegacyPrefixes.OpcodeMap != Map) return false;
 			if ((mainByte & MainByteMask) != MainByte) return false;
 
 			return true;
 		}
 
 		public bool IsMatch(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex,
+			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes,
 			byte mainByte, ModRM? modRM, byte? imm8)
 		{
-			if (!IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, xex, mainByte)) return false;
+			if (!IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, nonLegacyPrefixes, mainByte)) return false;
 			if (!ModRM.IsValid(modRM)) return false;
 			if (imm8.HasValue != (ImmediateSizeInBytes == 1)) return false;
 			if (Imm8Ext.HasValue && imm8.Value != Imm8Ext.Value) return false;
@@ -175,7 +175,7 @@ namespace Asmuth.X86
 		{
 			var imm8 = instruction.ImmediateSizeInBytes == 1 ? instruction.ImmediateData.GetByte(0) : (byte?)null;
 			return IsMatch(instruction.CodeSegmentType,
-				instruction.LegacyPrefixes, instruction.Xex, instruction.MainOpcodeByte,
+				instruction.LegacyPrefixes, instruction.NonLegacyPrefixes, instruction.MainOpcodeByte,
 				instruction.ModRM, imm8);
 		}
 		#endregion
@@ -221,7 +221,7 @@ namespace Asmuth.X86
 				str.Append(' ');
 			}
 			else
-				AppendEscapeXex(str);
+				AppendEscapes(str);
 
 			// String tail: opcode byte and what follows: 0B /r ib
 
@@ -244,7 +244,7 @@ namespace Asmuth.X86
 			return str.ToString();
 		}
 
-		private void AppendEscapeXex(StringBuilder str)
+		private void AppendEscapes(StringBuilder str)
 		{
 			// 66 REX.W 0F 38
 			if (SimdPrefix.HasValue)

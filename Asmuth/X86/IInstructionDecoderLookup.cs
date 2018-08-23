@@ -12,7 +12,7 @@ namespace Asmuth.X86
 	public interface IInstructionDecoderLookup
 	{
 		InstructionDecoderLookupResult Lookup(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex,
+			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes,
 			byte mainByte, ModRM? modRM, byte? imm8);
 	}
 

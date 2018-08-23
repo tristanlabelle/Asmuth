@@ -94,15 +94,15 @@ namespace Asmuth.X86
 		
 		InstructionDecoderLookupResult IInstructionDecoderLookup.Lookup(
 			CodeSegmentType codeSegmentType, ImmutableLegacyPrefixList legacyPrefixes,
-			Xex xex, byte mainByte, ModRM? modRM, byte? imm8)
+			NonLegacyPrefixes nonLegacyPrefixes, byte mainByte, ModRM? modRM, byte? imm8)
 		{
-			var bucketKey = OpcodeLookup.GetBucketKey(legacyPrefixes, xex, mainByte);
+			var bucketKey = OpcodeLookup.GetBucketKey(legacyPrefixes, nonLegacyPrefixes, mainByte);
 			
 			if (buckets.TryGetValue(bucketKey, out var bucket))
 			{
 				foreach (var entry in bucket)
 				{
-					if (!entry.Opcode.IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, xex, mainByte))
+					if (!entry.Opcode.IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, nonLegacyPrefixes, mainByte))
 						continue;
 					
 					if (modRM.HasValue)

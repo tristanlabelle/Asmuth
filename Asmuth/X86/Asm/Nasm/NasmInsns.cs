@@ -157,7 +157,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 				if (Regex.IsMatch(tokenStr, @"\A(vex|xop|evex)\."))
 				{
-					if (vex.HasValue) throw new FormatException("Multiple vector XEX prefixes.");
+					if (vex.HasValue) throw new FormatException("Multiple VEX prefixes.");
 					tokens.Add(NasmEncodingTokenType.Vex);
 					vex = VexEncoding.Parse(tokenStr);
 					continue;

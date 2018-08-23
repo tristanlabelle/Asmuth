@@ -77,6 +77,6 @@ namespace Asmuth.X86
 			=> new string(new char[] { (char)('0' + (byte)Scale), ':', (char)('0' + Index), ':', (char)('0' + Base) });
 		
 		public static implicit operator byte(Sib sib) => sib.Value;
-		public static implicit operator Sib(byte value) => new Sib(value);
+		public static explicit operator Sib(byte value) => new Sib(value);
 	}
 }

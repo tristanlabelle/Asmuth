@@ -94,14 +94,14 @@ namespace Asmuth.X86
 				this.displacement = displacement;
 			}
 
-			public Encoding(ImmutableLegacyPrefixList legacyPrefixes, Xex xex,
+			public Encoding(ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes,
 				ModRM modRM, Sib? sib = null, int displacement = 0)
 			{
 				this.flagsEx = FlagsEx.None;
 				if (legacyPrefixes.SegmentOverride.HasValue) this.flagsEx |= FlagsEx.SegmentOverride;
 				if (legacyPrefixes.HasAddressSizeOverride) this.flagsEx |= FlagsEx.AddressSizeOverride;
-				if (xex.BaseRegExtension) this.flagsEx |= FlagsEx.BaseRegExtension;
-				if (xex.IndexRegExtension) this.flagsEx |= FlagsEx.IndexRegExtension;
+				if (nonLegacyPrefixes.BaseRegExtension) this.flagsEx |= FlagsEx.BaseRegExtension;
+				if (nonLegacyPrefixes.IndexRegExtension) this.flagsEx |= FlagsEx.IndexRegExtension;
 				if (sib.HasValue) this.flagsEx |= FlagsEx.Sib;
 				this.segmentOverride = legacyPrefixes.SegmentOverride.GetValueOrDefault();
 				this.modRM = modRM;
@@ -111,7 +111,7 @@ namespace Asmuth.X86
 
 			public Encoding(ImmutableLegacyPrefixList legacyPrefixes, Rex rex,
 				ModRM modRM, Sib? sib = null, int displacement = 0)
-				: this(legacyPrefixes, new Xex(rex), modRM, sib, displacement) { }
+				: this(legacyPrefixes, new NonLegacyPrefixes(rex), modRM, sib, displacement) { }
 
 			public EncodingFlags Flags => (EncodingFlags)(byte)flagsEx & EncodingFlags.Mask;
 			public SegmentRegister? SegmentOverride

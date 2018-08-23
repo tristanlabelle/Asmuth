@@ -33,7 +33,7 @@ namespace Asmuth.X86
 			table.Add(Nop, "nop");
 
 			var instruction = DecodeSingle_32Bits(table, 0x90);
-			Assert.AreEqual(XexType.Escapes, instruction.Xex.Type);
+			Assert.AreEqual(NonLegacyPrefixesForm.Escapes, instruction.NonLegacyPrefixes.Form);
 			Assert.AreEqual(0x90, instruction.MainOpcodeByte);
 		}
 
@@ -359,7 +359,7 @@ namespace Asmuth.X86
 			var modRM = ModRM.WithDirectRM(1, 2);
 			var instruction = DecodeSingle_32Bits(table, 0x66, 0x0F, 0x58, modRM);
 			Assert.AreEqual(SimdPrefix._66, instruction.PotentialSimdPrefix);
-			Assert.AreEqual(XexType.Escapes, instruction.Xex.Type);
+			Assert.AreEqual(NonLegacyPrefixesForm.Escapes, instruction.NonLegacyPrefixes.Form);
 			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
 			Assert.AreEqual(0x58, instruction.MainOpcodeByte);
 			Assert.AreEqual(modRM, instruction.ModRM);
@@ -388,13 +388,13 @@ namespace Asmuth.X86
 			}.Build();
 
 			var instruction = DecodeSingle_32Bits(table, vex.FirstByte, vex.SecondByte, vex.ThirdByte, 0x58, modRM);
-			Assert.AreEqual(XexType.Vex3, instruction.Xex.Type);
-			Assert.AreEqual(SseVectorSize._128Bits, instruction.Xex.VectorSize);
-			Assert.AreEqual((byte)0, instruction.Xex.NonDestructiveReg);
-			Assert.IsFalse(instruction.Xex.OperandSize64);
-			Assert.IsFalse(instruction.Xex.ModRegExtension);
-			Assert.IsFalse(instruction.Xex.BaseRegExtension);
-			Assert.IsFalse(instruction.Xex.IndexRegExtension);
+			Assert.AreEqual(NonLegacyPrefixesForm.Vex3, instruction.NonLegacyPrefixes.Form);
+			Assert.AreEqual(SseVectorSize._128Bits, instruction.NonLegacyPrefixes.VectorSize);
+			Assert.AreEqual((byte)0, instruction.NonLegacyPrefixes.NonDestructiveReg);
+			Assert.IsFalse(instruction.NonLegacyPrefixes.OperandSize64);
+			Assert.IsFalse(instruction.NonLegacyPrefixes.ModRegExtension);
+			Assert.IsFalse(instruction.NonLegacyPrefixes.BaseRegExtension);
+			Assert.IsFalse(instruction.NonLegacyPrefixes.IndexRegExtension);
 			Assert.AreEqual(SimdPrefix._66, instruction.PotentialSimdPrefix);
 			Assert.AreEqual(OpcodeMap.Escape0F, instruction.OpcodeMap);
 			Assert.AreEqual(0x58, instruction.MainOpcodeByte);

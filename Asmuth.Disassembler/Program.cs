@@ -20,23 +20,30 @@ namespace Asmuth.Disassembler
 		{
 			// Load instruction definitions from NASM's insns.dat file
 			var instructionDictionary = new OpcodeEncodingTable<InstructionDefinition>();
+			int succeeded = 0;
+			int total = 0;
 			foreach (var insnsEntry in NasmInsns.Read(new StreamReader(args[0])))
 			{
 				if (!insnsEntry.CanConvertToOpcodeEncoding) continue;
 
+				total++;
 				try
 				{
 					var instructionDefinition = insnsEntry.ToInstructionDefinition();
 					Console.WriteLine(instructionDefinition.ToString());
 					instructionDictionary.Add(instructionDefinition.Encoding, instructionDefinition);
+					succeeded++;
 				}
 				catch (Exception e)
 				{
 					Console.ForegroundColor = ConsoleColor.Red;
-					Console.WriteLine(insnsEntry.ToString() + " - " + e.Message);
+					Console.WriteLine($"{insnsEntry} - {e.Message} ({e.TargetSite})");
 					Console.ResetColor();
 				}
 			}
+
+			Console.WriteLine();
+			Console.WriteLine($"{succeeded}/{total} successful");
 
 			var filePath = Path.GetFullPath(args[1]);
 			using (var memoryMappedFile = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))
@@ -127,9 +134,9 @@ namespace Asmuth.Disassembler
 
 						Console.Write(' ');
 
-						if (instruction.Xex.Type.AllowsEscapes())
+						if (instruction.NonLegacyPrefixes.Form.AllowsEscapes())
 						{
-							switch (instruction.Xex.OpcodeMap)
+							switch (instruction.NonLegacyPrefixes.OpcodeMap)
 							{
 								case OpcodeMap.Escape0F: Console.Write("0F."); break;
 								case OpcodeMap.Escape0F38: Console.Write("0F3A."); break;
@@ -142,14 +149,14 @@ namespace Asmuth.Disassembler
 						if (instruction.ModRM.HasValue)
 						{
 							var modRM = instruction.ModRM.Value;
-							Console.Write(" /{0} ", modRM.Reg + (instruction.Xex.ModRegExtension ? 8 : 0));
+							Console.Write(" /{0} ", modRM.Reg + (instruction.NonLegacyPrefixes.ModRegExtension ? 8 : 0));
 							if (modRM.IsMemoryRM)
 							{
 								var effectiveAddress = instruction.GetRMEffectiveAddress();
 								Console.Write(effectiveAddress.ToString(
 									vectorSib: false, rip: sectionBaseAddress + (ulong)codeOffset));
 							}
-							else Console.Write("r{0}", modRM.RM + (instruction.Xex.BaseRegExtension ? 8 : 0));
+							else Console.Write("r{0}", modRM.RM + (instruction.NonLegacyPrefixes.BaseRegExtension ? 8 : 0));
 						}
 
 						foreach (byte b in instruction.ImmediateData)

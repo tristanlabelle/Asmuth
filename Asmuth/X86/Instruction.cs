@@ -30,7 +30,7 @@ namespace Asmuth.X86
 		public const int MaxLength = 15; // See 2.3.11
 
 		private readonly ImmutableLegacyPrefixList legacyPrefixes; // 4 bytes
-		private readonly Xex xex; // 4 bytes
+		private readonly NonLegacyPrefixes nonLegacyPrefixes; // 4 bytes
 
 		// 4 bytes
 		private readonly Flags flags;
@@ -49,7 +49,7 @@ namespace Asmuth.X86
 			if (builder == null) throw new ArgumentNullException(nameof(builder));
 
 			legacyPrefixes = builder.LegacyPrefixes;
-			xex = builder.Xex; // Validate if redundant with prefixes
+			nonLegacyPrefixes = builder.NonLegacyPrefixes; // Validate if redundant with prefixes
 			mainOpcodeByte = builder.MainByte;
 			modRM = builder.ModRM.GetValueOrDefault();
 			sib = builder.Sib.GetValueOrDefault(); // Validate if necessary
@@ -69,8 +69,8 @@ namespace Asmuth.X86
 		public AddressSize EffectiveAddressSize => CodeSegmentType.GetEffectiveAddressSize(
 			legacyPrefixes.HasAddressSizeOverride);
 		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
-		public Xex Xex => xex;
-		public OpcodeMap OpcodeMap => xex.OpcodeMap;
+		public NonLegacyPrefixes NonLegacyPrefixes => nonLegacyPrefixes;
+		public OpcodeMap OpcodeMap => nonLegacyPrefixes.OpcodeMap;
 		public byte MainOpcodeByte => mainOpcodeByte;
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;
 		public bool HasMemoryRM => ModRM.HasValue && ModRM.Value.IsMemoryRM;
@@ -79,12 +79,12 @@ namespace Asmuth.X86
 		{
 			get
 			{
-				if (xex.OpcodeMap == OpcodeMap.Default)
+				if (nonLegacyPrefixes.OpcodeMap == OpcodeMap.Default)
 				{
-					Debug.Assert(!xex.SimdPrefix.HasValue || xex.SimdPrefix == SimdPrefix.None);
+					Debug.Assert(!nonLegacyPrefixes.SimdPrefix.HasValue || nonLegacyPrefixes.SimdPrefix == SimdPrefix.None);
 					return SimdPrefix.None;
 				}
-				return xex.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix;
+				return nonLegacyPrefixes.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix;
 			}
 		}
 
@@ -116,7 +116,7 @@ namespace Asmuth.X86
 		{
 			get
 			{
-				int size = legacyPrefixes.Count + xex.SizeInBytes + 1;
+				int size = legacyPrefixes.Count + nonLegacyPrefixes.SizeInBytes + 1;
 
 				if ((flags & Flags.HasModRM) != 0)
 				{
@@ -137,7 +137,7 @@ namespace Asmuth.X86
 		public EffectiveAddress GetRMEffectiveAddress()
 		{
 			if (!ModRM.HasValue) throw new InvalidOperationException("A ModRM byte is required for an effective address.");
-			var encoding = new EffectiveAddress.Encoding(legacyPrefixes, xex, modRM, Sib, displacement);
+			var encoding = new EffectiveAddress.Encoding(legacyPrefixes, nonLegacyPrefixes, modRM, Sib, displacement);
 			return EffectiveAddress.FromEncoding(CodeSegmentType, encoding);
 		}
 		#endregion

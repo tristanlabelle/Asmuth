@@ -23,6 +23,6 @@ namespace Asmuth.X86
 		public static bool operator !=(IS4 lhs, IS4 rhs) => !Equals(lhs, rhs);
 		
 		public static implicit operator byte(IS4 rex) => rex.Byte;
-		public static implicit operator IS4(byte @byte) => new IS4(@byte);
+		public static explicit operator IS4(byte @byte) => new IS4(@byte);
 	}
 }

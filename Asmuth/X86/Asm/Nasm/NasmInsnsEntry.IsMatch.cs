@@ -22,14 +22,14 @@ namespace Asmuth.X86.Asm.Nasm
 
 		public bool Match(
 			CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte mainByte,
+			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes, byte mainByte,
 			out bool hasModRM, out int immediateSize)
 		{
 			var partialInstruction = new Instruction.Builder
 			{
 				CodeSegmentType = codeSegmentType,
 				LegacyPrefixes = legacyPrefixes,
-				Xex = xex,
+				NonLegacyPrefixes = nonLegacyPrefixes,
 				MainByte = mainByte
 			}.Build();
 
@@ -50,7 +50,7 @@ namespace Asmuth.X86.Asm.Nasm
 			immediateSize = 0;
 			if (IsAssembleOnly || IsPseudo) return false;
 
-			var expectedXexType = XexType.Escapes;
+			var expectedNonLegacyPrefixForm = NonLegacyPrefixesForm.Escapes;
 			var expectedOpcodeMap = OpcodeMap.Default;
 			var state = NasmEncodingParsingState.Prefixes;
 			foreach (var token in EncodingTokens)
@@ -131,16 +131,16 @@ namespace Asmuth.X86.Asm.Nasm
 
 					// Vex
 					case NasmEncodingTokenType.Vex:
-						if (instruction.Xex.Type.AsVexType() != VexType) return false;
+						if (instruction.NonLegacyPrefixes.Form.GetVexType() != VexType) return false;
 						throw new NotImplementedException();
 
 					// Rex
 					case NasmEncodingTokenType.Rex_NoB:
-						if (instruction.Xex.BaseRegExtension) return false;
+						if (instruction.NonLegacyPrefixes.BaseRegExtension) return false;
 						break;
 
 					case NasmEncodingTokenType.Rex_NoW:
-						if (instruction.Xex.OperandSize64) return false;
+						if (instruction.NonLegacyPrefixes.OperandSize64) return false;
 						break;
 
 					case NasmEncodingTokenType.Rex_LockAsRexR: break;
@@ -160,7 +160,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 						if (state < NasmEncodingParsingState.Escape0F && token.Byte == 0x0F)
 						{
-							if (!instruction.Xex.Type.AllowsEscapes()) return false;
+							if (!instruction.NonLegacyPrefixes.Form.AllowsEscapes()) return false;
 							expectedOpcodeMap = OpcodeMap.Escape0F;
 							state = NasmEncodingParsingState.Escape0F;
 							continue;
@@ -249,7 +249,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 					case NasmEncodingTokenType.Immediate_RelativeOffset:
 						immediateSize += instruction.CodeSegmentType
-							.GetWordOrDwordIntegerOperandSize(instruction.LegacyPrefixes, instruction.Xex)
+							.GetWordOrDwordIntegerOperandSize(instruction.LegacyPrefixes, instruction.NonLegacyPrefixes)
 							.InBytes();
 						break;
 
@@ -275,7 +275,7 @@ namespace Asmuth.X86.Asm.Nasm
 			}
 			
 			return state >= NasmEncodingParsingState.PostOpcode
-				&& (expectedXexType == XexType.Escapes ? instruction.Xex.Type.AllowsEscapes() : instruction.Xex.Type == expectedXexType)
+				&& (expectedNonLegacyPrefixForm == NonLegacyPrefixesForm.Escapes ? instruction.NonLegacyPrefixes.Form.AllowsEscapes() : instruction.NonLegacyPrefixes.Form == expectedNonLegacyPrefixForm)
 				&& instruction.OpcodeMap == expectedOpcodeMap
 				&& (upToOpcode || 
 					(instruction.ModRM.HasValue == hasModRM
@@ -285,7 +285,7 @@ namespace Asmuth.X86.Asm.Nasm
 		private static IntegerSize GetIntegerOperandSize(Instruction instruction)
 		{
 			return instruction.CodeSegmentType.GetIntegerOperandSize(
-				instruction.LegacyPrefixes, instruction.Xex);
+				instruction.LegacyPrefixes, instruction.NonLegacyPrefixes);
 		}
 	}
 }

@@ -77,6 +77,6 @@ namespace Asmuth.X86
 		public static bool Test(byte value) => (value & ReservedMask) == ReservedValue;
 
 		public static implicit operator byte(Rex rex) => rex.Byte;
-		public static implicit operator Rex(byte @byte) => new Rex(@byte);
+		public static explicit operator Rex(byte @byte) => new Rex(@byte);
 	}
 }

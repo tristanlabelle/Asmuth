@@ -38,13 +38,14 @@ namespace Asmuth.X86
 			return (BucketKey)key;
 		}
 
-		public static BucketKey GetBucketKey(ImmutableLegacyPrefixList legacyPrefixes, Xex xex, byte mainByte)
-			=> GetBucketKey(xex.VexType,
-				xex.SimdPrefix.GetValueOrDefault(legacyPrefixes.PotentialSimdPrefix),
-				xex.OpcodeMap, mainByte);
+		public static BucketKey GetBucketKey(ImmutableLegacyPrefixList legacyPrefixes,
+			NonLegacyPrefixes nonLegacyPrefixes, byte mainByte)
+			=> GetBucketKey(nonLegacyPrefixes.VexType,
+				nonLegacyPrefixes.SimdPrefix.GetValueOrDefault(legacyPrefixes.PotentialSimdPrefix),
+				nonLegacyPrefixes.OpcodeMap, mainByte);
 
 		public static BucketKey GetBucketKey(in Instruction instruction)
-			=> GetBucketKey(instruction.LegacyPrefixes, instruction.Xex, instruction.MainOpcodeByte);
+			=> GetBucketKey(instruction.LegacyPrefixes, instruction.NonLegacyPrefixes, instruction.MainOpcodeByte);
 
 		public static BucketKey GetBucketKey(in OpcodeEncoding encoding)
 			=> GetBucketKey(encoding.VexType, encoding.SimdPrefix.GetValueOrDefault(),

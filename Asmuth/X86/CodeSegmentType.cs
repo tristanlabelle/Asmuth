@@ -33,11 +33,11 @@ namespace Asmuth.X86
 			=> type == CodeSegmentType._16Bits ? IntegerSize.Word : IntegerSize.Dword;
 
 		public static IntegerSize GetIntegerOperandSize(this CodeSegmentType type,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex)
+			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes)
 		{
 			return GetIntegerOperandSize(type,
 				@override: legacyPrefixes.HasOperandSizeOverride,
-				rexW: xex.OperandSize64);
+				rexW: nonLegacyPrefixes.OperandSize64);
 		}
 		public static IntegerSize GetIntegerOperandSize(this CodeSegmentType type,
 			bool @override, bool rexW)
@@ -57,11 +57,11 @@ namespace Asmuth.X86
 		}
 
 		public static IntegerSize GetWordOrDwordIntegerOperandSize(this CodeSegmentType type,
-			ImmutableLegacyPrefixList legacyPrefixes, Xex xex)
+			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes)
 		{
 			return GetWordOrDwordIntegerOperandSize(type,
 				@override: legacyPrefixes.HasOperandSizeOverride,
-				rexW: xex.OperandSize64);
+				rexW: nonLegacyPrefixes.OperandSize64);
 		}
 		public static IntegerSize GetWordOrDwordIntegerOperandSize(this CodeSegmentType type,
 			bool @override, bool rexW)

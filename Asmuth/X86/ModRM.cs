@@ -132,6 +132,6 @@ namespace Asmuth.X86
 		}
 
 		public static implicit operator byte(ModRM modRM) => modRM.Value;
-		public static implicit operator ModRM(byte value) => new ModRM(value);
+		public static explicit operator ModRM(byte value) => new ModRM(value);
 	}
 }

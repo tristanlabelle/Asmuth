@@ -12,7 +12,7 @@ namespace Asmuth.X86
 	{
 		Initial,
 		ExpectPrefixOrMainOpcodeByte,
-		ExpectXexByte,
+		ExpectNonLegacyPrefixByte,
 		ExpectMainOpcodeByte,
 		ExpectModRM,
 		ExpectSib,
@@ -29,17 +29,17 @@ namespace Asmuth.X86
 		SimdPrefixAndVex,
 		RexAndVex,
 		ConflictingLegacyPrefixes,
-		MultipleXex,
+		MultipleNonLegacyPrefixes,
 		UnknownOpcode
 	}
 
 	public sealed class InstructionDecoder
 	{
 		#region Substates
-		private struct ExpectXexByteSubstate
+		private struct ExpectNonLegacyPrefixByteSubstate
 		{
 			public uint Accumulator;
-			public XexType XexType;
+			public NonLegacyPrefixesForm Form;
 			public byte BytesRead;
 			public byte ByteCount;
 		}
@@ -60,7 +60,7 @@ namespace Asmuth.X86
 		[StructLayout(LayoutKind.Explicit)]
 		private struct Substate
 		{
-			[FieldOffset(0)] public ExpectXexByteSubstate ExpectXexByte;
+			[FieldOffset(0)] public ExpectNonLegacyPrefixByteSubstate ExpectNonLegacyPrefixByte;
 			[FieldOffset(0)] public ExpectDisplacementSubstate ExpectDisplacement;
 			[FieldOffset(0)] public ExpectImmediateSubstate ExpectImmediate;
 			[FieldOffset(0)] public InstructionDecodingError Error;
@@ -162,8 +162,8 @@ namespace Asmuth.X86
 				case InstructionDecodingState.ExpectPrefixOrMainOpcodeByte:
 					return ConsumePrefixOrMainOpcodeByte(@byte);
 
-				case InstructionDecodingState.ExpectXexByte:
-					return ConsumeXexByte(@byte);
+				case InstructionDecodingState.ExpectNonLegacyPrefixByte:
+					return ConsumeNonLegacyPrefixByte(@byte);
 
 				case InstructionDecodingState.ExpectMainOpcodeByte:
 					return ConsumeMainOpcodeByte(@byte);
@@ -204,45 +204,45 @@ namespace Asmuth.X86
 				return true;
 			}
 
-			var xexType = XexTypeEnum.SniffByte(CodeSegmentType, @byte);
-			if (xexType == XexType.RexAndEscapes)
+			var nonLegacyPrefixesForm = NonLegacyPrefixesFormEnum.SniffByte(CodeSegmentType, @byte);
+			if (nonLegacyPrefixesForm == NonLegacyPrefixesForm.RexAndEscapes)
 			{
-				builder.Xex = new Xex((Rex)@byte);
+				builder.NonLegacyPrefixes = new NonLegacyPrefixes((Rex)@byte);
 				return AdvanceTo(InstructionDecodingState.ExpectMainOpcodeByte);
 			}
 
-			if (xexType != XexType.Escapes)
+			if (nonLegacyPrefixesForm != NonLegacyPrefixesForm.Escapes)
 			{
-				// Vector XEX are ambiguous with existing opcodes.
+				// VEX prefixes are ambiguous with existing opcodes.
 				// We must check whether the following byte is a ModRM.
 				Substate newSubstate = default;
-				newSubstate.ExpectXexByte.XexType = xexType;
-				newSubstate.ExpectXexByte.Accumulator = @byte;
-				newSubstate.ExpectXexByte.BytesRead = 1;
-				newSubstate.ExpectXexByte.ByteCount = (byte)xexType.GetMinSizeInBytes();
+				newSubstate.ExpectNonLegacyPrefixByte.Form = nonLegacyPrefixesForm;
+				newSubstate.ExpectNonLegacyPrefixByte.Accumulator = @byte;
+				newSubstate.ExpectNonLegacyPrefixByte.BytesRead = 1;
+				newSubstate.ExpectNonLegacyPrefixByte.ByteCount = (byte)nonLegacyPrefixesForm.GetMinSizeInBytes();
 
-				Debug.Assert(newSubstate.ExpectXexByte.ByteCount > 1);
-				return AdvanceTo(InstructionDecodingState.ExpectXexByte, newSubstate);
+				Debug.Assert(newSubstate.ExpectNonLegacyPrefixByte.ByteCount > 1);
+				return AdvanceTo(InstructionDecodingState.ExpectNonLegacyPrefixByte, newSubstate);
 			}
 
 			state = InstructionDecodingState.ExpectMainOpcodeByte;
 			return ConsumeMainOpcodeByte(@byte);
 		}
 
-		private bool ConsumeXexByte(byte @byte)
+		private bool ConsumeNonLegacyPrefixByte(byte @byte)
 		{
-			Debug.Assert(state == InstructionDecodingState.ExpectXexByte);
+			Debug.Assert(state == InstructionDecodingState.ExpectNonLegacyPrefixByte);
 
-			// The second byte determines whether we are actually parsing a XEX
+			// The second byte determines whether we are actually parsing a VEX
 			// or an instruction and its ModRM
-			if (substate.ExpectXexByte.BytesRead == 1)
+			if (substate.ExpectNonLegacyPrefixByte.BytesRead == 1)
 			{
-				byte firstByte = (byte)substate.ExpectXexByte.Accumulator;
-				var finalXexType = XexTypeEnum.FromBytes(CodeSegmentType, firstByte, @byte);
-				if (finalXexType == XexType.Escapes)
+				byte firstByte = (byte)substate.ExpectNonLegacyPrefixByte.Accumulator;
+				var finalForm = NonLegacyPrefixesFormEnum.FromBytes(CodeSegmentType, firstByte, @byte);
+				if (finalForm == NonLegacyPrefixesForm.Escapes)
 				{
-					// This was not actually a XEX, but an instruction and its ModRM
-					builder.Xex = default;
+					// This was not actually a VEX, but an instruction and its ModRM
+					builder.NonLegacyPrefixes = default;
 					builder.MainByte = firstByte;
 
 					state = InstructionDecodingState.ExpectModRM;
@@ -250,33 +250,33 @@ namespace Asmuth.X86
 				}
 				else
 				{
-					Debug.Assert(finalXexType == substate.ExpectXexByte.XexType);
+					Debug.Assert(finalForm == substate.ExpectNonLegacyPrefixByte.Form);
 				}
 			}
 
-			// Accumulate xex bytes
-			substate.ExpectXexByte.Accumulator <<= 8;
-			substate.ExpectXexByte.Accumulator |= @byte;
-			substate.ExpectXexByte.BytesRead++;
-			if (substate.ExpectXexByte.BytesRead < substate.ExpectXexByte.ByteCount)
+			// Accumulate non-legacy prefix bytes
+			substate.ExpectNonLegacyPrefixByte.Accumulator <<= 8;
+			substate.ExpectNonLegacyPrefixByte.Accumulator |= @byte;
+			substate.ExpectNonLegacyPrefixByte.BytesRead++;
+			if (substate.ExpectNonLegacyPrefixByte.BytesRead < substate.ExpectNonLegacyPrefixByte.ByteCount)
 				return true; // More bytes to read
 
-			switch (substate.ExpectXexByte.XexType)
+			switch (substate.ExpectNonLegacyPrefixByte.Form)
 			{
-				case XexType.Vex2:
-					builder.Xex = new Xex(new Vex2(secondByte: (byte)substate.ExpectXexByte.Accumulator));
+				case NonLegacyPrefixesForm.Vex2:
+					builder.NonLegacyPrefixes = new NonLegacyPrefixes(new Vex2(secondByte: (byte)substate.ExpectNonLegacyPrefixByte.Accumulator));
 					break;
 
-				case XexType.Vex3:
-				case XexType.Xop:
-					builder.Xex = new Xex(new Vex3Xop(
-						(byte)(substate.ExpectXexByte.Accumulator >> 16),
-						(byte)(substate.ExpectXexByte.Accumulator >> 8),
-						(byte)substate.ExpectXexByte.Accumulator));
+				case NonLegacyPrefixesForm.Vex3:
+				case NonLegacyPrefixesForm.Xop:
+					builder.NonLegacyPrefixes = new NonLegacyPrefixes(new Vex3Xop(
+						(byte)(substate.ExpectNonLegacyPrefixByte.Accumulator >> 16),
+						(byte)(substate.ExpectNonLegacyPrefixByte.Accumulator >> 8),
+						(byte)substate.ExpectNonLegacyPrefixByte.Accumulator));
 					break;
 
-				case XexType.EVex:
-					builder.Xex = new Xex((EVex)substate.ExpectXexByte.Accumulator);
+				case NonLegacyPrefixesForm.EVex:
+					builder.NonLegacyPrefixes = new NonLegacyPrefixes((EVex)substate.ExpectNonLegacyPrefixByte.Accumulator);
 					break;
 
 				default: throw new UnreachableException();
@@ -287,20 +287,20 @@ namespace Asmuth.X86
 
 		private bool ConsumeMainOpcodeByte(byte @byte)
 		{
-			if (builder.Xex.Type.AllowsEscapes())
+			if (builder.NonLegacyPrefixes.Form.AllowsEscapes())
 			{
-				if (builder.Xex.OpcodeMap == OpcodeMap.Default && @byte == 0x0F)
+				if (builder.NonLegacyPrefixes.OpcodeMap == OpcodeMap.Default && @byte == 0x0F)
 				{
-					builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Escape0F);
+					builder.NonLegacyPrefixes = builder.NonLegacyPrefixes.WithOpcodeMap(OpcodeMap.Escape0F);
 					return true;
 				}
 
-				if (builder.Xex.OpcodeMap == OpcodeMap.Escape0F)
+				if (builder.NonLegacyPrefixes.OpcodeMap == OpcodeMap.Escape0F)
 				{
 					switch (@byte)
 					{
-						case 0x38: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Escape0F38); return true;
-						case 0x3A: builder.Xex = builder.Xex.WithOpcodeMap(OpcodeMap.Escape0F3A); return true;
+						case 0x38: builder.NonLegacyPrefixes = builder.NonLegacyPrefixes.WithOpcodeMap(OpcodeMap.Escape0F38); return true;
+						case 0x3A: builder.NonLegacyPrefixes = builder.NonLegacyPrefixes.WithOpcodeMap(OpcodeMap.Escape0F3A); return true;
 						default: break;
 					}
 				}
@@ -309,7 +309,7 @@ namespace Asmuth.X86
 			builder.MainByte = @byte;
 
 			var lookupResult = lookup.Lookup(CodeSegmentType,
-				builder.LegacyPrefixes, builder.Xex,
+				builder.LegacyPrefixes, builder.NonLegacyPrefixes,
 				builder.MainByte, modRM: null, imm8: null);
 			if (lookupResult.IsNotFound)
 				return AdvanceToError(InstructionDecodingError.UnknownOpcode);
@@ -335,7 +335,7 @@ namespace Asmuth.X86
 			if (lookupTag == failedLookupTag)
 			{
 				var lookupResult = lookup.Lookup(builder.CodeSegmentType, builder.LegacyPrefixes,
-					builder.Xex, builder.MainByte, modRM, imm8: null);
+					builder.NonLegacyPrefixes, builder.MainByte, modRM, imm8: null);
 				switch (lookupResult.Status)
 				{
 					case InstructionDecoderLookupStatus.Success:
@@ -394,7 +394,7 @@ namespace Asmuth.X86
 				Debug.Assert(immediateSizeInBytes == 1);
 
 				var lookupResult = lookup.Lookup(builder.CodeSegmentType, builder.LegacyPrefixes,
-					builder.Xex, builder.MainByte, builder.ModRM, imm8: @byte);
+					builder.NonLegacyPrefixes, builder.MainByte, builder.ModRM, imm8: @byte);
 				switch (lookupResult.Status)
 				{
 					case InstructionDecoderLookupStatus.Success:
