@@ -195,6 +195,18 @@ namespace Asmuth.X86.Asm.Nasm
 				MainByte = 0x98,
 				ModRM = ModRMEncoding.Any
 			}); // VFMADD132PD
+
+			AssertEncoding("xop.m8.w0.nds.l0.p0 a2 /r /is4", new OpcodeEncoding.Builder
+			{
+				VexType = VexType.Xop,
+				Map = OpcodeMap.Xop8,
+				RexW = false,
+				VectorSize = SseVectorSize._128,
+				SimdPrefix = SimdPrefix.None,
+				MainByte = 0xA2,
+				ModRM = ModRMEncoding.Any,
+				ImmediateSizeInBytes = 1
+			}); // VPCMOV
 		}
 
 		private static void AssertEncoding(string nasmEncodingStr,

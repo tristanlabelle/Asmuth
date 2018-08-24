@@ -70,7 +70,7 @@ namespace Asmuth.X86
 		public VexRegOperand RegOperand => (VexRegOperand)((data >> RegOperandShift) & 3);
 		public SseVectorSize? VectorSize => (SseVectorSize?)AsZeroIsNullInt((data >> VectorSizeShift) & 3);
 		public SimdPrefix SimdPrefix => (SimdPrefix)((data >> SimdPrefixShift) & 3);
-		public OpcodeMap OpcodeMap => (OpcodeMap)((data >> OpcodeMapShift) & 3);
+		public OpcodeMap OpcodeMap => (OpcodeMap)((data >> OpcodeMapShift) & 0xF);
 		public bool? RexW => AsZeroIsNullBool((data >> RexWShift) & 3);
 
 		public string ToIntelStyleString()
