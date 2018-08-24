@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace Asmuth.X86.Asm
@@ -10,6 +11,10 @@ namespace Asmuth.X86.Asm
 
 		// Used for NASM's "size match"
 		public abstract IntegerSize? ImpliedIntegerOperandSize { get; }
+
+		public abstract bool IsValidField(OperandField field);
+
+		public abstract string Format(in Instruction instruction, OperandField? field);
 
 		public abstract override string ToString();
 
@@ -30,6 +35,11 @@ namespace Asmuth.X86.Asm
 
 			public override IntegerSize? ImpliedIntegerOperandSize => Register.IsSizedGpr
 				? IntegerSizeEnum.TryFromBytes(Register.SizeInBytes.Value) : null;
+
+			public override bool IsValidField(OperandField field) => false;
+
+			public override string Format(in Instruction instruction, OperandField? field)
+				=> Register.Name;
 
 			public override string ToString() => Register.Name;
 
@@ -67,6 +77,52 @@ namespace Asmuth.X86.Asm
 			public override IntegerSize? ImpliedIntegerOperandSize => RegisterClass.IsSized
 				? IntegerSizeEnum.TryFromBytes(RegisterClass.SizeInBytes.Value) : null;
 
+			public override bool IsValidField(OperandField field)
+				=> field == OperandField.ModReg
+				|| field == OperandField.BaseReg
+				|| field == OperandField.NonDestructiveReg;
+
+			public override string Format(in Instruction instruction, OperandField? field)
+			{
+				byte regCode;
+				if (field == OperandField.ModReg)
+				{
+					regCode = instruction.ModRM.HasValue
+						? instruction.ModRM.Value.Reg
+						: MainOpcodeByte.GetEmbeddedReg(instruction.MainOpcodeByte);
+					if (instruction.NonLegacyPrefixes.ModRegExtension)
+						regCode |= 0b1000;
+				}
+				else if (field == OperandField.BaseReg)
+				{
+					if (!instruction.ModRM.HasValue
+						|| instruction.ModRM.Value.IsMemoryRM)
+					{
+						throw new InvalidOperationException("Instruction does not encode a mod base register.");
+					}
+
+					regCode = instruction.ModRM.Value.RM;
+					if (instruction.NonLegacyPrefixes.BaseRegExtension)
+						regCode |= 0b1000;
+				}
+				else if (field == OperandField.NonDestructiveReg)
+				{
+					if (!instruction.NonLegacyPrefixes.NonDestructiveReg.HasValue)
+						throw new InvalidOperationException("Instruction does not encode a non-destructive register.");
+
+					regCode = instruction.NonLegacyPrefixes.NonDestructiveReg.Value;
+				}
+				else
+				{
+					throw new ArgumentOutOfRangeException(nameof(field));
+				}
+				
+				if (RegisterClass == RegisterClass.GprByte && regCode >= 4 && regCode < 8)
+					throw new NotImplementedException("GPR high bytes.");
+				var register = new Register(RegisterClass, regCode);
+				return register.Name;
+			}
+
 			public override string ToString() => RegisterClass.Name;
 
 			public static readonly Reg GprUnsized = new Reg(RegisterClass.GprUnsized);
@@ -94,6 +150,21 @@ namespace Asmuth.X86.Asm
 			public Mem(OperandDataType dataType) => this.DataType = dataType;
 
 			public override IntegerSize? ImpliedIntegerOperandSize => DataType.GetImpliedGprSize();
+
+			public override bool IsValidField(OperandField field)
+				=> field == OperandField.BaseReg || field == OperandField.Immediate;
+
+			public override string Format(in Instruction instruction, OperandField? field)
+			{
+				if (field == OperandField.BaseReg)
+				{
+					return instruction.GetRMEffectiveAddress().ToString();
+				}
+				else
+				{
+					throw new NotImplementedException();
+				}
+			}
 
 			public override string ToString() 
 				=> SizeInBytes == 0 ? "m" : ("m" + SizeInBits.ToString());
@@ -131,6 +202,18 @@ namespace Asmuth.X86.Asm
 
 			public override IntegerSize? ImpliedIntegerOperandSize => RegSpec.ImpliedIntegerOperandSize;
 
+			public override bool IsValidField(OperandField field)
+				=> field == OperandField.BaseReg;
+
+			public override string Format(in Instruction instruction, OperandField? field)
+			{
+				if (!instruction.ModRM.HasValue) throw new ArgumentOutOfRangeException(nameof(field));
+
+				return instruction.ModRM.Value.IsDirect
+					? RegSpec.Format(instruction, field)
+					: MemSpec.Format(instruction, field);
+			}
+
 			public override string ToString()
 			{
 				return (RegSpec.RegisterClass.Family == RegisterFamily.Gpr ? "r" : RegSpec.ToString())
@@ -163,6 +246,29 @@ namespace Asmuth.X86.Asm
 
 			public override IntegerSize? ImpliedIntegerOperandSize => DataType.GetImpliedGprSize();
 
+			public override bool IsValidField(OperandField field)
+				=> field == OperandField.Immediate || field == OperandField.SecondImmediate;
+
+			public override string Format(in Instruction instruction, OperandField? field)
+			{
+				if (DataType.GetTotalSizeInBytes() > instruction.ImmediateSizeInBytes)
+					throw new InvalidOperationException("Instruction doesn't have an immediate big enough to encode operand.");
+				if (field != OperandField.Immediate && field != OperandField.SecondImmediate)
+					throw new ArgumentOutOfRangeException(nameof(field));
+
+				if (DataType.GetTotalSizeInBytes() != instruction.ImmediateSizeInBytes)
+					throw new NotImplementedException("Multiple immediates.");
+
+				if ((DataType & OperandDataType.ElementType_Mask) != OperandDataType.ElementType_Int
+					|| DataType.IsVector())
+					throw new NotImplementedException("Formatting non-int immediates.");
+
+				var value = instruction.ImmediateData.RawStorage;
+				return value < 0x10
+					? value.ToString(CultureInfo.InvariantCulture)
+					: "0x" + value.ToString("x", CultureInfo.InvariantCulture);
+			}
+
 			public override string ToString() => "imm" + DataType.GetElementSizeInBits();
 
 			public static readonly Imm I8 = new Imm(OperandDataType.I8);
@@ -174,11 +280,20 @@ namespace Asmuth.X86.Asm
 		// SAL r/m8, 1 
 		public sealed class Const : OperandFormat
 		{
-			public sbyte Value { get; }
+			public byte Value { get; }
 
-			public Const(sbyte value) => this.Value = value;
+			public Const(byte value) => this.Value = value;
 
 			public override IntegerSize? ImpliedIntegerOperandSize => IntegerSize.Byte;
+
+			public override bool IsValidField(OperandField field) => false;
+
+			public override string Format(in Instruction instruction, OperandField? field)
+			{
+				return Value < 0x10
+					? Value.ToString(CultureInfo.InvariantCulture)
+					: "0x" + Value.ToString("x2", CultureInfo.InvariantCulture);
+			}
 
 			public override string ToString() => Value.ToString();
 
@@ -194,6 +309,28 @@ namespace Asmuth.X86.Asm
 			public Rel(IntegerSize offsetSize) => this.OffsetSize = offsetSize;
 
 			public override IntegerSize? ImpliedIntegerOperandSize => null;
+
+			public override bool IsValidField(OperandField field) => field == OperandField.Immediate;
+
+			public override string Format(in Instruction instruction, OperandField? field)
+			{
+				if (OffsetSize.InBytes() != instruction.ImmediateSizeInBytes)
+					throw new InvalidOperationException("Instruction immediate size doesn't match operand.");
+
+				long value;
+				switch (OffsetSize)
+				{
+					case IntegerSize.Byte: value = instruction.ImmediateData.AsSInt8(); break;
+					case IntegerSize.Word: value = instruction.ImmediateData.AsInt16(); break;
+					case IntegerSize.Dword: value = instruction.ImmediateData.AsInt32(); break;
+					case IntegerSize.Qword: value = instruction.ImmediateData.AsInt64(); break;
+					default: throw new UnreachableException();
+				}
+
+				var str = value.ToString(CultureInfo.InvariantCulture);
+				if (value >= 0) str = "+" + str;
+				return str;
+			}
 
 			public override string ToString() => "rel" + OffsetSize.InBits();
 

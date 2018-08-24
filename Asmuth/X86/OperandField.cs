@@ -17,7 +17,7 @@ namespace Asmuth.X86
 		NonDestructiveReg, // Vex.vvvv
 		VectorOpmask, // Evex.aaa
 		Immediate, // imm
-		Immediate2, // imm (ENTER imm, imm)
+		SecondImmediate, // imm (ENTER imm, imm)
 
 		OpcodeReg = ModReg, // Low 3 bits of opcode (no ModRM)
 		Vidx = IndexReg, // Evex.vidx

@@ -57,7 +57,7 @@ namespace Asmuth.X86.Asm.Nasm
 				case 'm': return OperandField.BaseReg;
 				case 'x': return OperandField.IndexReg;
 				case 'i': return OperandField.Immediate;
-				case 'j': return OperandField.Immediate2;
+				case 'j': return OperandField.SecondImmediate;
 				case 'v': return OperandField.NonDestructiveReg;
 				case 's': return OperandField.IS4;
 				default: throw new ArgumentOutOfRangeException(nameof(c));
