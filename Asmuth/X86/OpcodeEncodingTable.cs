@@ -45,7 +45,9 @@ namespace Asmuth.X86
 				{
 					case SetComparisonResult.Overlapping:
 					case SetComparisonResult.Equal:
-						throw new ArgumentException();
+						throw new ArgumentException(
+							$"New opcode '{opcode}' with tag '{tag}' is ambiguous with existing opcode with tag '{existingEntry.Tag}'.",
+							nameof(opcode));
 
 					case SetComparisonResult.Disjoint:
 						continue;

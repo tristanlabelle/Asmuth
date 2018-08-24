@@ -41,7 +41,16 @@ namespace Asmuth.X86.Asm
 			public static readonly FixedReg Eax = new FixedReg(Register.Eax);
 			public static readonly FixedReg Ecx = new FixedReg(Register.Ecx);
 			public static readonly FixedReg Rax = new FixedReg(Register.Rax);
+
 			public static readonly FixedReg ST0 = new FixedReg(Register.ST0);
+			public static readonly FixedReg Xmm0 = new FixedReg(Register.Xmm0);
+
+			public static readonly FixedReg ES = new FixedReg(Register.ES);
+			public static readonly FixedReg CS = new FixedReg(Register.CS);
+			public static readonly FixedReg SS = new FixedReg(Register.SS);
+			public static readonly FixedReg DS = new FixedReg(Register.DS);
+			public static readonly FixedReg FS = new FixedReg(Register.FS);
+			public static readonly FixedReg GS = new FixedReg(Register.GS);
 		}
 
 		// PUSH r32
@@ -67,6 +76,9 @@ namespace Asmuth.X86.Asm
 			public static readonly Reg Gpr64 = new Reg(RegisterClass.GprQword);
 			public static readonly Reg X87 = new Reg(RegisterClass.X87);
 			public static readonly Reg Mmx = new Reg(RegisterClass.Mmx);
+			public static readonly Reg Xmm = new Reg(RegisterClass.Xmm);
+			public static readonly Reg Ymm = new Reg(RegisterClass.Ymm);
+			public static readonly Reg Zmm = new Reg(RegisterClass.Zmm);
 			public static readonly Reg Segment = new Reg(RegisterClass.Segment);
 			public static readonly Reg Debug = new Reg(RegisterClass.DebugUnsized);
 			public static readonly Reg Control = new Reg(RegisterClass.ControlUnsized);
@@ -132,6 +144,9 @@ namespace Asmuth.X86.Asm
 			public static readonly RegOrMem RM32 = new RegOrMem(Reg.Gpr32, Mem.I32);
 			public static readonly RegOrMem RM64 = new RegOrMem(Reg.Gpr64, Mem.I64);
 			public static readonly RegOrMem Mmx = new RegOrMem(Reg.Mmx, Mem.F64);
+			public static readonly RegOrMem Xmm = new RegOrMem(Reg.Xmm, Mem.M128);
+			public static readonly RegOrMem Ymm = new RegOrMem(Reg.Ymm, Mem.M256);
+			public static readonly RegOrMem Zmm = new RegOrMem(Reg.Zmm, Mem.M512);
 		}
 
 		// PUSH imm32 

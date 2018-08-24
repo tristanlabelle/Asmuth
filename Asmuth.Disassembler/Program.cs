@@ -37,7 +37,7 @@ namespace Asmuth.Disassembler
 				catch (Exception e)
 				{
 					Console.ForegroundColor = ConsoleColor.Red;
-					Console.WriteLine($"{insnsEntry} - {e.Message} ({e.TargetSite})");
+					Console.WriteLine($"{insnsEntry} - {e.Message}");
 					Console.ResetColor();
 				}
 			}

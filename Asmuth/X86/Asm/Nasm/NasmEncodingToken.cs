@@ -187,7 +187,7 @@ namespace Asmuth.X86.Asm.Nasm
 		VectorSib_Zmm,
 
 		[NasmName("wait")]
-		Misc_AssembleWaitPrefix = Category_Misc,
+		Misc_WaitPrefix = Category_Misc,
 		[NasmName("nohi")]
 		Misc_NoHigh8Register,
 		[NasmName("resb")]

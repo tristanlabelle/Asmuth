@@ -186,6 +186,9 @@ namespace Asmuth.X86.Asm.Nasm
 			}
 
 			valuesString = valuesString.Replace("*", string.Empty); // '*' is for "relaxed", but it's not clear what this encodes
+
+			// ':' delimits operands like ',' but indicates that the syntax uses the ':' delimiter,
+			// for example, CALL 42:666
 			var values = Regex.Split(valuesString, "[,:]");
 			
 			if (fieldsString == "r+mi")

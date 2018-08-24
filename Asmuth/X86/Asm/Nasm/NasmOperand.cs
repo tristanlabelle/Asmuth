@@ -54,7 +54,7 @@ namespace Asmuth.X86.Asm.Nasm
 				var operandFormat = operands[i].TryToOperandFormat(defaultSizeInBytes: null);
 				if (operandFormat == null)
 				{
-					if (!sizeMatch) throw new FormatException();
+					if (!sizeMatch) throw new FormatException("Unspecified operand size.");
 					// If we're size matching, allow null as we'll do a second pass
 				}
 				else
@@ -101,6 +101,8 @@ namespace Asmuth.X86.Asm.Nasm
 		{
 			switch (type)
 			{
+				case NasmOperandType.Unity: return OperandFormat.Const.One;
+
 				case NasmOperandType.Reg_AL: return OperandFormat.FixedReg.AL;
 				case NasmOperandType.Reg_CL: return OperandFormat.FixedReg.CL;
 				case NasmOperandType.Reg_AX: return OperandFormat.FixedReg.AX;
@@ -122,6 +124,13 @@ namespace Asmuth.X86.Asm.Nasm
 				case NasmOperandType.FpuReg: return OperandFormat.Reg.X87;
 
 				case NasmOperandType.Reg_SReg: return OperandFormat.Reg.Segment;
+				case NasmOperandType.Reg_ES: return OperandFormat.FixedReg.ES;
+				case NasmOperandType.Reg_CS: return OperandFormat.FixedReg.CS;
+				case NasmOperandType.Reg_SS: return OperandFormat.FixedReg.SS;
+				case NasmOperandType.Reg_DS: return OperandFormat.FixedReg.DS;
+				case NasmOperandType.Reg_FS: return OperandFormat.FixedReg.FS;
+				case NasmOperandType.Reg_GS: return OperandFormat.FixedReg.GS;
+
 				case NasmOperandType.Reg_CReg: return OperandFormat.Reg.Control;
 				case NasmOperandType.Reg_DReg: return OperandFormat.Reg.Debug;
 
@@ -129,9 +138,16 @@ namespace Asmuth.X86.Asm.Nasm
 				case NasmOperandType.MmxRM: return OperandFormat.RegOrMem.Mmx;
 				case NasmOperandType.MmxRM64: return OperandFormat.RegOrMem.Mmx;
 
-				// case NasmOperandType.Xmm0: return OperandFormat.FixedReg.Xmm0;
-				// case NasmOperandType.XmmReg: return OperandFormat.Reg.Xmm;
-				// case NasmOperandType.XmmRM: return OperandFormat.RegOrMem.Xmm;
+				case NasmOperandType.Xmm0: return OperandFormat.FixedReg.Xmm0;
+				case NasmOperandType.XmmReg: return OperandFormat.Reg.Xmm;
+				case NasmOperandType.XmmRM: return OperandFormat.RegOrMem.Xmm;
+
+				case NasmOperandType.YmmReg: return OperandFormat.Reg.Ymm;
+				case NasmOperandType.YmmRM: return OperandFormat.RegOrMem.Ymm;
+				case NasmOperandType.YmmRM256: return OperandFormat.RegOrMem.Ymm;
+
+				case NasmOperandType.ZmmReg: return OperandFormat.Reg.Zmm;
+				case NasmOperandType.ZmmRM512: return OperandFormat.RegOrMem.Zmm;
 
 				case NasmOperandType.Mem:
 				{
@@ -165,12 +181,18 @@ namespace Asmuth.X86.Asm.Nasm
 				case NasmOperandType.Imm32: return OperandFormat.Imm.I32;
 				case NasmOperandType.Imm64: return OperandFormat.Imm.I64;
 
+				// These are assembler only, probably to allow specifying the immediate
+				// in a different format, but they all map to an "ib,s" immediate.
 				case NasmOperandType.SByteWord:
 				case NasmOperandType.SByteWord16:
 				case NasmOperandType.SByteDword:
 				case NasmOperandType.SByteDword32:
 				case NasmOperandType.SByteDword64:
-					return null; // These should be assembler only
+					return OperandFormat.Imm.I8;
+
+				case NasmOperandType.UDword:
+				case NasmOperandType.SDword:
+					return OperandFormat.Imm.I32;
 			}
 			throw new NotImplementedException();
 		}

@@ -254,7 +254,7 @@ namespace Asmuth.X86.Asm.Nasm
 						break;
 
 					// Misc
-					case NasmEncodingTokenType.Misc_AssembleWaitPrefix:
+					case NasmEncodingTokenType.Misc_WaitPrefix:
 					case NasmEncodingTokenType.Misc_NoHigh8Register:
 						break;
 

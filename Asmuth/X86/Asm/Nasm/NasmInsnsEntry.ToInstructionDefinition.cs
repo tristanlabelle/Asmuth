@@ -12,7 +12,20 @@ namespace Asmuth.X86.Asm.Nasm
 	{
 		public bool CanConvertToOpcodeEncoding
 		{
-			get { return !IsPseudo && !IsAssembleOnly; }
+			get
+			{
+				return !IsPseudo && !IsAssembleOnly
+					// This thing is weird, but it looks always accompanied with fixed operand size variants,
+					// so we can ignore it.
+					&& !EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_NoOverride)
+					// Wait prefix is a separate prefix opcode so we don't handle it,
+					// it is for macro-like FINIT instructions which expand to FWAIT, FNINIT
+					&& (!EncodingTokens.Contains(NasmEncodingTokenType.Misc_WaitPrefix) || EncodingTokens.Count == 1)
+					// (Apparently) all FPU opcodes implicitly referencing ST0 appear twice,
+					// once with the explicit ST0 operand and once without (ie one can omit it when assembling).
+					// To avoid duplicates, ignore it here. (TODO: better ignore the other one...)
+					&& Operands.All(o => o.Type != NasmOperandType.Fpu0);
+			}
 		}
 		
 		public InstructionDefinition ToInstructionDefinition()
@@ -302,8 +315,21 @@ namespace Asmuth.X86.Asm.Nasm
 						case NasmEncodingTokenType.VectorSib_Zmm:
 							break; // doesn't impact encoding
 
+						case NasmEncodingTokenType.Misc_WaitPrefix:
+							if (tokens.Count() == 1)
+							{
+								// Special case for FWAIT since the NASM file
+								// doesn't explicitly specify the main opcode byte.
+								SetMainOpcodeByte(0x9B, plusR: false);
+							}
+							else
+							{
+								// The wait prefix is a separate instruction,
+								// so we don't account for it in the encoding.
+							}
+							break;
+
 						case NasmEncodingTokenType.Misc_NoHigh8Register:
-						case NasmEncodingTokenType.Misc_AssembleWaitPrefix: // Implicit WAIT prefix when assembling instruction
 						case NasmEncodingTokenType.Misc_Resb:
 							break;
 
