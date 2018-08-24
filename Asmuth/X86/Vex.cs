@@ -34,7 +34,7 @@ namespace Asmuth.X86
 		public bool ModRegExtension => (xoredValue & ModRegExtensionBit) != 0;
 		public byte NonDestructiveReg => (byte)((xoredValue >> 3) & 0xF);
 		public bool VectorSize256 => (xoredValue & VectorSize256Bit) != 0;
-		public SseVectorSize VectorSize => VectorSize256 ? SseVectorSize._256Bits : SseVectorSize._128Bits;
+		public SseVectorSize VectorSize => VectorSize256 ? SseVectorSize._256 : SseVectorSize._128;
 		public SimdPrefix SimdPrefix => (SimdPrefix)(xoredValue & 0x3);
 		
 		public bool Equals(Vex2 other) => xoredValue == other.xoredValue;
@@ -65,7 +65,7 @@ namespace Asmuth.X86
 
 			public void Validate()
 			{
-				if (VectorSize >= SseVectorSize._512Bits)
+				if (VectorSize >= SseVectorSize._512)
 					throw new ArgumentOutOfRangeException(nameof(VectorSize));
 			}
 
@@ -123,7 +123,7 @@ namespace Asmuth.X86
 			if (builder.BaseRegExtension) xoredValue |= BaseRegExtensionBit;
 			if (builder.IndexRegExtension) xoredValue |= IndexRegExtensionBit;
 			if (builder.RexW) xoredValue |= RexWBit;
-			if (builder.VectorSize == SseVectorSize._256Bits) xoredValue |= VectorSize256Bit;
+			if (builder.VectorSize == SseVectorSize._256) xoredValue |= VectorSize256Bit;
 		}
 
 		public bool IsVex3 => OpcodeMap <= OpcodeMap.Escape0F3A;
@@ -133,7 +133,7 @@ namespace Asmuth.X86
 		public bool BaseRegExtension => (xoredValue & BaseRegExtensionBit) != 0;
 		public bool IndexRegExtension => (xoredValue & IndexRegExtensionBit) != 0;
 		public bool VectorSize256 => (xoredValue & VectorSize256Bit) != 0;
-		public SseVectorSize VectorSize => VectorSize256 ? SseVectorSize._256Bits : SseVectorSize._128Bits;
+		public SseVectorSize VectorSize => VectorSize256 ? SseVectorSize._256 : SseVectorSize._128;
 		public bool RexW => (xoredValue & RexWBit) != 0;
 		public OpcodeMap OpcodeMap => (OpcodeMap)((xoredValue >> OpcodeMapShift) & 0x1F);
 		public byte NonDestructiveReg => (byte)((xoredValue >> NonDestructiveRegShift) & 0xF);

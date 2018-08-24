@@ -58,7 +58,7 @@ namespace Asmuth.X86
 				0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00
 			};
 
-			var instructions = Decode(table, CodeSegmentType._32Bits, nops);
+			var instructions = Decode(table, CodeSegmentType.IA32_Default32, nops);
 			Assert.AreEqual(9, instructions.Length);
 			
 			for (int i = 0; i < instructions.Length; ++i)
@@ -73,8 +73,8 @@ namespace Asmuth.X86
 					instruction.LegacyPrefixes.Count == 1);
 				Assert.AreEqual(length >= 5 && length != 7, instruction.Sib.HasValue);
 				Assert.AreEqual(length <= 3, instruction.DisplacementSize == DisplacementSize.None);
-				Assert.AreEqual(length >= 4 && length <= 6, instruction.DisplacementSize == DisplacementSize._8Bits);
-				Assert.AreEqual(length >= 7, instruction.DisplacementSize == DisplacementSize._32Bits);
+				Assert.AreEqual(length >= 4 && length <= 6, instruction.DisplacementSize == DisplacementSize.SByte);
+				Assert.AreEqual(length >= 7, instruction.DisplacementSize == DisplacementSize.SDword);
 			}
 		}
 
@@ -127,12 +127,12 @@ namespace Asmuth.X86
 			var indirectDisp8ModRM = new ModRM(ModRMMod.IndirectDisp8, (byte)0, 0);
 			var indirectLongDispModRM = new ModRM(ModRMMod.IndirectLongDisp, (byte)0, 0);
 			Assert.AreEqual(DisplacementSize.None, DecodeSingle_32Bits(table, 0x0F, 0x1F, directModRM).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._8Bits, DecodeSingle_32Bits(table, 0x0F, 0x1F, indirectDisp8ModRM, 0x00).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._32Bits, DecodeSingle_32Bits(table, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._16Bits, DecodeSingle_32Bits(table, 0x67, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._16Bits, DecodeSingle_16Bits(table, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._32Bits, DecodeSingle_16Bits(table, 0x67, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
-			Assert.AreEqual(DisplacementSize._32Bits, DecodeSingle_64Bits(table, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize.SByte, DecodeSingle_32Bits(table, 0x0F, 0x1F, indirectDisp8ModRM, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize.SDword, DecodeSingle_32Bits(table, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize.SWord, DecodeSingle_32Bits(table, 0x67, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize.SWord, DecodeSingle_16Bits(table, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize.SDword, DecodeSingle_16Bits(table, 0x67, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
+			Assert.AreEqual(DisplacementSize.SDword, DecodeSingle_64Bits(table, 0x0F, 0x1F, indirectLongDispModRM, 0x00, 0x00, 0x00, 0x00).DisplacementSize);
 		}
 
 		[TestMethod]
@@ -225,14 +225,14 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				LongMode = false,
-				AddressSize = AddressSize._16Bits,
+				AddressSize = AddressSize._16,
 				MainByte = 0xC7,
 				ImmediateSizeInBytes = sizeof(short)
 			}, "mov ax,moffs16");
 
 			table.Add(new OpcodeEncoding.Builder
 			{
-				AddressSize = AddressSize._32Bits,
+				AddressSize = AddressSize._32,
 				MainByte = 0xC7,
 				ImmediateSizeInBytes = sizeof(int)
 			}, "mov eax,moffs32");
@@ -240,7 +240,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				LongMode = true,
-				AddressSize = AddressSize._64Bits,
+				AddressSize = AddressSize._64,
 				MainByte = 0xC7,
 				ImmediateSizeInBytes = sizeof(long)
 			}, "mov rax,moffs64");
@@ -330,7 +330,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				VexType = VexType.Vex,
-				VectorSize = SseVectorSize._128Bits,
+				VectorSize = SseVectorSize._128,
 				SimdPrefix = SimdPrefix._F3,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0xE6,
@@ -373,7 +373,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				VexType = VexType.Vex,
-				VectorSize = SseVectorSize._128Bits,
+				VectorSize = SseVectorSize._128,
 				SimdPrefix = SimdPrefix._66,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x58,
@@ -389,7 +389,7 @@ namespace Asmuth.X86
 
 			var instruction = DecodeSingle_32Bits(table, vex.FirstByte, vex.SecondByte, vex.ThirdByte, 0x58, modRM);
 			Assert.AreEqual(NonLegacyPrefixesForm.Vex3, instruction.NonLegacyPrefixes.Form);
-			Assert.AreEqual(SseVectorSize._128Bits, instruction.NonLegacyPrefixes.VectorSize);
+			Assert.AreEqual(SseVectorSize._128, instruction.NonLegacyPrefixes.VectorSize);
 			Assert.AreEqual((byte)0, instruction.NonLegacyPrefixes.NonDestructiveReg);
 			Assert.IsFalse(instruction.NonLegacyPrefixes.OperandSize64);
 			Assert.IsFalse(instruction.NonLegacyPrefixes.ModRegExtension);
@@ -454,13 +454,13 @@ namespace Asmuth.X86
 		}
 
 		private static Instruction DecodeSingle_16Bits(IInstructionDecoderLookup lookup, params byte[] bytes)
-			=> DecodeSingle(lookup, CodeSegmentType._16Bits, bytes);
+			=> DecodeSingle(lookup, CodeSegmentType.IA32_Default16, bytes);
 
 		private static Instruction DecodeSingle_32Bits(IInstructionDecoderLookup lookup, params byte[] bytes)
-			=> DecodeSingle(lookup, CodeSegmentType._32Bits, bytes);
+			=> DecodeSingle(lookup, CodeSegmentType.IA32_Default32, bytes);
 
 		private static Instruction DecodeSingle_64Bits(IInstructionDecoderLookup lookup, params byte[] bytes)
-			=> DecodeSingle(lookup, CodeSegmentType._64Bits, bytes);
+			=> DecodeSingle(lookup, CodeSegmentType.LongMode, bytes);
 		
 		private static object DecodeSingleForTag(IInstructionDecoderLookup lookup,
 			CodeSegmentType codeSegmentType, params byte[] bytes)
@@ -483,6 +483,6 @@ namespace Asmuth.X86
 
 		private static object DecodeSingleForTag_32Bits(
 			IInstructionDecoderLookup lookup, params byte[] bytes)
-			=> DecodeSingleForTag(lookup, CodeSegmentType._32Bits, bytes);
+			=> DecodeSingleForTag(lookup, CodeSegmentType.IA32_Default32, bytes);
 	}
 }

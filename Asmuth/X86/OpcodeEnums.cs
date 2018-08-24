@@ -22,11 +22,11 @@ namespace Asmuth.X86
 
 	public enum AluBinaryOperandMode
 	{
-		RM_R_8Bits = 0b000,
+		RM_R_8 = 0b000,
 		RM_R = 0b001,
-		R_RM_8Bits = 0b010,
+		R_RM_8 = 0b010,
 		R_RM = 0b011,
-		A_I_8Bits = 0b100,
+		A_I_8 = 0b100,
 		A_I = 0b101,
 		// 0b110 and 0b111 are not ALU
 	}
@@ -54,7 +54,7 @@ namespace Asmuth.X86
 
 		public static int GetImmediateSizeInBytes(this AluBinaryOperandMode mode, bool default32 = true)
 		{
-			if (mode == AluBinaryOperandMode.A_I_8Bits) return 1;
+			if (mode == AluBinaryOperandMode.A_I_8) return 1;
 			if (mode == AluBinaryOperandMode.A_I) return default32 ? 4 : 2;
 			return 0;
 		}

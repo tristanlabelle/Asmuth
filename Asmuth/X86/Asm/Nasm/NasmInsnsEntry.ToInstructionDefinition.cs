@@ -118,15 +118,15 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						case NasmEncodingTokenType.AddressSize_Fixed16:
-							SetAddressSize(AddressSize._16Bits);
+							SetAddressSize(AddressSize._16);
 							break;
 
 						case NasmEncodingTokenType.AddressSize_Fixed32:
-							SetAddressSize(AddressSize._32Bits);
+							SetAddressSize(AddressSize._32);
 							break;
 
 						case NasmEncodingTokenType.AddressSize_Fixed64:
-							SetAddressSize(AddressSize._64Bits);
+							SetAddressSize(AddressSize._64);
 							break;
 
 						// ?
@@ -278,7 +278,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 						case NasmEncodingTokenType.Immediate_WordOrDword:
 						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword:
-							throw new NotImplementedException();
+							throw new NotImplementedException("Operand size-dependent immediates not implemented.");
 
 						case NasmEncodingTokenType.Immediate_Qword:
 							AddImmediateWithSizeInBytes(8);
@@ -347,8 +347,8 @@ namespace Asmuth.X86.Asm.Nasm
 				if (builder.AddressSize.HasValue) throw new FormatException("Multiple address size tokens.");
 
 				builder.AddressSize = size;
-				if (size == AddressSize._16Bits) SetLongMode(false);
-				else if (size == AddressSize._64Bits) SetLongMode(true);
+				if (size == AddressSize._16) SetLongMode(false);
+				else if (size == AddressSize._64) SetLongMode(true);
 			}
 
 			private void SetLongMode(bool value)

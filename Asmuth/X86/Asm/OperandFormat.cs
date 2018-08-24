@@ -106,10 +106,10 @@ namespace Asmuth.X86.Asm
 			public static readonly Mem F32 = new Mem(OperandDataType.F32);
 			public static readonly Mem F64 = new Mem(OperandDataType.F64);
 			public static readonly Mem F80 = new Mem(OperandDataType.F80);
-			public static readonly Mem M80 = new Mem(OperandDataType.ElementSize_80Bits);
-			public static readonly Mem M128 = new Mem(OperandDataType.ElementSize_128Bits);
-			public static readonly Mem M256 = new Mem(OperandDataType.ElementSize_256Bits);
-			public static readonly Mem M512 = new Mem(OperandDataType.ElementSize_512Bits);
+			public static readonly Mem M80 = new Mem(OperandDataType.ElementSize_80);
+			public static readonly Mem M128 = new Mem(OperandDataType.ElementSize_128);
+			public static readonly Mem M256 = new Mem(OperandDataType.ElementSize_256);
+			public static readonly Mem M512 = new Mem(OperandDataType.ElementSize_512);
 		}
 
 		// NEG r/m8

@@ -31,7 +31,7 @@ namespace Asmuth.X86
 		public static AddressSize ToAddressSize(this IntegerSize size)
 		{
 			if (size == IntegerSize.Byte) throw new ArgumentOutOfRangeException(nameof(size));
-			return (AddressSize)((int)AddressSize._16Bits + (size - IntegerSize.Word));
+			return (AddressSize)((int)AddressSize._16 + (size - IntegerSize.Word));
 		}
 	}
 }

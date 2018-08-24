@@ -8,9 +8,9 @@ namespace Asmuth.X86
 {
 	public enum AddressSize : byte
 	{
-		_16Bits,
-		_32Bits,
-		_64Bits
+		_16,
+		_32,
+		_64
 	}
 
 	public static class AddressSizeEnum

@@ -169,7 +169,7 @@ namespace Asmuth.X86.Asm.Nasm
 			AssertEncoding("vex.128.0f 10 /r", new OpcodeEncoding.Builder
 			{
 				VexType = VexType.Vex,
-				VectorSize = SseVectorSize._128Bits,
+				VectorSize = SseVectorSize._128,
 				SimdPrefix = SimdPrefix.None,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x10,
@@ -188,7 +188,7 @@ namespace Asmuth.X86.Asm.Nasm
 			AssertEncoding("vex.dds.256.66.0f38.w1 98 /r", new OpcodeEncoding.Builder
 			{
 				VexType = VexType.Vex,
-				VectorSize = SseVectorSize._256Bits,
+				VectorSize = SseVectorSize._256,
 				SimdPrefix = SimdPrefix._66,
 				RexW = true,
 				Map = OpcodeMap.Escape0F38,

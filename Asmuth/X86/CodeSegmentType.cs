@@ -12,25 +12,25 @@ namespace Asmuth.X86
 		// Defaults to 16-bits addresses/operands, overridable to 32-bits
 		// Real 8086, Virtual 8086, System Management
 		// Protected/Compatibility Mode (16-bit code segment flag)
-		_16Bits,
+		IA32_Default16,
 
 		// Code segment flags L = 0, D = 1
 		// Defaults to 32-bits addresses/operands, overridable to 16-bits
 		// Protected/Compatibility Mode (32-bit code segment flag)
-		_32Bits,
+		IA32_Default32,
 
 		// Code segment flags L = 1, D = 0
 		// Defaults to 64-bits addresses, overridable to 32-bits
 		// Defaults to 32-bits operands, overridable to 16-bits
 		// Long Mode
-		_64Bits
+		LongMode
 	}
 
 	public static class CodeSegmentTypeEnum
 	{
 		#region OperandSize
 		public static IntegerSize GetDefaultIntegerOperandSize(this CodeSegmentType type)
-			=> type == CodeSegmentType._16Bits ? IntegerSize.Word : IntegerSize.Dword;
+			=> type == CodeSegmentType.IA32_Default16 ? IntegerSize.Word : IntegerSize.Dword;
 
 		public static IntegerSize GetIntegerOperandSize(this CodeSegmentType type,
 			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes)
@@ -44,7 +44,7 @@ namespace Asmuth.X86
 		{
 			if (rexW)
 			{
-				if (type != CodeSegmentType._64Bits) throw new ArgumentException();
+				if (type != CodeSegmentType.LongMode) throw new ArgumentException();
 				// 2.2.1.2
 				// • For non-byte operations: if a 66H prefix is used with prefix (REX.W = 1),
 				//   66H is ignored.
@@ -52,7 +52,7 @@ namespace Asmuth.X86
 				return IntegerSize.Qword;
 			}
 
-			return (type == CodeSegmentType._16Bits) == @override
+			return (type == CodeSegmentType.IA32_Default16) == @override
 				? IntegerSize.Dword : IntegerSize.Word;
 		}
 
@@ -68,7 +68,7 @@ namespace Asmuth.X86
 		{
 			if (rexW)
 			{
-				if (type != CodeSegmentType._64Bits) throw new ArgumentException();
+				if (type != CodeSegmentType.LongMode) throw new ArgumentException();
 				// 2.2.1.2
 				// • For non-byte operations: if a 66H prefix is used with prefix (REX.W = 1),
 				//   66H is ignored.
@@ -76,7 +76,7 @@ namespace Asmuth.X86
 				return IntegerSize.Dword;
 			}
 
-			return (type == CodeSegmentType._16Bits) == @override
+			return (type == CodeSegmentType.IA32_Default16) == @override
 				? IntegerSize.Dword : IntegerSize.Word;
 		}
 		#endregion
@@ -88,14 +88,14 @@ namespace Asmuth.X86
 			=> GetEffectiveAddressSize(type, @override: legacyPrefixes.HasAddressSizeOverride);
 		public static AddressSize GetEffectiveAddressSize(this CodeSegmentType type, bool @override)
 		{
-			if (type == CodeSegmentType._16Bits) return @override ? AddressSize._32Bits : AddressSize._16Bits;
-			if (type == CodeSegmentType._32Bits) return @override ? AddressSize._16Bits : AddressSize._32Bits;
-			if (type == CodeSegmentType._64Bits) return @override ? AddressSize._32Bits : AddressSize._64Bits;
+			if (type == CodeSegmentType.IA32_Default16) return @override ? AddressSize._32 : AddressSize._16;
+			if (type == CodeSegmentType.IA32_Default32) return @override ? AddressSize._16 : AddressSize._32;
+			if (type == CodeSegmentType.LongMode) return @override ? AddressSize._32 : AddressSize._64;
 			throw new ArgumentOutOfRangeException(nameof(type));
 		}
 		public static bool Supports(this CodeSegmentType type, AddressSize addressSize)
-			=> type == CodeSegmentType._64Bits 
-			? (addressSize != AddressSize._16Bits) : (addressSize != AddressSize._64Bits);
+			=> type == CodeSegmentType.LongMode 
+			? (addressSize != AddressSize._16) : (addressSize != AddressSize._64);
 		public static bool Supports(this CodeSegmentType type, AddressSize addressSize,
 			out bool withOverride)
 		{
@@ -106,9 +106,9 @@ namespace Asmuth.X86
 		#endregion
 
 		public static bool IsIA32(this CodeSegmentType type)
-			=> type != CodeSegmentType._64Bits;
+			=> type != CodeSegmentType.LongMode;
 
 		public static bool IsLongMode(this CodeSegmentType type)
-			=> type == CodeSegmentType._64Bits;
+			=> type == CodeSegmentType.LongMode;
 	}
 }

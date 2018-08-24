@@ -99,7 +99,7 @@ namespace Asmuth.Disassembler
 
 				// Disassemble executable sections
 				var instructionDecoder = new InstructionDecoder(
-					is32Bit ? CodeSegmentType._32Bits : CodeSegmentType._64Bits,
+					is32Bit ? CodeSegmentType.IA32_Default32 : CodeSegmentType.LongMode,
 					instructionDictionary);
 				foreach (var sectionHeader in sectionHeaders)
 				{

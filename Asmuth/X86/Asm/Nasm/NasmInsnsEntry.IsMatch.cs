@@ -59,15 +59,15 @@ namespace Asmuth.X86.Asm.Nasm
 				{
 					// Address size
 					case NasmEncodingTokenType.AddressSize_Fixed16:
-						if (instruction.EffectiveAddressSize != AddressSize._16Bits) return false;
+						if (instruction.EffectiveAddressSize != AddressSize._16) return false;
 						break;
 
 					case NasmEncodingTokenType.AddressSize_Fixed32:
-						if (instruction.EffectiveAddressSize != AddressSize._32Bits) return false;
+						if (instruction.EffectiveAddressSize != AddressSize._32) return false;
 						break;
 
 					case NasmEncodingTokenType.AddressSize_Fixed64:
-						if (instruction.EffectiveAddressSize != AddressSize._64Bits) return false;
+						if (instruction.EffectiveAddressSize != AddressSize._64) return false;
 						break;
 
 					case NasmEncodingTokenType.AddressSize_NoOverride:

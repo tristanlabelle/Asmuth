@@ -53,34 +53,34 @@ namespace Asmuth.X86
 
 		public bool IsAbsoluteRM(AddressSize addressSize)
 		{
-			if (addressSize == AddressSize._16Bits) return IsAbsoluteRM_16;
-			if (addressSize == AddressSize._32Bits) return IsAbsoluteRM_32;
+			if (addressSize == AddressSize._16) return IsAbsoluteRM_16;
+			if (addressSize == AddressSize._32) return IsAbsoluteRM_32;
 			return false;
 		}
 
 		public bool ImpliesSib(AddressSize addressSize)
-			=> addressSize >= AddressSize._32Bits && IsIndirect && RM == 4;
+			=> addressSize >= AddressSize._32 && IsIndirect && RM == 4;
 		
 		public DisplacementSize GetDisplacementSize(AddressSize addressSize, Sib sib)
 		{
 			switch (Mod)
 			{
 				case ModRMMod.IndirectDisp8:
-					return DisplacementSize._8Bits;
+					return DisplacementSize.SByte;
 				case ModRMMod.IndirectLongDisp:
-					return addressSize == AddressSize._16Bits
-						? DisplacementSize._16Bits : DisplacementSize._32Bits;
+					return addressSize == AddressSize._16
+						? DisplacementSize.SWord : DisplacementSize.SDword;
 				case ModRMMod.Direct: return DisplacementSize.None;
 			}
 
 			// Mod = 0
-			if (addressSize == AddressSize._16Bits)
-				return RM == 6 ? DisplacementSize._16Bits : DisplacementSize.None;
+			if (addressSize == AddressSize._16)
+				return RM == 6 ? DisplacementSize.SWord : DisplacementSize.None;
 
-			if (RM == 5) return DisplacementSize._32Bits;
+			if (RM == 5) return DisplacementSize.SDword;
 
 			// 32-bit mode, mod = 0, RM = 6 (sib byte)
-			return sib.IsSpecialBase ? DisplacementSize._32Bits : DisplacementSize.None;
+			return sib.IsSpecialBase ? DisplacementSize.SDword : DisplacementSize.None;
 		}
 
 		public bool Equals(ModRM other) => Value == other.Value;

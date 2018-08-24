@@ -9,9 +9,9 @@ namespace Asmuth.X86
 	public enum DisplacementSize
 	{
 		None,
-		_8Bits,
-		_16Bits, // 16-bit effective address size only
-		_32Bits // 32/64-bit effective address sizes only
+		SByte,
+		SWord, // 16-bit effective address size only
+		SDword // 32/64-bit effective address sizes only
 	}
 
 	public static class DisplacementSizeEnum
@@ -21,26 +21,26 @@ namespace Asmuth.X86
 			switch (size)
 			{
 				case DisplacementSize.None: return 0;
-				case DisplacementSize._8Bits: return 1;
-				case DisplacementSize._16Bits: return 2;
-				case DisplacementSize._32Bits: return 4;
+				case DisplacementSize.SByte: return 1;
+				case DisplacementSize.SWord: return 2;
+				case DisplacementSize.SDword: return 4;
 				default: throw new ArgumentOutOfRangeException(nameof(size));
 			}
 		}
 		public static bool IsLong(this DisplacementSize size)
-			=> size >= DisplacementSize._16Bits;
+			=> size >= DisplacementSize.SWord;
 		public static DisplacementSize GetMaximum(AddressSize addressSize)
-			=> addressSize == AddressSize._16Bits ? DisplacementSize._16Bits : DisplacementSize._32Bits;
+			=> addressSize == AddressSize._16 ? DisplacementSize.SWord : DisplacementSize.SDword;
 		public static bool IsEncodable(this DisplacementSize size, AddressSize addressSize)
-			=> (size == DisplacementSize._16Bits) == (addressSize == AddressSize._16Bits);
+			=> (size == DisplacementSize.SWord) == (addressSize == AddressSize._16);
 		public static bool CanEncodeValue(this DisplacementSize size, int displacement)
 		{
 			switch (size)
 			{
 				case DisplacementSize.None: return displacement == 0;
-				case DisplacementSize._8Bits: return unchecked((sbyte)displacement) == displacement;
-				case DisplacementSize._16Bits: return unchecked((short)displacement) == displacement;
-				case DisplacementSize._32Bits: return true;
+				case DisplacementSize.SByte: return unchecked((sbyte)displacement) == displacement;
+				case DisplacementSize.SWord: return unchecked((short)displacement) == displacement;
+				case DisplacementSize.SDword: return true;
 				default: throw new ArgumentOutOfRangeException(nameof(size));
 			}
 		}

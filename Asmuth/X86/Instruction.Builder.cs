@@ -10,7 +10,7 @@ namespace Asmuth.X86
 	{
 		public sealed class Builder
 		{
-			public CodeSegmentType CodeSegmentType { get; set; } = CodeSegmentType._32Bits;
+			public CodeSegmentType CodeSegmentType { get; set; } = CodeSegmentType.IA32_Default32;
 			public ImmutableLegacyPrefixList LegacyPrefixes { get; set; }
 			public NonLegacyPrefixes NonLegacyPrefixes { get; set; }
 			public byte MainByte { get; set; }
@@ -24,7 +24,7 @@ namespace Asmuth.X86
 
 			public void Clear()
 			{
-				CodeSegmentType = CodeSegmentType._32Bits;
+				CodeSegmentType = CodeSegmentType.IA32_Default32;
 				LegacyPrefixes = ImmutableLegacyPrefixList.Empty;
 				NonLegacyPrefixes = default;
 				MainByte = 0;

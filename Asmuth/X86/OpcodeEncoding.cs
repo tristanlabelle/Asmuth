@@ -48,9 +48,9 @@ namespace Asmuth.X86
 
 			public void Validate()
 			{
-				if (AddressSize == X86.AddressSize._64Bits && LongMode != true)
+				if (AddressSize == X86.AddressSize._64 && LongMode != true)
 					throw new ArgumentException("64-bit addresses imply long mode.");
-				if (AddressSize == X86.AddressSize._16Bits && LongMode != false)
+				if (AddressSize == X86.AddressSize._16 && LongMode != false)
 					throw new ArgumentException("16-bit addresses imply IA32 mode.");
 				if (OperandSize == OperandSizeEncoding.Word && LongMode != false)
 					throw new ArgumentException("16-bit operands imply IA32 mode.");
@@ -132,8 +132,8 @@ namespace Asmuth.X86
 		{
 			if (!LongMode.HasValue) return true;
 			return LongMode.Value
-				? codeSegmentType == CodeSegmentType._64Bits
-				: codeSegmentType != CodeSegmentType._64Bits;
+				? codeSegmentType == CodeSegmentType.LongMode
+				: codeSegmentType != CodeSegmentType.LongMode;
 		}
 
 		#region Matching

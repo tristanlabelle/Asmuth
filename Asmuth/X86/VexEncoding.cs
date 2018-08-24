@@ -101,9 +101,9 @@ namespace Asmuth.X86
 			switch (VectorSize)
 			{
 				case null: str.Append(".lig"); break;
-				case SseVectorSize._128Bits: str.Append(isEVex ? ".128" : ".l0"); break;
-				case SseVectorSize._256Bits: str.Append(isEVex ? ".256" : ".l1"); break;
-				case SseVectorSize._512Bits:
+				case SseVectorSize._128: str.Append(isEVex ? ".128" : ".l0"); break;
+				case SseVectorSize._256: str.Append(isEVex ? ".256" : ".l1"); break;
+				case SseVectorSize._512:
 					if (!isEVex) throw new ArgumentException();
 					str.Append(".512");
 					break;

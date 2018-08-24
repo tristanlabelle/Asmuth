@@ -173,9 +173,9 @@ namespace Asmuth.X86
 		{
 			switch (size)
 			{
-				case AddressSize._16Bits: return Flags.AddressSize_16;
-				case AddressSize._32Bits: return Flags.AddressSize_32;
-				case AddressSize._64Bits: return Flags.AddressSize_64;
+				case AddressSize._16: return Flags.AddressSize_16;
+				case AddressSize._32: return Flags.AddressSize_32;
+				case AddressSize._64: return Flags.AddressSize_64;
 				default: throw new UnreachableException();
 			}
 		}
@@ -212,14 +212,14 @@ namespace Asmuth.X86
 
 		public static EffectiveAddress Absolute(AddressSize size, int address)
 		{
-			if (size == AddressSize._16Bits && (short)address != address)
+			if (size == AddressSize._16 && (short)address != address)
 				throw new ArgumentOutOfRangeException(nameof(address), "The address cannot be encoded with the given address size.");
 			return new EffectiveAddress(BaseFlags(size) | Flags.BaseReg_None | Flags.IndexReg_None, address);
 		}
 
 		public static EffectiveAddress Absolute(AddressSize size, SegmentRegister segment, int address)
 		{
-			if (size == AddressSize._16Bits && (short)address != address)
+			if (size == AddressSize._16 && (short)address != address)
 				throw new ArgumentOutOfRangeException(nameof(address), "The address cannot be encoded with the given address size.");
 			return new EffectiveAddress(BaseFlags(size, segment) | Flags.BaseReg_None | Flags.IndexReg_None, address);
 		}
@@ -228,9 +228,9 @@ namespace Asmuth.X86
 			AddressSize addressSize, SegmentRegister? segment, AddressBaseRegister? @base,
 			GprCode? index = null, SibScale scale = SibScale._1, int displacement = 0)
 		{
-			if (@base == AddressBaseRegister.Rip && (addressSize == AddressSize._16Bits || index.HasValue))
+			if (@base == AddressBaseRegister.Rip && (addressSize == AddressSize._16 || index.HasValue))
 				throw new ArgumentException("IP-relative addressing is incompatible with 16-bit addresses or indexed forms.");
-			if (addressSize == AddressSize._16Bits)
+			if (addressSize == AddressSize._16)
 			{
 				if (@base.GetValueOrDefault() >= AddressBaseRegister.R8 || index.GetValueOrDefault() >= GprCode.R8)
 					throw new ArgumentException("16-bit effective addresses cannot reference registers R8-R15.");
@@ -300,7 +300,7 @@ namespace Asmuth.X86
 		public static EffectiveAddress RipRelative(
 			AddressSize addressSize, SegmentRegister? segment, int displacement)
 		{
-			if (addressSize == AddressSize._16Bits)
+			if (addressSize == AddressSize._16)
 				throw new ArgumentException("16-bit SIB cannot encode rip-relative effective addresses.", nameof(addressSize));
 			return Indirect(addressSize, segment, AddressBaseRegister.Rip, displacement);
 		}
@@ -330,7 +330,7 @@ namespace Asmuth.X86
 				default: throw new ArgumentOutOfRangeException(nameof(rm));
 			}
 
-			return Indirect(AddressSize._16Bits, segment, @base, index, SibScale._1, displacement);
+			return Indirect(AddressSize._16, segment, @base, index, SibScale._1, displacement);
 		}
 
 		public static EffectiveAddress FromEncoding(CodeSegmentType codeSegmentType, Encoding encoding)
@@ -338,13 +338,13 @@ namespace Asmuth.X86
 			if (encoding.ModRM.IsDirect)
 				throw new ArgumentException("ModRM does not encode a memory operand.");
 
-			if ((encoding.BaseRegExtension || encoding.IndexRegExtension) && codeSegmentType != CodeSegmentType._64Bits)
+			if ((encoding.BaseRegExtension || encoding.IndexRegExtension) && codeSegmentType != CodeSegmentType.LongMode)
 				throw new ArgumentException();
 
 			var addressSize = codeSegmentType.GetEffectiveAddressSize(encoding.AddressSizeOverride);
 
 			// Mod in { 0, 1, 2 }
-			if (addressSize == AddressSize._16Bits)
+			if (addressSize == AddressSize._16)
 			{
 				if ((short)encoding.Displacement != encoding.Displacement)
 					throw new ArgumentException("Displacement too big for 16-bit effective address.");
@@ -406,9 +406,9 @@ namespace Asmuth.X86
 			{
 				switch (flags & Flags.AddressSize_Mask)
 				{
-					case Flags.AddressSize_16: return AddressSize._16Bits;
-					case Flags.AddressSize_32: return AddressSize._32Bits;
-					case Flags.AddressSize_64: return AddressSize._64Bits;
+					case Flags.AddressSize_16: return AddressSize._16;
+					case Flags.AddressSize_32: return AddressSize._32;
+					case Flags.AddressSize_64: return AddressSize._64;
 					default: throw new UnreachableException();
 				}
 			}
@@ -503,9 +503,9 @@ namespace Asmuth.X86
 
 				// Displacement fits in sbyte, base != none
 				var @base = Base.Value;
-				if (@base == AddressBaseRegister.BP) return DisplacementSize._8Bits;
-				if (@base == AddressBaseRegister.Rip) return DisplacementSize._32Bits;
-				return displacement == 0 ? DisplacementSize.None : DisplacementSize._8Bits;
+				if (@base == AddressBaseRegister.BP) return DisplacementSize.SByte;
+				if (@base == AddressBaseRegister.Rip) return DisplacementSize.SDword;
+				return displacement == 0 ? DisplacementSize.None : DisplacementSize.SByte;
 			}
 		}
 		#endregion
@@ -514,8 +514,8 @@ namespace Asmuth.X86
 		public bool IsEncodableWithDefaultAddressSize(AddressSize defaultAddressSize)
 		{
 			var effectiveAddressSize = AddressSize;
-			if (defaultAddressSize == AddressSize._16Bits && effectiveAddressSize == AddressSize._64Bits) return false;
-			if (defaultAddressSize == AddressSize._64Bits) return effectiveAddressSize != AddressSize._16Bits;
+			if (defaultAddressSize == AddressSize._16 && effectiveAddressSize == AddressSize._64) return false;
+			if (defaultAddressSize == AddressSize._64) return effectiveAddressSize != AddressSize._16;
 			
 			// default size = 16 or 32
 			var baseFlags = flags & Flags.BaseReg_Mask;
@@ -526,7 +526,7 @@ namespace Asmuth.X86
 		public bool IsEncodableWithDisplacementSize(DisplacementSize size)
 		{
 			return size >= MinimumDisplacementSize
-				&& (size == DisplacementSize._16Bits) == (AddressSize == AddressSize._16Bits);
+				&& (size == DisplacementSize.SWord) == (AddressSize == AddressSize._16);
 		}
 
 		public Encoding Encode(CodeSegmentType codeSegmentType, byte modReg, DisplacementSize displacementSize)
@@ -538,19 +538,19 @@ namespace Asmuth.X86
 			if (!IsEncodableWithDisplacementSize(displacementSize))
 				throw new ArgumentOutOfRangeException(nameof(displacementSize));
 
-			if (AddressSize == AddressSize._16Bits) throw new NotImplementedException();
+			if (AddressSize == AddressSize._16) throw new NotImplementedException();
 
 			ModRMMod mod;
 			switch (displacementSize)
 			{
 				case DisplacementSize.None: mod = ModRMMod.Indirect; break;
-				case DisplacementSize._8Bits: mod = ModRMMod.IndirectDisp8; break;
+				case DisplacementSize.SByte: mod = ModRMMod.IndirectDisp8; break;
 				default: mod = ModRMMod.IndirectLongDisp; break;
 			}
 
 			var @base = Base;
 			bool needsSib = false;
-			if (AddressSize == AddressSize._64Bits)
+			if (AddressSize == AddressSize._64)
 			{
 				// Same as 32-bit except that [disp32] encodes [rip + disp32]
 				if (!@base.HasValue) needsSib = true;
