@@ -12,7 +12,7 @@ namespace Asmuth.X86.Asm
 		public struct Data
 		{
 			public string Mnemonic;
-			public IReadOnlyList<OperandFormat> Operands;
+			public IReadOnlyList<OperandSpec> Operands;
 			public OpcodeEncoding Encoding;
 			public CpuidFeatureFlags RequiredFeatureFlags;
 			public EFlags? AffectedFlags;
@@ -34,7 +34,7 @@ namespace Asmuth.X86.Asm
 
 		#region Properties
 		public string Mnemonic => data.Mnemonic;
-		public IReadOnlyList<OperandFormat> Operands => data.Operands;
+		public IReadOnlyList<OperandSpec> Operands => data.Operands;
 		public OpcodeEncoding Encoding => data.Encoding;
 		public CpuidFeatureFlags RequiredFeatureFlags => data.RequiredFeatureFlags;
 		public EFlags? AffectedFlags => data.AffectedFlags;

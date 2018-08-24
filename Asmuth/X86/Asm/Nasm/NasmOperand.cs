@@ -17,28 +17,28 @@ namespace Asmuth.X86.Asm.Nasm
 			this.Type = type;
 		}
 
-		public OperandFormat TryToOperandFormat(int? defaultSizeInBytes)
-			=> TryToOperandFormat(Type, defaultSizeInBytes);
+		public OperandSpec TryToOperandSpec(int? defaultSizeInBytes)
+			=> TryToOperandSpec(Type, defaultSizeInBytes);
 
-		public static OperandFormat[] ToOperandFormat(
+		public static OperandSpec[] ToOperandSpec(
 			IReadOnlyList<NasmOperand> operands, IEnumerable<string> flags)
 		{
 			foreach (string flag in flags)
 			{
 				if (flag == NasmInstructionFlags.SizeMatch)
-					return ToOperandFormat(operands, sizeMatch: true);
+					return ToOperandSpec(operands, sizeMatch: true);
 				else
 				{
 					var defaultSizeInBytes = NasmInstructionFlags.TryAsDefaultOperandSizeInBytes(flag);
 					if (defaultSizeInBytes.HasValue)
-						return ToOperandFormat(operands, IntegerSizeEnum.TryFromBytes(defaultSizeInBytes.Value).Value);
+						return ToOperandSpec(operands, IntegerSizeEnum.TryFromBytes(defaultSizeInBytes.Value).Value);
 				}
 			}
 
-			return ToOperandFormat(operands, sizeMatch: false);
+			return ToOperandSpec(operands, sizeMatch: false);
 		}
 
-		public static OperandFormat[] ToOperandFormat(
+		public static OperandSpec[] ToOperandSpec(
 			IReadOnlyList<NasmOperand> operands, bool sizeMatch)
 		{
 			// ADD  reg_al,imm      [-i:  04 ib]         8086,SM
@@ -46,12 +46,12 @@ namespace Asmuth.X86.Asm.Nasm
 			// CMP  mem,imm32       [mi:  o32 81 /7 id]  386,SM
 			// IMUL reg64,mem,imm32 [rmi: o64 69 /r id]  X64,SM
 
-			var operandFormats = new OperandFormat[operands.Count];
+			var operandFormats = new OperandSpec[operands.Count];
 			
 			int? impliedSizeInBytes = null;
 			for (int i = 0; i < operands.Count; ++i)
 			{
-				var operandFormat = operands[i].TryToOperandFormat(defaultSizeInBytes: null);
+				var operandFormat = operands[i].TryToOperandSpec(defaultSizeInBytes: null);
 				if (operandFormat == null)
 				{
 					if (!sizeMatch) throw new FormatException("Unspecified operand size.");
@@ -76,7 +76,7 @@ namespace Asmuth.X86.Asm.Nasm
 				if (!impliedSizeInBytes.HasValue) throw new FormatException();
 				for (int i = 0; i < operands.Count; ++i)
 				{
-					var operandFormat = operands[i].TryToOperandFormat(impliedSizeInBytes);
+					var operandFormat = operands[i].TryToOperandSpec(impliedSizeInBytes);
 					operandFormats[i] = operandFormat ?? throw new FormatException();
 				}
 			}
@@ -84,102 +84,102 @@ namespace Asmuth.X86.Asm.Nasm
 			return operandFormats;
 		}
 
-		public static OperandFormat[] ToOperandFormat(
+		public static OperandSpec[] ToOperandSpec(
 			IReadOnlyList<NasmOperand> operands, IntegerSize defaultIntegerSize)
 		{
-			var operandFormats = new OperandFormat[operands.Count];
+			var operandFormats = new OperandSpec[operands.Count];
 			for (int i = 0; i < operands.Count; ++i)
 			{
-				var operandFormat = operands[i].TryToOperandFormat(defaultIntegerSize.InBytes());
+				var operandFormat = operands[i].TryToOperandSpec(defaultIntegerSize.InBytes());
 				operandFormats[i] = operandFormat ?? throw new FormatException();
 			}
 			return operandFormats;
 		}
 
-		public static OperandFormat TryToOperandFormat(
+		public static OperandSpec TryToOperandSpec(
 			NasmOperandType type, int? defaultSizeInBytes)
 		{
 			switch (type)
 			{
-				case NasmOperandType.Unity: return OperandFormat.Const.One;
+				case NasmOperandType.Unity: return OperandSpec.Const.One;
 
-				case NasmOperandType.Reg_AL: return OperandFormat.FixedReg.AL;
-				case NasmOperandType.Reg_CL: return OperandFormat.FixedReg.CL;
-				case NasmOperandType.Reg_AX: return OperandFormat.FixedReg.AX;
-				case NasmOperandType.Reg_CX: return OperandFormat.FixedReg.CX;
-				case NasmOperandType.Reg_DX: return OperandFormat.FixedReg.DX;
-				case NasmOperandType.Reg_Eax: return OperandFormat.FixedReg.Eax;
-				case NasmOperandType.Reg_Ecx: return OperandFormat.FixedReg.Ecx;
-				case NasmOperandType.Reg_Rax: return OperandFormat.FixedReg.Rax;
-				case NasmOperandType.Reg8: return OperandFormat.Reg.Gpr8;
-				case NasmOperandType.Reg16: return OperandFormat.Reg.Gpr16;
-				case NasmOperandType.Reg32: return OperandFormat.Reg.Gpr32;
-				case NasmOperandType.Reg64: return OperandFormat.Reg.Gpr64;
-				case NasmOperandType.RM8: return OperandFormat.RegOrMem.RM8;
-				case NasmOperandType.RM16: return OperandFormat.RegOrMem.RM16;
-				case NasmOperandType.RM32: return OperandFormat.RegOrMem.RM32;
-				case NasmOperandType.RM64: return OperandFormat.RegOrMem.RM64;
+				case NasmOperandType.Reg_AL: return OperandSpec.FixedReg.AL;
+				case NasmOperandType.Reg_CL: return OperandSpec.FixedReg.CL;
+				case NasmOperandType.Reg_AX: return OperandSpec.FixedReg.AX;
+				case NasmOperandType.Reg_CX: return OperandSpec.FixedReg.CX;
+				case NasmOperandType.Reg_DX: return OperandSpec.FixedReg.DX;
+				case NasmOperandType.Reg_Eax: return OperandSpec.FixedReg.Eax;
+				case NasmOperandType.Reg_Ecx: return OperandSpec.FixedReg.Ecx;
+				case NasmOperandType.Reg_Rax: return OperandSpec.FixedReg.Rax;
+				case NasmOperandType.Reg8: return OperandSpec.Reg.Gpr8;
+				case NasmOperandType.Reg16: return OperandSpec.Reg.Gpr16;
+				case NasmOperandType.Reg32: return OperandSpec.Reg.Gpr32;
+				case NasmOperandType.Reg64: return OperandSpec.Reg.Gpr64;
+				case NasmOperandType.RM8: return OperandSpec.RegOrMem.RM8;
+				case NasmOperandType.RM16: return OperandSpec.RegOrMem.RM16;
+				case NasmOperandType.RM32: return OperandSpec.RegOrMem.RM32;
+				case NasmOperandType.RM64: return OperandSpec.RegOrMem.RM64;
 
-				case NasmOperandType.Fpu0: return OperandFormat.FixedReg.ST0;
-				case NasmOperandType.FpuReg: return OperandFormat.Reg.X87;
+				case NasmOperandType.Fpu0: return OperandSpec.FixedReg.ST0;
+				case NasmOperandType.FpuReg: return OperandSpec.Reg.X87;
 
-				case NasmOperandType.Reg_SReg: return OperandFormat.Reg.Segment;
-				case NasmOperandType.Reg_ES: return OperandFormat.FixedReg.ES;
-				case NasmOperandType.Reg_CS: return OperandFormat.FixedReg.CS;
-				case NasmOperandType.Reg_SS: return OperandFormat.FixedReg.SS;
-				case NasmOperandType.Reg_DS: return OperandFormat.FixedReg.DS;
-				case NasmOperandType.Reg_FS: return OperandFormat.FixedReg.FS;
-				case NasmOperandType.Reg_GS: return OperandFormat.FixedReg.GS;
+				case NasmOperandType.Reg_SReg: return OperandSpec.Reg.Segment;
+				case NasmOperandType.Reg_ES: return OperandSpec.FixedReg.ES;
+				case NasmOperandType.Reg_CS: return OperandSpec.FixedReg.CS;
+				case NasmOperandType.Reg_SS: return OperandSpec.FixedReg.SS;
+				case NasmOperandType.Reg_DS: return OperandSpec.FixedReg.DS;
+				case NasmOperandType.Reg_FS: return OperandSpec.FixedReg.FS;
+				case NasmOperandType.Reg_GS: return OperandSpec.FixedReg.GS;
 
-				case NasmOperandType.Reg_CReg: return OperandFormat.Reg.Control;
-				case NasmOperandType.Reg_DReg: return OperandFormat.Reg.Debug;
+				case NasmOperandType.Reg_CReg: return OperandSpec.Reg.Control;
+				case NasmOperandType.Reg_DReg: return OperandSpec.Reg.Debug;
 
-				case NasmOperandType.MmxReg: return OperandFormat.Reg.Mmx;
-				case NasmOperandType.MmxRM: return OperandFormat.RegOrMem.Mmx;
-				case NasmOperandType.MmxRM64: return OperandFormat.RegOrMem.Mmx;
+				case NasmOperandType.MmxReg: return OperandSpec.Reg.Mmx;
+				case NasmOperandType.MmxRM: return OperandSpec.RegOrMem.Mmx;
+				case NasmOperandType.MmxRM64: return OperandSpec.RegOrMem.Mmx;
 
-				case NasmOperandType.Xmm0: return OperandFormat.FixedReg.Xmm0;
-				case NasmOperandType.XmmReg: return OperandFormat.Reg.Xmm;
-				case NasmOperandType.XmmRM: return OperandFormat.RegOrMem.Xmm;
+				case NasmOperandType.Xmm0: return OperandSpec.FixedReg.Xmm0;
+				case NasmOperandType.XmmReg: return OperandSpec.Reg.Xmm;
+				case NasmOperandType.XmmRM: return OperandSpec.RegOrMem.Xmm;
 
-				case NasmOperandType.YmmReg: return OperandFormat.Reg.Ymm;
-				case NasmOperandType.YmmRM: return OperandFormat.RegOrMem.Ymm;
-				case NasmOperandType.YmmRM256: return OperandFormat.RegOrMem.Ymm;
+				case NasmOperandType.YmmReg: return OperandSpec.Reg.Ymm;
+				case NasmOperandType.YmmRM: return OperandSpec.RegOrMem.Ymm;
+				case NasmOperandType.YmmRM256: return OperandSpec.RegOrMem.Ymm;
 
-				case NasmOperandType.ZmmReg: return OperandFormat.Reg.Zmm;
-				case NasmOperandType.ZmmRM512: return OperandFormat.RegOrMem.Zmm;
+				case NasmOperandType.ZmmReg: return OperandSpec.Reg.Zmm;
+				case NasmOperandType.ZmmRM512: return OperandSpec.RegOrMem.Zmm;
 
 				case NasmOperandType.Mem:
 				{
-					if (!defaultSizeInBytes.HasValue) return OperandFormat.Mem.M;
-					else if (defaultSizeInBytes == 1) return OperandFormat.Mem.I8;
-					else if (defaultSizeInBytes == 2) return OperandFormat.Mem.I16;
-					else if (defaultSizeInBytes == 4) return OperandFormat.Mem.I32;
-					else if (defaultSizeInBytes == 8) return OperandFormat.Mem.I64;
+					if (!defaultSizeInBytes.HasValue) return OperandSpec.Mem.M;
+					else if (defaultSizeInBytes == 1) return OperandSpec.Mem.I8;
+					else if (defaultSizeInBytes == 2) return OperandSpec.Mem.I16;
+					else if (defaultSizeInBytes == 4) return OperandSpec.Mem.I32;
+					else if (defaultSizeInBytes == 8) return OperandSpec.Mem.I64;
 					else throw new ArgumentOutOfRangeException(nameof(defaultSizeInBytes));
 				}
-				case NasmOperandType.Mem8: return OperandFormat.Mem.I8;
-				case NasmOperandType.Mem16: return OperandFormat.Mem.I16;
-				case NasmOperandType.Mem32: return OperandFormat.Mem.I32;
-				case NasmOperandType.Mem64: return OperandFormat.Mem.I64;
-				case NasmOperandType.Mem80: return OperandFormat.Mem.M80;
-				case NasmOperandType.Mem128: return OperandFormat.Mem.M128;
-				case NasmOperandType.Mem256: return OperandFormat.Mem.M256;
-				case NasmOperandType.Mem512: return OperandFormat.Mem.M512;
+				case NasmOperandType.Mem8: return OperandSpec.Mem.I8;
+				case NasmOperandType.Mem16: return OperandSpec.Mem.I16;
+				case NasmOperandType.Mem32: return OperandSpec.Mem.I32;
+				case NasmOperandType.Mem64: return OperandSpec.Mem.I64;
+				case NasmOperandType.Mem80: return OperandSpec.Mem.M80;
+				case NasmOperandType.Mem128: return OperandSpec.Mem.M128;
+				case NasmOperandType.Mem256: return OperandSpec.Mem.M256;
+				case NasmOperandType.Mem512: return OperandSpec.Mem.M512;
 
 				case NasmOperandType.Imm:
 				{
 					if (!defaultSizeInBytes.HasValue) return null;
-					else if (defaultSizeInBytes == 1) return OperandFormat.Imm.I8;
-					else if (defaultSizeInBytes == 2) return OperandFormat.Imm.I16;
-					else if (defaultSizeInBytes == 4) return OperandFormat.Imm.I32;
-					else if (defaultSizeInBytes == 8) return OperandFormat.Imm.I64;
+					else if (defaultSizeInBytes == 1) return OperandSpec.Imm.I8;
+					else if (defaultSizeInBytes == 2) return OperandSpec.Imm.I16;
+					else if (defaultSizeInBytes == 4) return OperandSpec.Imm.I32;
+					else if (defaultSizeInBytes == 8) return OperandSpec.Imm.I64;
 					else throw new ArgumentOutOfRangeException(nameof(defaultSizeInBytes));
 				}
-				case NasmOperandType.Imm8: return OperandFormat.Imm.I8;
-				case NasmOperandType.Imm16: return OperandFormat.Imm.I16;
-				case NasmOperandType.Imm32: return OperandFormat.Imm.I32;
-				case NasmOperandType.Imm64: return OperandFormat.Imm.I64;
+				case NasmOperandType.Imm8: return OperandSpec.Imm.I8;
+				case NasmOperandType.Imm16: return OperandSpec.Imm.I16;
+				case NasmOperandType.Imm32: return OperandSpec.Imm.I32;
+				case NasmOperandType.Imm64: return OperandSpec.Imm.I64;
 
 				// These are assembler only, probably to allow specifying the immediate
 				// in a different format, but they all map to an "ib,s" immediate.
@@ -188,11 +188,11 @@ namespace Asmuth.X86.Asm.Nasm
 				case NasmOperandType.SByteDword:
 				case NasmOperandType.SByteDword32:
 				case NasmOperandType.SByteDword64:
-					return OperandFormat.Imm.I8;
+					return OperandSpec.Imm.I8;
 
 				case NasmOperandType.UDword:
 				case NasmOperandType.SDword:
-					return OperandFormat.Imm.I32;
+					return OperandSpec.Imm.I32;
 			}
 			throw new NotImplementedException();
 		}

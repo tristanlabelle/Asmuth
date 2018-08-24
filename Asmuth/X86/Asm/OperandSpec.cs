@@ -5,9 +5,9 @@ using System.Text;
 
 namespace Asmuth.X86.Asm
 {
-	public abstract class OperandFormat
+	public abstract class OperandSpec
 	{
-		private OperandFormat() { } // Disallow external inheritance
+		private OperandSpec() { } // Disallow external inheritance
 
 		// Used for NASM's "size match"
 		public abstract IntegerSize? ImpliedIntegerOperandSize { get; }
@@ -24,7 +24,7 @@ namespace Asmuth.X86.Asm
 		}
 
 		// PUSH CS
-		public sealed class FixedReg : OperandFormat, IWithReg
+		public sealed class FixedReg : OperandSpec, IWithReg
 		{
 			public Register Register { get; }
 			public RegisterClass RegisterClass => Register.Class;
@@ -64,7 +64,7 @@ namespace Asmuth.X86.Asm
 		}
 
 		// PUSH r32
-		public sealed class Reg : OperandFormat, IWithReg
+		public sealed class Reg : OperandSpec, IWithReg
 		{
 			public RegisterClass RegisterClass { get; }
 			public RegisterFamily RegisterFamily => RegisterClass.Family;
@@ -141,7 +141,7 @@ namespace Asmuth.X86.Asm
 		}
 
 		// FDIV m32fp
-		public sealed class Mem : OperandFormat
+		public sealed class Mem : OperandSpec
 		{
 			public OperandDataType DataType { get; }
 			public int SizeInBytes => DataType.GetElementSizeInBytes();
@@ -184,7 +184,7 @@ namespace Asmuth.X86.Asm
 		}
 
 		// NEG r/m8
-		public sealed class RegOrMem : OperandFormat, IWithReg
+		public sealed class RegOrMem : OperandSpec, IWithReg
 		{
 			public Reg RegSpec { get; }
 			public Mem MemSpec { get; }
@@ -233,7 +233,7 @@ namespace Asmuth.X86.Asm
 		}
 
 		// PUSH imm32 
-		public sealed class Imm : OperandFormat
+		public sealed class Imm : OperandSpec
 		{
 			public OperandDataType DataType { get; }
 
@@ -278,7 +278,7 @@ namespace Asmuth.X86.Asm
 		}
 
 		// SAL r/m8, 1 
-		public sealed class Const : OperandFormat
+		public sealed class Const : OperandSpec
 		{
 			public byte Value { get; }
 
@@ -302,7 +302,7 @@ namespace Asmuth.X86.Asm
 		}
 
 		// JMP rel8
-		public sealed class Rel : OperandFormat
+		public sealed class Rel : OperandSpec
 		{
 			public IntegerSize OffsetSize { get; }
 
