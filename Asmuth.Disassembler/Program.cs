@@ -19,7 +19,7 @@ namespace Asmuth.Disassembler
 		static void Main(string[] args)
 		{
 			// Load instruction definitions from NASM's insns.dat file
-			var instructionDictionary = new OpcodeEncodingTable<InstructionDefinition>();
+			var instructionTable = new OpcodeEncodingTable<InstructionDefinition>();
 			int succeeded = 0;
 			int total = 0;
 			foreach (var insnsEntry in NasmInsns.Read(new StreamReader(args[0])))
@@ -31,7 +31,7 @@ namespace Asmuth.Disassembler
 				{
 					var instructionDefinition = insnsEntry.ToInstructionDefinition();
 					Console.WriteLine(instructionDefinition.ToString());
-					instructionDictionary.Add(instructionDefinition.Encoding, instructionDefinition);
+					instructionTable.Add(instructionDefinition.Encoding, instructionDefinition);
 					succeeded++;
 				}
 				catch (Exception e)
@@ -100,7 +100,7 @@ namespace Asmuth.Disassembler
 				// Disassemble executable sections
 				var instructionDecoder = new InstructionDecoder(
 					is32Bit ? CodeSegmentType.IA32_Default32 : CodeSegmentType.LongMode,
-					instructionDictionary);
+					instructionTable);
 				foreach (var sectionHeader in sectionHeaders)
 				{
 					if ((sectionHeader.Characteristics & IMAGE_SCN_CNT_CODE) == 0) continue;
@@ -126,43 +126,19 @@ namespace Asmuth.Disassembler
 							if (codeOffset >= sectionHeader.SizeOfRawData) throw new InvalidDataException();
 							var @byte = fileViewAccessor.ReadByte(sectionHeader.PointerToRawData + codeOffset);
 							codeOffset++;
+							Console.Write(" {0:x2}", @byte);
 							if (!instructionDecoder.Consume(@byte)) break;
 						}
 
 						var instruction = instructionDecoder.GetInstruction();
+						var instructionDefinition = (InstructionDefinition)instructionDecoder.LookupTag;
 						instructionDecoder.Reset();
 
 						Console.Write(' ');
+						while (Console.CursorLeft < 32)
+							Console.Write(' ');
 
-						if (instruction.NonLegacyPrefixes.Form.AllowsEscapes())
-						{
-							switch (instruction.NonLegacyPrefixes.OpcodeMap)
-							{
-								case OpcodeMap.Escape0F: Console.Write("0F."); break;
-								case OpcodeMap.Escape0F38: Console.Write("0F3A."); break;
-								case OpcodeMap.Escape0F3A: Console.Write("0F3A."); break;
-							}
-						}
-
-						Console.Write("{0:X2}", instruction.MainOpcodeByte);
-						
-						if (instruction.ModRM.HasValue)
-						{
-							var modRM = instruction.ModRM.Value;
-							Console.Write(" /{0} ", modRM.Reg + (instruction.NonLegacyPrefixes.ModRegExtension ? 8 : 0));
-							if (modRM.IsMemoryRM)
-							{
-								var effectiveAddress = instruction.GetRMEffectiveAddress();
-								Console.Write(effectiveAddress.ToString(
-									vectorSib: false, rip: sectionBaseAddress + (ulong)codeOffset));
-							}
-							else Console.Write("r{0}", modRM.RM + (instruction.NonLegacyPrefixes.BaseRegExtension ? 8 : 0));
-						}
-
-						foreach (byte b in instruction.ImmediateData)
-							Console.Write(" {0:X2}", b);
-
-						Console.WriteLine();
+						Console.WriteLine(instructionDefinition.Format(in instruction));
 					}
 				}
 			}

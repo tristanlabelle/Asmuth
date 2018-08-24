@@ -20,6 +20,16 @@ namespace Asmuth.X86.Asm.Nasm
 		public OperandSpec TryToOperandSpec(int? defaultSizeInBytes)
 			=> TryToOperandSpec(Type, defaultSizeInBytes);
 
+		public static OperandDefinition[] ToOperandDefinition(
+			IReadOnlyList<NasmOperand> operands, IEnumerable<string> flags)
+		{
+			var specs = ToOperandSpec(operands, flags);
+			var defs = new OperandDefinition[specs.Length];
+			for (int i = 0; i < specs.Length; ++i)
+				defs[i] = new OperandDefinition(specs[i], operands[i].Field);
+			return defs;
+		}
+
 		public static OperandSpec[] ToOperandSpec(
 			IReadOnlyList<NasmOperand> operands, IEnumerable<string> flags)
 		{

@@ -47,7 +47,7 @@ namespace Asmuth.X86.Asm.Nasm
 				Mnemonic = Mnemonic,
 				Encoding = ToOpcodeEncoding(EncodingTokens, VexEncoding.GetValueOrDefault(),
 					GetLongMode(Flags.Contains), baseRegOperandType),
-				Operands = NasmOperand.ToOperandSpec(Operands, Flags)
+				Operands = NasmOperand.ToOperandDefinition(Operands, Flags)
 			};
 
 			return new InstructionDefinition(in data);

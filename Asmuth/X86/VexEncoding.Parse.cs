@@ -26,11 +26,15 @@ namespace Asmuth.X86
 				// AMD-Style
 				// xop.m8.w0.nds.l0.p0
 				// vex.m3.w0.nds.l0.p1
+				// xop.m10.lz.w0
 				builder.OpcodeMap = ParseOpcodeMap(tokens, ref tokenIndex);
 				builder.RexW = TryParseRexW(tokens, ref tokenIndex);
 				builder.RegOperand = TryParseVvvv(tokens, ref tokenIndex);
 				builder.VectorSize = TryParseVectorSize(tokens, ref tokenIndex);
 				builder.SimdPrefix = TryParseSimdPrefix(tokens, ref tokenIndex);
+
+				// In NASM's insns, the W flag can also be at the end.
+				if (!builder.RexW.HasValue) builder.RexW = TryParseRexW(tokens, ref tokenIndex);
 			}
 			else
 			{

@@ -7,12 +7,27 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86.Asm
 {
+	public readonly struct OperandDefinition
+	{
+		public OperandSpec Spec { get; }
+		public OperandField? Field { get; }
+		// TODO: AccessType?
+
+		public OperandDefinition(OperandSpec spec, OperandField? field)
+		{
+			this.Spec = spec ?? throw new ArgumentNullException(nameof(spec));
+			this.Field = field;
+		}
+
+		public override string ToString() => Spec.ToString();
+	}
+
 	public sealed class InstructionDefinition
 	{
 		public struct Data
 		{
 			public string Mnemonic;
-			public IReadOnlyList<OperandSpec> Operands;
+			public IReadOnlyList<OperandDefinition> Operands;
 			public OpcodeEncoding Encoding;
 			public CpuidFeatureFlags RequiredFeatureFlags;
 			public EFlags? AffectedFlags;
@@ -34,13 +49,30 @@ namespace Asmuth.X86.Asm
 
 		#region Properties
 		public string Mnemonic => data.Mnemonic;
-		public IReadOnlyList<OperandSpec> Operands => data.Operands;
+		public IReadOnlyList<OperandDefinition> Operands => data.Operands;
 		public OpcodeEncoding Encoding => data.Encoding;
 		public CpuidFeatureFlags RequiredFeatureFlags => data.RequiredFeatureFlags;
 		public EFlags? AffectedFlags => data.AffectedFlags;
 		#endregion
 
 		#region Methods
+		public string Format(in Instruction instruction)
+		{
+			var stringBuilder = new StringBuilder(Mnemonic.Length + Operands.Count * 6);
+
+			stringBuilder.Append(Mnemonic);
+
+			bool firstOperand = true;
+			foreach (var operand in Operands)
+			{
+				stringBuilder.Append(firstOperand ? " " : ", ");
+				stringBuilder.Append(operand.Spec.Format(in instruction, operand.Field));
+				firstOperand = false;
+			}
+
+			return stringBuilder.ToString();
+		}
+
 		public override string ToString()
 		{
 			var stringBuilder = new StringBuilder(Mnemonic.Length + Operands.Count * 6);
@@ -51,7 +83,7 @@ namespace Asmuth.X86.Asm
 			foreach (var operand in Operands)
 			{
 				stringBuilder.Append(firstOperand ? " " : ", ");
-				stringBuilder.Append(operand);
+				stringBuilder.Append(operand.Spec);
 				firstOperand = false;
 			}
 
