@@ -74,6 +74,8 @@ namespace Asmuth.X86.Asm
 				this.RegisterClass = @class;
 			}
 
+			public RegOrMem OrMem(OperandDataType dataType) => new RegOrMem(this, new Mem(dataType));
+
 			public override IntegerSize? ImpliedIntegerOperandSize => RegisterClass.IsSized
 				? IntegerSizeEnum.TryFromBytes(RegisterClass.SizeInBytes.Value) : null;
 
@@ -135,6 +137,7 @@ namespace Asmuth.X86.Asm
 			public static readonly Reg Xmm = new Reg(RegisterClass.Xmm);
 			public static readonly Reg Ymm = new Reg(RegisterClass.Ymm);
 			public static readonly Reg Zmm = new Reg(RegisterClass.Zmm);
+			public static readonly Reg AvxOpmask = new Reg(RegisterClass.AvxOpmask);
 			public static readonly Reg Segment = new Reg(RegisterClass.Segment);
 			public static readonly Reg Debug = new Reg(RegisterClass.DebugUnsized);
 			public static readonly Reg Control = new Reg(RegisterClass.ControlUnsized);
@@ -193,8 +196,12 @@ namespace Asmuth.X86.Asm
 			{
 				if (regSpec == null) throw new ArgumentNullException(nameof(regSpec));
 				if (memSpec == null) throw new ArgumentNullException(nameof(memSpec));
-				if (regSpec.RegisterClass.SizeInBytes != memSpec.SizeInBytes)
-					throw new ArgumentException();
+
+				var regSize = regSpec.RegisterClass.SizeInBytes.Value;
+				var memSize = memSpec.SizeInBytes;
+				bool allowSubregister = regSpec.RegisterClass.Family == RegisterFamily.Sse;
+				if (allowSubregister ? (regSize < memSize) : (regSize != memSize))
+					throw new ArgumentException("RM mem size inconsistent with register class.");
 				
 				this.RegSpec = regSpec;
 				this.MemSpec = memSpec;

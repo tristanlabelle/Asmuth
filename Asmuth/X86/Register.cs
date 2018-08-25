@@ -104,7 +104,7 @@ namespace Asmuth.X86
 						if (SizeInBytes == 32) return "ymm";
 						if (SizeInBytes == 64) return "zmm";
 						throw new NotImplementedException();
-					case RegisterFamily.AvxOpmask: return "k";
+					case RegisterFamily.AvxOpmask: return "kreg";
 					case RegisterFamily.Segment: return "sreg";
 					case RegisterFamily.Debug: return "dr";
 					case RegisterFamily.Control: return "cr";

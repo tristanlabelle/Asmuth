@@ -48,7 +48,7 @@ namespace Asmuth.X86
 				builder.RexW = TryParseRexW(tokens, ref tokenIndex);
 			}
 
-			if (tokenIndex != tokens.Length) throw new FormatException();
+			if (tokenIndex != tokens.Length) throw new FormatException("Unknown tokens in VEX encoding string.");
 
 			return builder.Build();
 		}

@@ -334,7 +334,7 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						default:
-							throw new NotImplementedException("Handling NASM encoding tokens of type '{0}'".FormatInvariant(token.Type));
+							throw new NotImplementedException($"Unimplemented NASM encoding token handling: {token.Type}.");
 					}
 				}
 

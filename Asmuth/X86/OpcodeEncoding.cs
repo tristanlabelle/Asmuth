@@ -73,7 +73,7 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Packed Fields
-		// 0b00AABBCC: LongMode, AddressSize, OperandSize
+		// 0b00AABBCC: Nullable<LongMode>, Nullable<AddressSize>, Nullable<OperandSize>
 		private readonly byte contextFields;
 		public bool? LongMode => AsBool_ZeroIsNull((contextFields >> 4) & 3);
 		public AddressSize? AddressSize => (AddressSize?)AsInt_ZeroIsNull((contextFields >> 2) & 3);
@@ -83,7 +83,7 @@ namespace Asmuth.X86
 			| (AsZeroIsNull((int?)addressSize) << 2)
 			| (byte)operandSize);
 
-		// 0b00AABBCC: VexType, VectorSize, RexW
+		// 0b00AABBCC: VexType, Nullable<VectorSize>, Nullable<RexW>
 		private readonly byte vexFields;
 		public VexType VexType => (VexType)((vexFields >> 4) & 3);
 		public SseVectorSize? VectorSize => (SseVectorSize?)AsInt_ZeroIsNull((vexFields >> 2) & 3);
@@ -93,9 +93,9 @@ namespace Asmuth.X86
 			| (AsZeroIsNull((int?)vectorSize) << 2)
 			| AsZeroIsNull(rexW));
 
-		// 0b00AABBBB: SimdPrefix, Map
+		// 0b0AAABBBB: Nullable<SimdPrefix>, Map
 		private readonly byte mapFields;
-		public SimdPrefix? SimdPrefix => (SimdPrefix?)AsInt_ZeroIsNull((mapFields >> 4) & 3);
+		public SimdPrefix? SimdPrefix => (SimdPrefix?)AsInt_ZeroIsNull((mapFields >> 4) & 7);
 		public OpcodeMap Map => (OpcodeMap)(mapFields & 0xF);
 		private static byte MakeMapFields(SimdPrefix? simdPrefix, OpcodeMap map)
 			=> (byte)((AsZeroIsNull((int?)simdPrefix) << 4) | (int)map);
