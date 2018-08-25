@@ -15,6 +15,9 @@ namespace Asmuth.X86.Asm.Nasm
 			get
 			{
 				return !IsPseudo && !IsAssembleOnly
+					// Instructions specific to the (obscure) CYRIX processors,
+					// and which clash with saner intel/amd ones.
+					&& !Flags.Contains("CYRIX", StringComparer.InvariantCultureIgnoreCase)
 					// This thing is weird, but it looks always accompanied with fixed operand size variants,
 					// so we can ignore it.
 					&& !EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_NoOverride)
@@ -144,8 +147,8 @@ namespace Asmuth.X86.Asm.Nasm
 							SetOperandSize(IntegerSize.Qword);
 							break;
 							
-						// TODO: Not too clear what this means/implies
 						case NasmEncodingTokenType.OperandSize_64WithoutW:
+							// W-agnostic, like JMP: o64nw e9 rel64
 							SetLongMode(true);
 							break;
 

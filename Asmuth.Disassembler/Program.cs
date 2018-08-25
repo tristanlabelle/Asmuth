@@ -30,7 +30,6 @@ namespace Asmuth.Disassembler
 				try
 				{
 					var instructionDefinition = insnsEntry.ToInstructionDefinition();
-					Console.WriteLine(instructionDefinition.ToString());
 					instructionTable.Add(instructionDefinition.Encoding, instructionDefinition);
 					succeeded++;
 				}

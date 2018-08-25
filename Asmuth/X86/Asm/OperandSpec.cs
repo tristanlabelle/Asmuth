@@ -199,7 +199,8 @@ namespace Asmuth.X86.Asm
 
 				var regSize = regSpec.RegisterClass.SizeInBytes.Value;
 				var memSize = memSpec.SizeInBytes;
-				bool allowSubregister = regSpec.RegisterClass.Family == RegisterFamily.Sse;
+				bool allowSubregister = regSpec.RegisterFamily == RegisterFamily.Sse
+					|| regSpec.RegisterFamily == RegisterFamily.AvxOpmask;
 				if (allowSubregister ? (regSize < memSize) : (regSize != memSize))
 					throw new ArgumentException("RM mem size inconsistent with register class.");
 				
