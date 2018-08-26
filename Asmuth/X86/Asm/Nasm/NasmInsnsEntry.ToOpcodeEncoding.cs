@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Asmuth.X86.Asm.Nasm
 {
-	partial class NasmInsnsEntry
+    partial class NasmInsnsEntry
 	{
 		public bool CanConvertToOpcodeEncoding
 		{
@@ -18,6 +16,8 @@ namespace Asmuth.X86.Asm.Nasm
 					// Instructions specific to the (obscure) CYRIX processors,
 					// and which clash with saner intel/amd ones.
 					&& !Flags.Contains("CYRIX", StringComparer.InvariantCultureIgnoreCase)
+					// Undocumented instructions somehow may clash with documented ones
+					&& !Flags.Contains(NasmInstructionFlags.Undocumented, StringComparer.InvariantCultureIgnoreCase)
 					// This thing is weird, but it looks always accompanied with fixed operand size variants,
 					// so we can ignore it.
 					&& !EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_NoOverride)
@@ -30,8 +30,8 @@ namespace Asmuth.X86.Asm.Nasm
 					&& Operands.All(o => o.Type != NasmOperandType.Fpu0);
 			}
 		}
-		
-		public InstructionDefinition ToInstructionDefinition()
+
+		public OpcodeEncoding GetOpcodeEncoding()
 		{
 			if (!CanConvertToOpcodeEncoding) throw new InvalidOperationException();
 
@@ -45,15 +45,8 @@ namespace Asmuth.X86.Asm.Nasm
 				}
 			}
 
-			var data = new InstructionDefinition.Data
-			{
-				Mnemonic = Mnemonic,
-				Encoding = ToOpcodeEncoding(EncodingTokens, VexEncoding.GetValueOrDefault(),
-					GetLongMode(Flags.Contains), baseRegOperandType),
-				Operands = NasmOperand.ToOperandDefinition(Operands, Flags)
-			};
-
-			return new InstructionDefinition(in data);
+			return ToOpcodeEncoding(EncodingTokens, VexEncoding.GetValueOrDefault(),
+				GetLongMode(Flags.Contains), baseRegOperandType);
 		}
 
 		public static bool? GetLongMode(Predicate<string> flagTester)
@@ -72,7 +65,7 @@ namespace Asmuth.X86.Asm.Nasm
 			NasmOperandType? rmOperandType = null)
 		{
 			if (encodingTokens == null) throw new ArgumentNullException(nameof(encodingTokens));
-			
+
 			var parser = new EncodingParser(longMode);
 			return parser.Parse(encodingTokens, vexEncoding.GetValueOrDefault(),
 				rmOperandType.GetValueOrDefault(NasmOperandType.OpType_RegisterOrMemory));
@@ -99,12 +92,12 @@ namespace Asmuth.X86.Asm.Nasm
 				builder = new OpcodeEncoding.Builder { LongMode = longMode };
 				state = State.Prefixes;
 			}
-			
+
 			public OpcodeEncoding Parse(IEnumerable<NasmEncodingToken> tokens, VexEncoding vexEncoding,
 				NasmOperandType rmOperandType)
 			{
 				state = State.Prefixes;
-				
+
 				foreach (var token in tokens)
 				{
 					switch (token.Type)
@@ -146,7 +139,7 @@ namespace Asmuth.X86.Asm.Nasm
 						case NasmEncodingTokenType.OperandSize_64:
 							SetOperandSize(IntegerSize.Qword);
 							break;
-							
+
 						case NasmEncodingTokenType.OperandSize_64WithoutW:
 							// W-agnostic, like JMP: o64nw e9 rel64
 							SetLongMode(true);
@@ -200,7 +193,7 @@ namespace Asmuth.X86.Asm.Nasm
 								AdvanceTo(State.PostEscape0F);
 								break;
 							}
-							
+
 							if (state == State.PostEscape0F && (token.Byte == 0x38 || token.Byte == 0x3A))
 							{
 								builder.Map = token.Byte == 0x38 ? OpcodeMap.Escape0F38 : OpcodeMap.Escape0F3A;
@@ -380,7 +373,7 @@ namespace Asmuth.X86.Asm.Nasm
 						builder.OperandSize = OperandSizeEncoding.Dword;
 						SetRexW(false); // TODO: Is this always the case?
 						break;
-						
+
 					case IntegerSize.Qword:
 						SetRexW(true); // TODO: Is this always the case?
 						SetLongMode(true);
@@ -420,7 +413,7 @@ namespace Asmuth.X86.Asm.Nasm
 				var baseRegOpType = baseRegOperandType & NasmOperandType.OpType_Mask;
 				bool allowsMemOnly = baseRegOpType == NasmOperandType.OpType_Memory;
 				bool allowsAny = baseRegOpType == NasmOperandType.OpType_RegisterOrMemory;
-				
+
 				SetModRM(new ModRMEncoding(reg, rmRegAllowed: !allowsMemOnly,
 					rmMemAllowed: allowsMemOnly || allowsAny));
 			}

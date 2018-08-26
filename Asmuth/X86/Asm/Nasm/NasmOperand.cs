@@ -20,88 +20,6 @@ namespace Asmuth.X86.Asm.Nasm
 		public OperandSpec TryToOperandSpec(int? defaultSizeInBytes)
 			=> TryToOperandSpec(Type, defaultSizeInBytes);
 
-		public static OperandDefinition[] ToOperandDefinition(
-			IReadOnlyList<NasmOperand> operands, IEnumerable<string> flags)
-		{
-			var specs = ToOperandSpec(operands, flags);
-			var defs = new OperandDefinition[specs.Length];
-			for (int i = 0; i < specs.Length; ++i)
-				defs[i] = new OperandDefinition(specs[i], operands[i].Field);
-			return defs;
-		}
-
-		public static OperandSpec[] ToOperandSpec(
-			IReadOnlyList<NasmOperand> operands, IEnumerable<string> flags)
-		{
-			foreach (string flag in flags)
-			{
-				if (flag == NasmInstructionFlags.SizeMatch)
-					return ToOperandSpec(operands, sizeMatch: true);
-				else
-				{
-					var defaultSizeInBytes = NasmInstructionFlags.TryAsDefaultOperandSizeInBytes(flag);
-					if (defaultSizeInBytes.HasValue)
-						return ToOperandSpec(operands, defaultSizeInBytes.Value);
-				}
-			}
-
-			return ToOperandSpec(operands, sizeMatch: false);
-		}
-
-		public static OperandSpec[] ToOperandSpec(
-			IReadOnlyList<NasmOperand> operands, bool sizeMatch)
-		{
-			// ADD  reg_al,imm      [-i:  04 ib]         8086,SM
-			// ADD  rm8,imm         [mi:  hle 80 / 0 ib] 8086,SM,LOCK
-			// CMP  mem,imm32       [mi:  o32 81 /7 id]  386,SM
-			// IMUL reg64,mem,imm32 [rmi: o64 69 /r id]  X64,SM
-
-			var operandFormats = new OperandSpec[operands.Count];
-			
-			int? impliedSizeInBytes = null;
-			for (int i = 0; i < operands.Count; ++i)
-			{
-				var operandFormat = operands[i].TryToOperandSpec(defaultSizeInBytes: null);
-				if (operandFormat == null)
-				{
-					if (!sizeMatch) throw new FormatException("Unspecified operand size.");
-					// If we're size matching, allow null as we'll do a second pass
-				}
-				else
-				{
-					operandFormats[i] = operandFormat;
-
-					// Determine the size we'll match on the second pass
-					if (sizeMatch && !impliedSizeInBytes.HasValue)
-					{
-						var operandSize = operandFormat.ImpliedIntegerOperandSize;
-						if (operandSize.HasValue) impliedSizeInBytes = operandSize.Value.InBytes();
-					}
-				}
-			}
-
-			if (sizeMatch)
-			{
-				// Do a second pass with the implied size
-				if (!impliedSizeInBytes.HasValue) throw new FormatException();
-				return ToOperandSpec(operands, impliedSizeInBytes.Value);
-			}
-			
-			return operandFormats;
-		}
-
-		public static OperandSpec[] ToOperandSpec(
-			IReadOnlyList<NasmOperand> operands, int defaultSizeInBytes)
-		{
-			var operandFormats = new OperandSpec[operands.Count];
-			for (int i = 0; i < operands.Count; ++i)
-			{
-				var operandFormat = operands[i].TryToOperandSpec(defaultSizeInBytes);
-				operandFormats[i] = operandFormat ?? throw new FormatException();
-			}
-			return operandFormats;
-		}
-
 		public static OperandSpec TryToOperandSpec(
 			NasmOperandType type, int? defaultSizeInBytes)
 		{
@@ -116,7 +34,9 @@ namespace Asmuth.X86.Asm.Nasm
 				case NasmOperandType.Reg_DX: return OperandSpec.FixedReg.DX;
 				case NasmOperandType.Reg_Eax: return OperandSpec.FixedReg.Eax;
 				case NasmOperandType.Reg_Ecx: return OperandSpec.FixedReg.Ecx;
+				case NasmOperandType.Reg_Edx: return OperandSpec.FixedReg.Edx;
 				case NasmOperandType.Reg_Rax: return OperandSpec.FixedReg.Rax;
+				case NasmOperandType.Reg_Rcx: return OperandSpec.FixedReg.Rcx;
 				case NasmOperandType.Reg8: return OperandSpec.Reg.Gpr8;
 				case NasmOperandType.Reg16: return OperandSpec.Reg.Gpr16;
 				case NasmOperandType.Reg32: return OperandSpec.Reg.Gpr32;
@@ -172,6 +92,8 @@ namespace Asmuth.X86.Asm.Nasm
 				case NasmOperandType.KRM32: return OperandSpec.Reg.AvxOpmask.OrMem(OperandDataType.ElementSize_Dword);
 				case NasmOperandType.KRM64: return OperandSpec.Reg.AvxOpmask.OrMem(OperandDataType.ElementSize_Qword);
 
+				case NasmOperandType.BndReg: return OperandSpec.Reg.Bound;
+
 				case NasmOperandType.Mem:
 				{
 					if (!defaultSizeInBytes.HasValue) return OperandSpec.Mem.M;
@@ -189,6 +111,13 @@ namespace Asmuth.X86.Asm.Nasm
 				case NasmOperandType.Mem128: return OperandSpec.Mem.M128;
 				case NasmOperandType.Mem256: return OperandSpec.Mem.M256;
 				case NasmOperandType.Mem512: return OperandSpec.Mem.M512;
+
+				case NasmOperandType.XMem32: return OperandSpec.VMem.VM32X;
+				case NasmOperandType.XMem64: return OperandSpec.VMem.VM64X;
+				case NasmOperandType.YMem32: return OperandSpec.VMem.VM32Y;
+				case NasmOperandType.YMem64: return OperandSpec.VMem.VM64Y;
+				case NasmOperandType.ZMem32: return OperandSpec.VMem.VM32Z;
+				case NasmOperandType.ZMem64: return OperandSpec.VMem.VM64Z;
 
 				case NasmOperandType.Imm:
 				{
@@ -223,7 +152,15 @@ namespace Asmuth.X86.Asm.Nasm
 
 		private static OperandSpec MakeRM(OperandSpec.Reg reg, int? defaultSizeInBytes)
 		{
-			if (!defaultSizeInBytes.HasValue) return null;
+			if (!defaultSizeInBytes.HasValue)
+			{
+				if (reg.RegisterFamily != RegisterFamily.Sse)
+					return null;
+
+				// Assume xmmrm = xmmrm128, that's our best guess
+				defaultSizeInBytes = reg.RegisterClass.SizeInBytes;
+			}
+
 			var dataType = OperandDataType.ElementType_Unknown | (OperandDataType)(defaultSizeInBytes.Value << (int)OperandDataType.ElementSize_Shift);
 			return reg.OrMem(dataType);
 		}

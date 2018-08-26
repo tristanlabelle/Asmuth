@@ -15,6 +15,7 @@ namespace Asmuth.X86.Asm.Nasm
 		public static readonly string Obsolete = "OBSOLETE";
 		public static readonly string Future = "FUTURE";
 		public static readonly string SizeMatch = "SM";
+		public static readonly string SizeMatchFirstTwo = "SM2";
 		public static readonly string Undocumented = "UNDOC";
 		public static readonly string X64 = "X64";
 

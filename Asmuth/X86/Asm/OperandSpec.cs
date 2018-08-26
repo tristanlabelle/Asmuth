@@ -50,7 +50,9 @@ namespace Asmuth.X86.Asm
 			public static readonly FixedReg DX = new FixedReg(Register.DX);
 			public static readonly FixedReg Eax = new FixedReg(Register.Eax);
 			public static readonly FixedReg Ecx = new FixedReg(Register.Ecx);
+			public static readonly FixedReg Edx = new FixedReg(Register.Edx);
 			public static readonly FixedReg Rax = new FixedReg(Register.Rax);
+			public static readonly FixedReg Rcx = new FixedReg(Register.Rcx);
 
 			public static readonly FixedReg ST0 = new FixedReg(Register.ST0);
 			public static readonly FixedReg Xmm0 = new FixedReg(Register.Xmm0);
@@ -138,6 +140,7 @@ namespace Asmuth.X86.Asm
 			public static readonly Reg Ymm = new Reg(RegisterClass.Ymm);
 			public static readonly Reg Zmm = new Reg(RegisterClass.Zmm);
 			public static readonly Reg AvxOpmask = new Reg(RegisterClass.AvxOpmask);
+			public static readonly Reg Bound = new Reg(RegisterClass.Bound);
 			public static readonly Reg Segment = new Reg(RegisterClass.Segment);
 			public static readonly Reg Debug = new Reg(RegisterClass.DebugUnsized);
 			public static readonly Reg Control = new Reg(RegisterClass.ControlUnsized);
@@ -238,6 +241,48 @@ namespace Asmuth.X86.Asm
 			public static readonly RegOrMem Xmm = new RegOrMem(Reg.Xmm, Mem.M128);
 			public static readonly RegOrMem Ymm = new RegOrMem(Reg.Ymm, Mem.M256);
 			public static readonly RegOrMem Zmm = new RegOrMem(Reg.Zmm, Mem.M512);
+		}
+
+		// Memory operand with vector SIB
+		// VGATHERDPD xmm1, vm32x, xmm2
+		public sealed class VMem : OperandSpec
+		{
+			public SseVectorSize IndexRegSize { get; }
+			public IntegerSize IndicesSize { get; }
+
+			public VMem(SseVectorSize indexRegSize, IntegerSize indicesSize)
+			{
+				if (indicesSize != IntegerSize.Dword && indicesSize != IntegerSize.Qword)
+					throw new ArgumentOutOfRangeException(nameof(indicesSize));
+
+				this.IndexRegSize = indexRegSize;
+				this.IndicesSize = indicesSize;
+			}
+
+			public RegisterClass IndexRegClass => IndexRegSize.GetRegisterClass();
+			public int MaxIndexCount => IndexRegSize.InBytes() / IndicesSize.InBytes();
+
+			public override IntegerSize? ImpliedIntegerOperandSize => null;
+
+			public override bool IsValidField(OperandField field) => field == OperandField.BaseReg;
+
+			public override string Format(in Instruction instruction, OperandField? field)
+			{
+				throw new NotImplementedException();
+			}
+
+			public override string ToString()
+			{
+				return "vm" + IndicesSize.InBits().ToString(CultureInfo.InvariantCulture)
+					+ IndexRegClass.Name[0];
+			}
+
+			public static readonly VMem VM32X = new VMem(SseVectorSize._128, IntegerSize.Dword);
+			public static readonly VMem VM32Y = new VMem(SseVectorSize._256, IntegerSize.Dword);
+			public static readonly VMem VM32Z = new VMem(SseVectorSize._512, IntegerSize.Dword);
+			public static readonly VMem VM64X = new VMem(SseVectorSize._128, IntegerSize.Qword);
+			public static readonly VMem VM64Y = new VMem(SseVectorSize._256, IntegerSize.Qword);
+			public static readonly VMem VM64Z = new VMem(SseVectorSize._512, IntegerSize.Qword);
 		}
 
 		// PUSH imm32 

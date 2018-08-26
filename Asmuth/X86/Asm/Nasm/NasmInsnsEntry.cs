@@ -71,6 +71,20 @@ namespace Asmuth.X86.Asm.Nasm
 			return str.ToString();
 		}
 
+		public InstructionDefinition ToInstructionDefinition()
+		{
+			if (!CanConvertToOpcodeEncoding) throw new InvalidOperationException();
+
+			var data = new InstructionDefinition.Data
+			{
+				Mnemonic = Mnemonic,
+				Encoding = GetOpcodeEncoding(),
+				Operands = GetOperandDefinitions()
+			};
+
+			return new InstructionDefinition(in data);
+		}
+
 		public override string ToString()
 		{
 			return Mnemonic + ": " + GetEncodingString();

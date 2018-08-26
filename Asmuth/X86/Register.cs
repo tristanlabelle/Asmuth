@@ -105,6 +105,7 @@ namespace Asmuth.X86
 						if (SizeInBytes == 64) return "zmm";
 						throw new NotImplementedException();
 					case RegisterFamily.AvxOpmask: return "kreg";
+					case RegisterFamily.Bound: return "bnd";
 					case RegisterFamily.Segment: return "sreg";
 					case RegisterFamily.Debug: return "dr";
 					case RegisterFamily.Control: return "cr";
@@ -141,6 +142,8 @@ namespace Asmuth.X86
 		public static readonly RegisterClass Ymm = new RegisterClass(RegisterFamily.Sse, sizeInBytes: 32);
 		public static readonly RegisterClass Zmm = new RegisterClass(RegisterFamily.Sse, sizeInBytes: 64);
 		public static readonly RegisterClass AvxOpmask = new RegisterClass(RegisterFamily.AvxOpmask);
+
+		public static readonly RegisterClass Bound = new RegisterClass(RegisterFamily.Bound);
 
 		public static readonly RegisterClass Segment = new RegisterClass(RegisterFamily.Segment);
 
