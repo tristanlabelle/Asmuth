@@ -6,8 +6,30 @@ using System.Text;
 
 namespace Asmuth.X86.Asm.Nasm
 {
-    partial class NasmInsnsEntry
+	partial class NasmInsnsEntry
 	{
+		public struct OpcodeEncodingConversionParams
+		{
+			public bool? LongMode { get; set; } // Unspecified by encoding tokens
+			public ConditionCode? ConditionCode { get; set; } // For +cc opcodes
+			public IntegerSize? OperandSize { get; set; } // For iwd/iwdq immediates
+
+			// For /r disambiguation
+			private bool disallowRegRM;
+			public bool AllowRegRM { get => !disallowRegRM; set => disallowRegRM = !value; }
+
+			private bool disallowMemRM;
+			public bool AllowMemRM { get => !disallowMemRM; set => disallowMemRM = !value; }
+
+			public void SetRMFlagsFromOperandType(NasmOperandType type)
+			{
+				var baseRegOpType = type & NasmOperandType.OpType_Mask;
+				bool allowRegMemRM = baseRegOpType == NasmOperandType.OpType_RegisterOrMemory;
+				AllowRegRM = allowRegMemRM || baseRegOpType == NasmOperandType.OpType_Register;
+				AllowMemRM = allowRegMemRM || baseRegOpType == NasmOperandType.OpType_Memory;
+			}
+		}
+
 		public bool CanConvertToOpcodeEncoding
 		{
 			get
@@ -31,44 +53,62 @@ namespace Asmuth.X86.Asm.Nasm
 			}
 		}
 
-		public OpcodeEncoding GetOpcodeEncoding()
+		// Jcc, SETcc, MOVcc
+		public bool HasConditionCodeVariants
+			=> EncodingTokens.Any(t => t.Type == NasmEncodingTokenType.Byte_PlusConditionCode);
+
+		public int OpcodeEncodingOperandSizeVariantCount
+		{
+			get
+			{
+				if (EncodingTokens.Contains(NasmEncodingTokenType.Immediate_WordOrDwordOrQword))
+					return 3;
+				if (EncodingTokens.Contains(NasmEncodingTokenType.Immediate_WordOrDword))
+					return 2;
+				return 1;
+			}
+		}
+
+		public OpcodeEncoding GetOpcodeEncoding(
+			ConditionCode? conditionCode = null,
+			IntegerSize? operandSize = null)
 		{
 			if (!CanConvertToOpcodeEncoding) throw new InvalidOperationException();
 
-			NasmOperandType? baseRegOperandType = null;
+			var @params = new OpcodeEncodingConversionParams
+			{
+				ConditionCode = conditionCode,
+				OperandSize = operandSize
+			};
+			
+			// Fill up the long mode flag from the instruction flags
+			var longMode = HasFlag(NasmInstructionFlags.LongMode);
+			var noLongMode = HasFlag(NasmInstructionFlags.NoLongMode);
+			if (longMode && noLongMode) throw new FormatException("Long and no-long mode specified.");
+			if (longMode) @params.LongMode = true;
+			else if (noLongMode) @params.LongMode = false;
+			
+			// Fill up the RM reg vs mem from the operands
 			foreach (var operand in Operands)
 			{
 				if (operand.Field == OperandField.BaseReg)
 				{
-					baseRegOperandType = operand.Type;
+					@params.SetRMFlagsFromOperandType(operand.Type);
 					break;
 				}
 			}
 
-			return ToOpcodeEncoding(EncodingTokens, VexEncoding.GetValueOrDefault(),
-				GetLongMode(Flags.Contains), baseRegOperandType);
-		}
-
-		public static bool? GetLongMode(Predicate<string> flagTester)
-		{
-			var longMode = flagTester(NasmInstructionFlags.LongMode);
-			var noLongMode = flagTester(NasmInstructionFlags.NoLongMode);
-			if (longMode && noLongMode) throw new FormatException("Long and no-long mode specified.");
-			if (noLongMode) return false;
-			if (longMode) return true;
-			return null;
+			return ToOpcodeEncoding(EncodingTokens, VexEncoding, in @params);
 		}
 
 		public static OpcodeEncoding ToOpcodeEncoding(
-			IEnumerable<NasmEncodingToken> encodingTokens,
-			VexEncoding? vexEncoding, bool? longMode,
-			NasmOperandType? rmOperandType = null)
+			IEnumerable<NasmEncodingToken> encodingTokens, VexEncoding? vexEncoding,
+			in OpcodeEncodingConversionParams @params)
 		{
 			if (encodingTokens == null) throw new ArgumentNullException(nameof(encodingTokens));
 
-			var parser = new EncodingParser(longMode);
-			return parser.Parse(encodingTokens, vexEncoding.GetValueOrDefault(),
-				rmOperandType.GetValueOrDefault(NasmOperandType.OpType_RegisterOrMemory));
+			var parser = new EncodingParser();
+			return parser.Parse(encodingTokens, vexEncoding, in @params);
 		}
 
 		private struct EncodingParser
@@ -87,66 +127,29 @@ namespace Asmuth.X86.Asm.Nasm
 			private OpcodeEncoding.Builder builder;
 			private State state;
 
-			public EncodingParser(bool? longMode)
-			{
-				builder = new OpcodeEncoding.Builder { LongMode = longMode };
-				state = State.Prefixes;
-			}
-
-			public OpcodeEncoding Parse(IEnumerable<NasmEncodingToken> tokens, VexEncoding vexEncoding,
-				NasmOperandType rmOperandType)
+			public OpcodeEncoding Parse(IEnumerable<NasmEncodingToken> tokens, VexEncoding? vexEncoding,
+				in OpcodeEncodingConversionParams @params)
 			{
 				state = State.Prefixes;
-
+				builder.LongMode = @params.LongMode;
+				
 				foreach (var token in tokens)
 				{
 					switch (token.Type)
 					{
-						case NasmEncodingTokenType.Vex:
-							if (builder.VexType != VexType.None)
-								throw new FormatException("VEX may only be the first token.");
-							builder.VexType = vexEncoding.Type;
-							builder.VectorSize = vexEncoding.VectorSize;
-							builder.SimdPrefix = vexEncoding.SimdPrefix;
-							builder.RexW = vexEncoding.RexW;
-							builder.Map = vexEncoding.OpcodeMap;
-							AdvanceTo(State.PreOpcode);
-							break;
+						case NasmEncodingTokenType.Vex: SetVex(vexEncoding); break;
 
-						case NasmEncodingTokenType.AddressSize_Fixed16:
-							SetAddressSize(AddressSize._16);
-							break;
+						case NasmEncodingTokenType.AddressSize_Fixed16: SetAddressSize(AddressSize._16); break;
+						case NasmEncodingTokenType.AddressSize_Fixed32: SetAddressSize(AddressSize._32); break;
+						case NasmEncodingTokenType.AddressSize_Fixed64: SetAddressSize(AddressSize._64); break;
+						case NasmEncodingTokenType.AddressSize_NoOverride: break; // ?
 
-						case NasmEncodingTokenType.AddressSize_Fixed32:
-							SetAddressSize(AddressSize._32);
-							break;
+						case NasmEncodingTokenType.OperandSize_16: SetOperandSize(IntegerSize.Word); break;
+						case NasmEncodingTokenType.OperandSize_32: SetOperandSize(IntegerSize.Dword); break;
+						case NasmEncodingTokenType.OperandSize_64: SetOperandSize(IntegerSize.Qword); break;
 
-						case NasmEncodingTokenType.AddressSize_Fixed64:
-							SetAddressSize(AddressSize._64);
-							break;
-
-						// ?
-						case NasmEncodingTokenType.AddressSize_NoOverride: break;
-
-						case NasmEncodingTokenType.OperandSize_16:
-							SetOperandSize(IntegerSize.Word);
-							break;
-
-						case NasmEncodingTokenType.OperandSize_32:
-							SetOperandSize(IntegerSize.Dword);
-							break;
-
-						case NasmEncodingTokenType.OperandSize_64:
-							SetOperandSize(IntegerSize.Qword);
-							break;
-
-						case NasmEncodingTokenType.OperandSize_64WithoutW:
-							// W-agnostic, like JMP: o64nw e9 rel64
-							SetLongMode(true);
-							break;
-
-						case NasmEncodingTokenType.OperandSize_NoOverride:
-							throw new FormatException();
+						// W-agnostic, like JMP: o64nw e9 rel64
+						case NasmEncodingTokenType.OperandSize_64WithoutW: SetLongMode(true); break;
 
 						// Legacy prefixes
 						case NasmEncodingTokenType.LegacyPrefix_NoSimd:
@@ -241,17 +244,15 @@ namespace Asmuth.X86.Asm.Nasm
 							throw new FormatException();
 
 						case NasmEncodingTokenType.Byte_PlusConditionCode:
-							// TODO: figure out what this means: [i:	71+c jlen e9 rel]
-							if (state >= State.PostOpcode)
-								throw new FormatException("Out-of-order opcode byte.");
-							throw new NotImplementedException();
+							SetMainOpcodeBytePlusConditionCode(token.Byte, @params.ConditionCode);
+							break;
 
 						case NasmEncodingTokenType.ModRM:
-							SetModRM(reg: null, rmOperandType);
+							SetModRM(reg: null, @params.AllowRegRM, @params.AllowMemRM);
 							break;
 
 						case NasmEncodingTokenType.ModRM_FixedReg:
-							SetModRM(reg: token.Byte, rmOperandType);
+							SetModRM(reg: token.Byte, @params.AllowRegRM, @params.AllowMemRM);
 							break;
 
 						// Immediates
@@ -274,7 +275,10 @@ namespace Asmuth.X86.Asm.Nasm
 
 						case NasmEncodingTokenType.Immediate_WordOrDword:
 						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword:
-							throw new NotImplementedException("Operand size-dependent immediates not implemented.");
+							if (!@params.OperandSize.HasValue)
+								throw new NotSupportedException("Operand size needed for NASM entries with iwd or iwdq tokens.");
+							AddOperandSizeDependentImmediate(allowQword: true, @params.OperandSize.Value);
+							break;
 
 						case NasmEncodingTokenType.Immediate_Qword:
 							AddImmediateWithSizeInBytes(8);
@@ -333,8 +337,51 @@ namespace Asmuth.X86.Asm.Nasm
 							throw new NotImplementedException($"Unimplemented NASM encoding token handling: {token.Type}.");
 					}
 				}
-
+				
 				return builder.Build();
+			}
+
+			private void SetMainOpcodeBytePlusConditionCode(byte value, ConditionCode? conditionCode)
+			{
+				if (!conditionCode.HasValue)
+					throw new FormatException("Cannot convert to opcode encoding without condition code.");
+				if ((value & 0xF) != 0) throw new FormatException();
+
+				SetMainOpcodeByte((byte)(value | (byte)conditionCode.Value), plusR: false);
+			}
+
+			private void SetVex(VexEncoding? vexEncoding)
+			{
+				if (!vexEncoding.HasValue)
+					throw new FormatException("VEX-encoded NASM instruction without a provided VEX encoding.");
+				if (builder.VexType != VexType.None)
+					throw new FormatException("VEX may only be the first token.");
+
+				builder.VexType = vexEncoding.Value.Type;
+				builder.VectorSize = vexEncoding.Value.VectorSize;
+				builder.SimdPrefix = vexEncoding.Value.SimdPrefix;
+				builder.RexW = vexEncoding.Value.RexW;
+				builder.Map = vexEncoding.Value.OpcodeMap;
+				AdvanceTo(State.PreOpcode);
+			}
+
+			private void AddOperandSizeDependentImmediate(bool allowQword, IntegerSize operandSize)
+			{
+				if (operandSize == IntegerSize.Word || operandSize == IntegerSize.Dword)
+				{
+					if (allowQword) SetRexW(false);
+					SetOperandSize(operandSize);
+				}
+				else if (operandSize == IntegerSize.Qword && allowQword)
+				{
+					SetRexW(true);
+				}
+				else
+				{
+					throw new FormatException("Cannot apply operand size to iwd[q] immediate.");
+				}
+
+				AddImmediateWithSizeInBytes(operandSize.InBytes());
 			}
 
 			private void SetAddressSize(AddressSize size)
@@ -408,14 +455,9 @@ namespace Asmuth.X86.Asm.Nasm
 				AdvanceTo(State.PostOpcode);
 			}
 
-			private void SetModRM(byte? reg, NasmOperandType baseRegOperandType)
+			private void SetModRM(byte? reg, bool allowRegRM, bool allowMemRM)
 			{
-				var baseRegOpType = baseRegOperandType & NasmOperandType.OpType_Mask;
-				bool allowsMemOnly = baseRegOpType == NasmOperandType.OpType_Memory;
-				bool allowsAny = baseRegOpType == NasmOperandType.OpType_RegisterOrMemory;
-
-				SetModRM(new ModRMEncoding(reg, rmRegAllowed: !allowsMemOnly,
-					rmMemAllowed: allowsMemOnly || allowsAny));
+				SetModRM(new ModRMEncoding(reg, allowRegRM: allowRegRM, allowMemRM: allowMemRM));
 			}
 
 			private void SetModRM(ModRMEncoding encoding)

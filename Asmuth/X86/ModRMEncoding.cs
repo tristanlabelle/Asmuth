@@ -26,7 +26,7 @@ namespace Asmuth.X86
 			this.data = data;
 		}
 
-		public ModRMEncoding(byte? reg, bool rmRegAllowed, bool rmMemAllowed, byte rmValue = 0)
+		public ModRMEncoding(byte? reg, bool allowRegRM, bool allowMemRM, byte rmValue = 0)
 		{
 			if (reg.HasValue)
 			{
@@ -38,9 +38,9 @@ namespace Asmuth.X86
 				data = 2;
 			}
 
-			if (rmRegAllowed) data |= 0x10;
-			if (rmMemAllowed) data |= 0x20;
-			if (!rmRegAllowed && !rmMemAllowed)
+			if (allowRegRM) data |= 0x10;
+			if (allowMemRM) data |= 0x20;
+			if (!allowRegRM && !allowMemRM)
 			{
 				if (rmValue > 7) throw new ArgumentOutOfRangeException(nameof(rmValue));
 				data |= (byte)((rmValue + 4) << 4);

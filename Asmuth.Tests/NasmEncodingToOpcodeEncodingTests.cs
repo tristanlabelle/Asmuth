@@ -215,7 +215,10 @@ namespace Asmuth.X86.Asm.Nasm
 			var nasmEncodingTokens = NasmInsns.ParseEncoding(
 				nasmEncodingStr, out VexEncoding? vexEncoding);
 
-			var actualEncoding = NasmInsnsEntry.ToOpcodeEncoding(nasmEncodingTokens, vexEncoding, longMode: null, rmOperandType);
+			var @params = new NasmInsnsEntry.OpcodeEncodingConversionParams();
+			if (rmOperandType.HasValue) @params.SetRMFlagsFromOperandType(rmOperandType.Value);
+
+			var actualEncoding = NasmInsnsEntry.ToOpcodeEncoding(nasmEncodingTokens, vexEncoding, in @params);
 			Assert.AreEqual(SetComparisonResult.Equal, OpcodeEncoding.Compare(actualEncoding, expectedEncoding));
 		}
 

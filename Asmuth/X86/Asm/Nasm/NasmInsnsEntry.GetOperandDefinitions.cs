@@ -8,17 +8,20 @@ namespace Asmuth.X86.Asm.Nasm
 {
     partial class NasmInsnsEntry
     {
-		public OperandDefinition[] GetOperandDefinitions()
+		public OperandDefinition[] GetOperandDefinitions(IntegerSize? operandSize = null)
 		{
-			var specs = GetOperandSpecs();
+			var specs = GetOperandSpecs(operandSize);
 			var defs = new OperandDefinition[specs.Length];
 			for (int i = 0; i < specs.Length; ++i)
 				defs[i] = new OperandDefinition(specs[i], Operands[i].Field);
 			return defs;
 		}
 
-		public OperandSpec[] GetOperandSpecs()
+		public OperandSpec[] GetOperandSpecs(IntegerSize? operandSize = null)
 		{
+			if (operandSize.HasValue)
+				return GetOperandSpecs(defaultSizeInBytes: operandSize.Value.InBytes(), sizeMatch: false);
+
 			foreach (string flag in Flags)
 			{
 				if (flag == NasmInstructionFlags.SizeMatch)

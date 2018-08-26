@@ -29,8 +29,9 @@ namespace Asmuth.Disassembler
 				total++;
 				try
 				{
-					var instructionDefinition = insnsEntry.ToInstructionDefinition();
-					instructionTable.Add(instructionDefinition.Encoding, instructionDefinition);
+					foreach (var instructionDefinition in insnsEntry.ToInstructionDefinitions())
+						instructionTable.Add(instructionDefinition.Encoding, instructionDefinition);
+					
 					succeeded++;
 				}
 				catch (Exception e)

@@ -57,6 +57,8 @@ namespace Asmuth.X86.Asm.Nasm
 		#endregion
 
 		#region Methods
+		public bool HasFlag(string flag) => Flags.Contains(flag, StringComparer.InvariantCultureIgnoreCase);
+
 		public string GetEncodingString()
 		{
 			var str = new StringBuilder();
@@ -71,18 +73,60 @@ namespace Asmuth.X86.Asm.Nasm
 			return str.ToString();
 		}
 
-		public InstructionDefinition ToInstructionDefinition()
+		public InstructionDefinition[] ToInstructionDefinitions()
 		{
 			if (!CanConvertToOpcodeEncoding) throw new InvalidOperationException();
 
-			var data = new InstructionDefinition.Data
-			{
-				Mnemonic = Mnemonic,
-				Encoding = GetOpcodeEncoding(),
-				Operands = GetOperandDefinitions()
-			};
+			int operandSizeVariantCount = OpcodeEncodingOperandSizeVariantCount;
+			bool hasConditionCodeVariants = HasConditionCodeVariants;
+			int conditionCodeVariantCount = hasConditionCodeVariants ? ConditionCodeEnum.Count : 1;
+			int variantCount = operandSizeVariantCount * conditionCodeVariantCount;
 
-			return new InstructionDefinition(in data);
+			var variants = new InstructionDefinition[variantCount];
+			int variantIndex = 0;
+
+			var data = new InstructionDefinition.Data();
+
+			// Fill up mnemonic, taking into account +cc cases
+			string[] conditionCodeMnemonics = null;
+			if (hasConditionCodeVariants && Mnemonic.EndsWith("cc", StringComparison.InvariantCultureIgnoreCase))
+			{
+				string baseMnemonic = Mnemonic.Substring(0, Mnemonic.Length - 2);
+				conditionCodeMnemonics = new string[conditionCodeVariantCount];
+				for (int i = 0; i < conditionCodeVariantCount; ++i)
+					conditionCodeMnemonics[i] = baseMnemonic + ((ConditionCode)i).GetMnemonicSuffix().ToUpperInvariant();
+			}
+			else
+			{
+				data.Mnemonic = Mnemonic;
+			}
+
+			// For each variant
+			for (int j = 0; j < operandSizeVariantCount; j++)
+			{
+				var operandSize = operandSizeVariantCount == 1 ? null
+					: (IntegerSize?)((int)IntegerSize.Word + j);
+
+				data.Operands = GetOperandDefinitions(operandSize);
+
+				for (int i = 0; i < conditionCodeVariantCount; i++)
+				{
+					ConditionCode? conditionCode = null;
+					if (hasConditionCodeVariants)
+					{
+						conditionCode = (ConditionCode)i;
+						if (conditionCodeMnemonics != null)
+							data.Mnemonic = conditionCodeMnemonics[i];
+					}
+					
+					data.Encoding = GetOpcodeEncoding(conditionCode, operandSize);
+
+					variants[variantIndex] = new InstructionDefinition(in data);
+					variantIndex++;
+				}
+			}
+
+			return variants;
 		}
 
 		public override string ToString()

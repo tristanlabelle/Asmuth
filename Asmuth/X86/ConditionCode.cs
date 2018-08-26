@@ -40,6 +40,8 @@ namespace Asmuth.X86
 
 	public static class ConditionCodeEnum
 	{
+		public const int Count = 16;
+
 		private static readonly ushort[] testedEFlags = 
 		{
 			(ushort)EFlags.Overflow, // Overflow
@@ -73,8 +75,8 @@ namespace Asmuth.X86
 
 		private static readonly string[] suffixes = 
 		{
-			"O", "NO", "B", "AE", "E", "NE", "BE", "A",
-			"S", "NS", "P", "NP", "L", "GE", "LE", "G"
+			"o", "no", "b", "ae", "e", "ne", "be", "a",
+			"s", "ns", "p", "np", "l", "ge", "le", "g"
 		};
 		public static ConditionCode Negate(this ConditionCode code)
 			=> (ConditionCode)((byte)code ^ 1);
