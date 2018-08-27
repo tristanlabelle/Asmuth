@@ -1,91 +1,151 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Asmuth.X86.Asm
 {
-	public enum OperandDataType : ushort
+	public enum ScalarType : byte
 	{
-		ElementSize_Shift = 0,
-		ElementSize_0 = 0 << (int)ElementSize_Shift, // Doesn't actually access memory, like LEA
-		ElementSize_Byte = 1 << (int)ElementSize_Shift,
-		ElementSize_Word = 2 << (int)ElementSize_Shift,
-		ElementSize_Dword = 4 << (int)ElementSize_Shift,
-		ElementSize_48 = 6 << (int)ElementSize_Shift,
-		ElementSize_Qword = 8 << (int)ElementSize_Shift,
-		ElementSize_80 = 10 << (int)ElementSize_Shift,
-		ElementSize_128 = 16 << (int)ElementSize_Shift,
-		ElementSize_256 = 32 << (int)ElementSize_Shift,
-		ElementSize_512 = 64 << (int)ElementSize_Shift,
-		ElementSize_Mask = 0xFF << (int)ElementSize_Shift,
-
-		VectorLength_Shift = ElementSize_Shift + 8,
-		VectorLength_1 = 0 << (int)ElementSize_Shift,
-		VectorLength_2 = 1 << (int)ElementSize_Shift,
-		VectorLength_4 = 2 << (int)ElementSize_Shift,
-		VectorLength_8 = 3 << (int)ElementSize_Shift,
-		VectorLength_16 = 4 << (int)ElementSize_Shift,
-		VectorLength_Mask = 7 << (int)ElementSize_Shift,
-
-		ElementType_Shift = VectorLength_Shift + 3,
-		ElementType_Unknown = 0 << (int)ElementType_Shift,
-		ElementType_Int = 1 << (int)ElementType_Shift,
-		ElementType_Float = 2 << (int)ElementType_Shift,
-		ElementType_MemoryAddress = 3 << (int)ElementType_Shift, // moffs8/16/32/64
-		ElementType_FarPtr = 4 << (int)ElementType_Shift, // ptr16:16/32,m16:16/32/64
-		ElementType_Mask = 0xF << (int)ElementType_Shift,
-		// Bounds, BCD
-
-		Unknown = ElementType_Unknown | ElementSize_0,
-
-		Byte = ElementType_Unknown | ElementSize_Byte,
-		Word = ElementType_Unknown | ElementSize_Word,
-		Dword = ElementType_Unknown | ElementSize_Dword,
-		Qword = ElementType_Unknown | ElementSize_Qword,
-		_128 = ElementType_Unknown | ElementSize_128,
-		_256 = ElementType_Unknown | ElementSize_256,
-		_512 = ElementType_Unknown | ElementSize_512,
-
-		I8 = ElementType_Int | ElementSize_Byte,
-		I16 = ElementType_Int | ElementSize_Word,
-		I32 = ElementType_Int | ElementSize_Dword,
-		I64 = ElementType_Int | ElementSize_Qword,
-
-		F32 = ElementType_Float | ElementSize_Dword,
-		F64 = ElementType_Float | ElementSize_Qword,
-		F80 = ElementType_Float | ElementSize_80,
-
-		FarPtr16_16 = ElementType_FarPtr | ElementSize_Dword,
-		FarPtr16_32 = ElementType_FarPtr | ElementSize_48,
-		FarPtr16_64 = ElementType_FarPtr | ElementSize_80,
+		Untyped, // byte, word, dword, qword, ...
+		SignedInt,
+		UnsignedInt,
+		Float,
+		NearPointer, // moffs16, moffs32, moffs64 - like UnsignedInt?
+		FarPointer, // ptr16:16, ptr16:32, ptr16:64
+		UnpackedBcd,
+		PackedBcd, // m80bcd
+		DescriptorTable, // m16&32, m16&64
 	}
 
-	public static class OperandDataTypeEnum
+	public static class ScalarTypeEnum
 	{
-		public static bool IsVector(this OperandDataType type)
-			=> (type & OperandDataType.VectorLength_Mask) != OperandDataType.VectorLength_1;
-
-		public static int GetVectorLength(this OperandDataType type)
-			=> 1 << ((int)(type & OperandDataType.VectorLength_Mask) >> (int)OperandDataType.VectorLength_Shift);
-
-		public static int GetElementSizeInBytes(this OperandDataType type)
-			=> (int)(type & OperandDataType.ElementSize_Mask) >> (int)OperandDataType.ElementSize_Shift;
-
-		public static int GetElementSizeInBits(this OperandDataType type)
-			=> GetElementSizeInBytes(type) * 8;
-
-		public static int GetTotalSizeInBytes(this OperandDataType type)
-			=> GetElementSizeInBytes(type) * GetVectorLength(type);
-
-		public static int GetTotalSizeInBits(this OperandDataType type)
-			=> GetTotalSizeInBytes(type) * 8;
-
-		public static IntegerSize? GetImpliedGprSize(this OperandDataType type)
+		public static bool IsValidSizeInBytes(this ScalarType type, int size)
 		{
-			if ((type & OperandDataType.ElementType_Mask) != OperandDataType.ElementType_Unknown
-				&& (type & OperandDataType.ElementType_Mask) != OperandDataType.ElementType_Int) return null;
-			if (GetVectorLength(type) != 1) return null;
-			return IntegerSizeEnum.TryFromBytes(GetElementSizeInBytes(type));
+			if (type == ScalarType.Untyped) return unchecked((uint)size <= 10);
+
+			uint packedValidSizes = GetPackedValidSizes(type);
+			while (packedValidSizes != 0)
+			{
+				if (size == (packedValidSizes & 0xFF)) return true;
+				packedValidSizes >>= 8;
+			}
+
+			return false;
 		}
+
+		public static bool IsVectorable(ScalarType type)
+		{
+			switch (type)
+			{
+				case ScalarType.SignedInt:
+				case ScalarType.UnsignedInt:
+				case ScalarType.Float:
+				case ScalarType.PackedBcd: // m80bcd
+					return true;
+
+				default: return false;
+			}
+		}
+
+		private static uint GetPackedValidSizes(ScalarType type)
+		{
+			switch (type)
+			{
+				case ScalarType.SignedInt: return 0x08_04_02_01;
+				case ScalarType.UnsignedInt: return 0x08_04_02_01;
+				case ScalarType.Float: return 0x0A_08_04_02;
+				case ScalarType.NearPointer: return 0x08_04_02;
+				case ScalarType.FarPointer: return 0x0A_06_04;
+				case ScalarType.PackedBcd: return 1; // m80bcd is considered a vector
+				case ScalarType.UnpackedBcd: return 1;
+				case ScalarType.DescriptorTable: return 0x0A_06;
+				default: throw new ArgumentOutOfRangeException(nameof(type));
+			}
+		}
+	}
+
+	[StructLayout(LayoutKind.Sequential, Size = 2)]
+	public readonly struct OperandDataType : IEquatable<OperandDataType>
+	{
+		private readonly byte scalarTypeAndSizeInBytes;
+		private readonly byte vectorLengthLog2;
+
+		public OperandDataType(ScalarType scalarType, int scalarSizeInBytes, byte vectorLength)
+		{
+			throw new NotImplementedException();
+		}
+
+		public OperandDataType(ScalarType scalarType, int scalarSizeInBytes)
+		{
+			if (!scalarType.IsValidSizeInBytes(scalarSizeInBytes))
+				throw new ArgumentOutOfRangeException(nameof(scalarSizeInBytes));
+			scalarTypeAndSizeInBytes = (byte)(((int)scalarType << 4) | scalarSizeInBytes);
+			vectorLengthLog2 = 0;
+		}
+
+		public ScalarType ScalarType => (ScalarType)(scalarTypeAndSizeInBytes >> 4);
+		public int ScalarSizeInBytes => scalarTypeAndSizeInBytes & 0xF;
+		public int ScalarSizeInBits => ScalarSizeInBytes * 8;
+		public int VectorLength => 1 << vectorLengthLog2;
+		public bool IsVector => vectorLengthLog2 > 0;
+		public int TotalSizeInBytes => ScalarSizeInBytes * VectorLength;
+		public int TotalSizeInBits => TotalSizeInBytes * 8;
+
+		public IntegerSize? GetImpliedGprSize()
+		{
+			return (ScalarType == ScalarType.Untyped || ScalarType == ScalarType.SignedInt || ScalarType == ScalarType.UnsignedInt)
+				&& !IsVector ? IntegerSizeEnum.TryFromBytes(ScalarSizeInBytes) : null;
+		}
+
+		public bool Equals(OperandDataType other)
+			=> scalarTypeAndSizeInBytes == other.scalarTypeAndSizeInBytes
+			&& vectorLengthLog2 == other.vectorLengthLog2;
+		public override bool Equals(object obj) => obj is OperandDataType && Equals((OperandDataType)obj);
+		public override int GetHashCode() => ((int)scalarTypeAndSizeInBytes << 8) | vectorLengthLog2;
+		public static bool Equals(OperandDataType lhs, OperandDataType rhs) => lhs.Equals(rhs);
+		public static bool operator ==(OperandDataType lhs, OperandDataType rhs) => Equals(lhs, rhs);
+		public static bool operator !=(OperandDataType lhs, OperandDataType rhs) => !Equals(lhs, rhs);
+
+		[Obsolete("TODO: Disallow zero-sized OperandDataTypes.")]
+		public static readonly OperandDataType None = new OperandDataType(ScalarType.Untyped, 0);
+
+		public static readonly OperandDataType Byte = new OperandDataType(ScalarType.Untyped, 1);
+		public static readonly OperandDataType Word = new OperandDataType(ScalarType.Untyped, 2);
+		public static readonly OperandDataType Dword = new OperandDataType(ScalarType.Untyped, 4);
+		public static readonly OperandDataType Qword = new OperandDataType(ScalarType.Untyped, 8);
+		public static readonly OperandDataType Untyped80 = new OperandDataType(ScalarType.Untyped, 10);
+		public static readonly OperandDataType Untyped128 = new OperandDataType(ScalarType.Untyped, 16);
+		public static readonly OperandDataType Untyped256 = new OperandDataType(ScalarType.Untyped, 32);
+		public static readonly OperandDataType Untyped512 = new OperandDataType(ScalarType.Untyped, 64);
+
+		public static readonly OperandDataType I8 = new OperandDataType(ScalarType.SignedInt, 1);
+		public static readonly OperandDataType I16 = new OperandDataType(ScalarType.SignedInt, 2);
+		public static readonly OperandDataType I32 = new OperandDataType(ScalarType.SignedInt, 4);
+		public static readonly OperandDataType I64 = new OperandDataType(ScalarType.SignedInt, 8);
+
+		public static readonly OperandDataType U8 = new OperandDataType(ScalarType.UnsignedInt, 1);
+		public static readonly OperandDataType U16 = new OperandDataType(ScalarType.UnsignedInt, 2);
+		public static readonly OperandDataType U32 = new OperandDataType(ScalarType.UnsignedInt, 4);
+		public static readonly OperandDataType U64 = new OperandDataType(ScalarType.UnsignedInt, 8);
+
+		public static readonly OperandDataType F16 = new OperandDataType(ScalarType.Float, 2);
+		public static readonly OperandDataType F32 = new OperandDataType(ScalarType.Float, 4);
+		public static readonly OperandDataType F64 = new OperandDataType(ScalarType.Float, 8);
+		public static readonly OperandDataType F80 = new OperandDataType(ScalarType.Float, 10);
+
+		public static readonly OperandDataType NearPtr16 = new OperandDataType(ScalarType.NearPointer, 2);
+		public static readonly OperandDataType NearPtr32 = new OperandDataType(ScalarType.NearPointer, 4);
+		public static readonly OperandDataType NearPtr64 = new OperandDataType(ScalarType.NearPointer, 8);
+
+		public static readonly OperandDataType FarPtr16 = new OperandDataType(ScalarType.FarPointer, 4);
+		public static readonly OperandDataType FarPtr32 = new OperandDataType(ScalarType.FarPointer, 6);
+		public static readonly OperandDataType FarPtr64 = new OperandDataType(ScalarType.FarPointer, 10);
+
+		public static readonly OperandDataType UnpackedBcd = new OperandDataType(ScalarType.UnpackedBcd, 1);
+		public static readonly OperandDataType PackedBcd = new OperandDataType(ScalarType.PackedBcd, 1);
+
+		public static readonly OperandDataType DescriptorTable32 = new OperandDataType(ScalarType.DescriptorTable, 6);
+		public static readonly OperandDataType DescriptorTable64 = new OperandDataType(ScalarType.DescriptorTable, 10);
 	}
 }

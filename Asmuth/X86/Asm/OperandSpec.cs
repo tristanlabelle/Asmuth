@@ -150,8 +150,8 @@ namespace Asmuth.X86.Asm
 		public sealed class Mem : OperandSpec
 		{
 			public OperandDataType DataType { get; }
-			public int SizeInBytes => DataType.GetElementSizeInBytes();
-			public int SizeInBits => DataType.GetElementSizeInBits();
+			public int SizeInBytes => DataType.TotalSizeInBytes;
+			public int SizeInBits => DataType.TotalSizeInBits;
 
 			public Mem(OperandDataType dataType) => this.DataType = dataType;
 
@@ -175,7 +175,7 @@ namespace Asmuth.X86.Asm
 			public override string ToString() 
 				=> SizeInBytes == 0 ? "m" : ("m" + SizeInBits.ToString());
 
-			public static readonly Mem M = new Mem(OperandDataType.Unknown);
+			public static readonly Mem M = new Mem(OperandDataType.None);
 			public static readonly Mem I8 = new Mem(OperandDataType.I8);
 			public static readonly Mem I16 = new Mem(OperandDataType.I16);
 			public static readonly Mem I32 = new Mem(OperandDataType.I32);
@@ -183,10 +183,10 @@ namespace Asmuth.X86.Asm
 			public static readonly Mem F32 = new Mem(OperandDataType.F32);
 			public static readonly Mem F64 = new Mem(OperandDataType.F64);
 			public static readonly Mem F80 = new Mem(OperandDataType.F80);
-			public static readonly Mem M80 = new Mem(OperandDataType.ElementSize_80);
-			public static readonly Mem M128 = new Mem(OperandDataType.ElementSize_128);
-			public static readonly Mem M256 = new Mem(OperandDataType.ElementSize_256);
-			public static readonly Mem M512 = new Mem(OperandDataType.ElementSize_512);
+			public static readonly Mem M80 = new Mem(OperandDataType.Untyped80);
+			public static readonly Mem M128 = new Mem(OperandDataType.Untyped128);
+			public static readonly Mem M256 = new Mem(OperandDataType.Untyped256);
+			public static readonly Mem M512 = new Mem(OperandDataType.Untyped512);
 		}
 
 		// NEG r/m8
@@ -292,8 +292,10 @@ namespace Asmuth.X86.Asm
 
 			public Imm(OperandDataType dataType)
 			{
-				if (dataType.GetElementSizeInBytes() == 0)
-					throw new ArgumentException("Immediates cannot be zero-sized", nameof(dataType));
+				if (dataType.ScalarSizeInBytes == 0)
+					throw new ArgumentException("Immediates cannot be zero-sized.", nameof(dataType));
+				if (dataType.IsVector)
+					throw new ArgumentException("Immediates cannot be vectored.", nameof(dataType));
 				this.DataType = dataType;
 			}
 
@@ -304,16 +306,18 @@ namespace Asmuth.X86.Asm
 
 			public override string Format(in Instruction instruction, OperandField? field)
 			{
-				if (DataType.GetTotalSizeInBytes() > instruction.ImmediateSizeInBytes)
+				if (DataType.TotalSizeInBytes > instruction.ImmediateSizeInBytes)
 					throw new InvalidOperationException("Instruction doesn't have an immediate big enough to encode operand.");
 				if (field != OperandField.Immediate && field != OperandField.SecondImmediate)
 					throw new ArgumentOutOfRangeException(nameof(field));
 
-				if (DataType.GetTotalSizeInBytes() != instruction.ImmediateSizeInBytes)
+				if (DataType.TotalSizeInBytes != instruction.ImmediateSizeInBytes)
 					throw new NotImplementedException("Multiple immediates.");
 
-				if ((DataType & OperandDataType.ElementType_Mask) != OperandDataType.ElementType_Int
-					|| DataType.IsVector())
+				if ((DataType.ScalarType != ScalarType.Untyped
+					&& DataType.ScalarType != ScalarType.SignedInt
+					&& DataType.ScalarType != ScalarType.UnsignedInt)
+					|| DataType.IsVector)
 					throw new NotImplementedException("Formatting non-int immediates.");
 
 				var value = instruction.ImmediateData.RawStorage;
@@ -322,7 +326,7 @@ namespace Asmuth.X86.Asm
 					: "0x" + value.ToString("x", CultureInfo.InvariantCulture);
 			}
 
-			public override string ToString() => "imm" + DataType.GetElementSizeInBits();
+			public override string ToString() => "imm" + DataType.ScalarSizeInBytes;
 
 			public static readonly Imm I8 = new Imm(OperandDataType.I8);
 			public static readonly Imm I16 = new Imm(OperandDataType.I16);
