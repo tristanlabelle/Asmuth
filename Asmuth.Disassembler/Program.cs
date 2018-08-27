@@ -43,7 +43,7 @@ namespace Asmuth.Disassembler
 			}
 
 			Console.WriteLine();
-			Console.WriteLine($"{succeeded}/{total} successful");
+			Console.WriteLine($"{succeeded}/{total} = {succeeded*100/total}% successful");
 
 			var filePath = Path.GetFullPath(args[1]);
 			using (var memoryMappedFile = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))

@@ -27,6 +27,9 @@ namespace Asmuth.X86.Asm.Nasm
 			{
 				case NasmOperandType.Unity: return OperandSpec.Const.One;
 
+				// Used with UD /r, where the ModRM value is irrelevant
+				case NasmOperandType.Reg: return OperandSpec.Reg.GprUnsized;
+
 				case NasmOperandType.Reg_AL: return OperandSpec.FixedReg.AL;
 				case NasmOperandType.Reg_CL: return OperandSpec.FixedReg.CL;
 				case NasmOperandType.Reg_AX: return OperandSpec.FixedReg.AX;
@@ -95,18 +98,13 @@ namespace Asmuth.X86.Asm.Nasm
 				case NasmOperandType.BndReg: return OperandSpec.Reg.Bound;
 
 				case NasmOperandType.Mem:
-				{
-					if (!defaultSizeInBytes.HasValue) return OperandSpec.Mem.M;
-					else if (defaultSizeInBytes == 1) return OperandSpec.Mem.I8;
-					else if (defaultSizeInBytes == 2) return OperandSpec.Mem.I16;
-					else if (defaultSizeInBytes == 4) return OperandSpec.Mem.I32;
-					else if (defaultSizeInBytes == 8) return OperandSpec.Mem.I64;
-					else throw new ArgumentOutOfRangeException(nameof(defaultSizeInBytes));
-				}
-				case NasmOperandType.Mem8: return OperandSpec.Mem.I8;
-				case NasmOperandType.Mem16: return OperandSpec.Mem.I16;
-				case NasmOperandType.Mem32: return OperandSpec.Mem.I32;
-				case NasmOperandType.Mem64: return OperandSpec.Mem.I64;
+					return defaultSizeInBytes.HasValue
+						? OperandSpec.Mem.Untyped(defaultSizeInBytes.Value)
+						: OperandSpec.Mem.M;
+				case NasmOperandType.Mem8: return OperandSpec.Mem.M8;
+				case NasmOperandType.Mem16: return OperandSpec.Mem.M16;
+				case NasmOperandType.Mem32: return OperandSpec.Mem.M32;
+				case NasmOperandType.Mem64: return OperandSpec.Mem.M64;
 				case NasmOperandType.Mem80: return OperandSpec.Mem.M80;
 				case NasmOperandType.Mem128: return OperandSpec.Mem.M128;
 				case NasmOperandType.Mem256: return OperandSpec.Mem.M256;
@@ -145,6 +143,14 @@ namespace Asmuth.X86.Asm.Nasm
 				case NasmOperandType.UDword:
 				case NasmOperandType.SDword:
 					return OperandSpec.Imm.I32;
+
+				case NasmOperandType.Mem_Offs:
+					if (!defaultSizeInBytes.HasValue) return null;
+					else if (defaultSizeInBytes == 1) return OperandSpec.Imm.MOffs8;
+					else if (defaultSizeInBytes == 2) return OperandSpec.Imm.MOffs16;
+					else if (defaultSizeInBytes == 4) return OperandSpec.Imm.MOffs32;
+					else if (defaultSizeInBytes == 8) return OperandSpec.Imm.MOffs64;
+					else throw new ArgumentOutOfRangeException(nameof(defaultSizeInBytes));
 			}
 
 			throw new NotImplementedException($"Unimplemented NasmOperandType > OperandSpec conversion case: {type}.");
@@ -173,7 +179,6 @@ namespace Asmuth.X86.Asm.Nasm
 		public static bool operator !=(NasmOperand lhs, NasmOperand rhs) => !Equals(lhs, rhs);
 	}
 
-	[Flags]
 	public enum NasmOperandType : uint
 	{
 		OpType_Shift = 0,

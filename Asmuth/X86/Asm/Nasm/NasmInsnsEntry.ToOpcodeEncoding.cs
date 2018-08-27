@@ -61,11 +61,24 @@ namespace Asmuth.X86.Asm.Nasm
 		{
 			get
 			{
+				int count = 1;
 				if (EncodingTokens.Contains(NasmEncodingTokenType.Immediate_WordOrDwordOrQword))
-					return 3;
-				if (EncodingTokens.Contains(NasmEncodingTokenType.Immediate_WordOrDword))
-					return 2;
-				return 1;
+					count = 3;
+				else if (EncodingTokens.Contains(NasmEncodingTokenType.Immediate_WordOrDword))
+					count = 2;
+
+				// There are no variants if there is also an operand size token.
+				// This works around entries like: MOV reg_ax,mem_offs [o16 a1 iwdq]
+				if (count > 1
+					&& (EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_16)
+					|| EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_32)
+					|| EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_64)
+					|| EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_64WithoutW)))
+				{
+					count = 1;
+				}
+
+				return count;
 			}
 		}
 
@@ -125,6 +138,7 @@ namespace Asmuth.X86.Asm.Nasm
 			}
 
 			private OpcodeEncoding.Builder builder;
+			private IntegerSize? operandSize;
 			private State state;
 
 			public OpcodeEncoding Parse(IEnumerable<NasmEncodingToken> tokens, VexEncoding? vexEncoding,
@@ -132,7 +146,9 @@ namespace Asmuth.X86.Asm.Nasm
 			{
 				state = State.Prefixes;
 				builder.LongMode = @params.LongMode;
-				
+
+				if (@params.OperandSize.HasValue) SetOperandSize(@params.OperandSize.Value);
+
 				foreach (var token in tokens)
 				{
 					switch (token.Type)
@@ -149,7 +165,7 @@ namespace Asmuth.X86.Asm.Nasm
 						case NasmEncodingTokenType.OperandSize_64: SetOperandSize(IntegerSize.Qword); break;
 
 						// W-agnostic, like JMP: o64nw e9 rel64
-						case NasmEncodingTokenType.OperandSize_64WithoutW: SetLongMode(true); break;
+						case NasmEncodingTokenType.OperandSize_64WithoutW: SetOperandSize(IntegerSize.Qword, optRexW: true); break;
 
 						// Legacy prefixes
 						case NasmEncodingTokenType.LegacyPrefix_NoSimd:
@@ -275,9 +291,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 						case NasmEncodingTokenType.Immediate_WordOrDword:
 						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword:
-							if (!@params.OperandSize.HasValue)
-								throw new NotSupportedException("Operand size needed for NASM entries with iwd or iwdq tokens.");
-							AddOperandSizeDependentImmediate(allowQword: true, @params.OperandSize.Value);
+							AddOperandSizeDependentImmediate(allowQword: true);
 							break;
 
 						case NasmEncodingTokenType.Immediate_Qword:
@@ -365,23 +379,15 @@ namespace Asmuth.X86.Asm.Nasm
 				AdvanceTo(State.PreOpcode);
 			}
 
-			private void AddOperandSizeDependentImmediate(bool allowQword, IntegerSize operandSize)
+			private void AddOperandSizeDependentImmediate(bool allowQword)
 			{
-				if (operandSize == IntegerSize.Word || operandSize == IntegerSize.Dword)
-				{
-					if (allowQword) SetRexW(false);
-					SetOperandSize(operandSize);
-				}
-				else if (operandSize == IntegerSize.Qword && allowQword)
-				{
-					SetRexW(true);
-				}
-				else
-				{
-					throw new FormatException("Cannot apply operand size to iwd[q] immediate.");
-				}
+				if (!operandSize.HasValue) throw new FormatException("No operand size provided for iwd/idwq immediate.");
 
-				AddImmediateWithSizeInBytes(operandSize.InBytes());
+				int immediateSizeInBytes = operandSize.Value.InBytes();
+				if (operandSize == IntegerSize.Qword && !allowQword)
+					immediateSizeInBytes = 4;
+
+				AddImmediateWithSizeInBytes(immediateSizeInBytes);
 			}
 
 			private void SetAddressSize(AddressSize size)
@@ -400,29 +406,25 @@ namespace Asmuth.X86.Asm.Nasm
 					throw new FormatException("Conflicting long mode flag.");
 				builder.LongMode = value;
 			}
-
-			private void SetOperandSize(IntegerSize size)
+			
+			private void SetOperandSize(IntegerSize size, bool optRexW = false)
 			{
-				if (state > State.PostSimdPrefix)
-					throw new FormatException("Out-of-order operand size prefix.");
-				if (builder.OperandSize != OperandSizeEncoding.Any || builder.RexW.HasValue)
-					throw new FormatException("Multiple operand size prefixes.");
+				if (operandSize.HasValue) throw new FormatException("Multiple operand size specification.");
 
+				operandSize = size;
 				switch (size)
 				{
 					case IntegerSize.Word:
 						builder.OperandSize = OperandSizeEncoding.Word;
-						SetRexW(false); // TODO: Is this always the case?
 						SetLongMode(false);
 						break;
 
 					case IntegerSize.Dword:
 						builder.OperandSize = OperandSizeEncoding.Dword;
-						SetRexW(false); // TODO: Is this always the case?
 						break;
 
 					case IntegerSize.Qword:
-						SetRexW(true); // TODO: Is this always the case?
+						if (!optRexW) SetRexW(true);
 						SetLongMode(true);
 						break;
 

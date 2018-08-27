@@ -149,13 +149,15 @@ namespace Asmuth.X86.Asm
 		// FDIV m32fp
 		public sealed class Mem : OperandSpec
 		{
-			public OperandDataType DataType { get; }
-			public int SizeInBytes => DataType.TotalSizeInBytes;
-			public int SizeInBits => DataType.TotalSizeInBits;
+			// Can be null for LEA, which doesn't actually access the address
+			public OperandDataType? DataType { get; }
+			public int SizeInBytes => DataType.HasValue ? DataType.Value.TotalSizeInBytes : 0;
+			public int SizeInBits => SizeInBytes * 8;
 
-			public Mem(OperandDataType dataType) => this.DataType = dataType;
+			public Mem(OperandDataType? dataType) => this.DataType = dataType;
 
-			public override IntegerSize? ImpliedIntegerOperandSize => DataType.GetImpliedGprSize();
+			public override IntegerSize? ImpliedIntegerOperandSize
+				=> DataType.HasValue ? DataType.Value.GetImpliedGprSize() : null;
 
 			public override bool IsValidField(OperandField field)
 				=> field == OperandField.BaseReg || field == OperandField.Immediate;
@@ -175,18 +177,41 @@ namespace Asmuth.X86.Asm
 			public override string ToString() 
 				=> SizeInBytes == 0 ? "m" : ("m" + SizeInBits.ToString());
 
-			public static readonly Mem M = new Mem(OperandDataType.None);
-			public static readonly Mem I8 = new Mem(OperandDataType.I8);
-			public static readonly Mem I16 = new Mem(OperandDataType.I16);
-			public static readonly Mem I32 = new Mem(OperandDataType.I32);
-			public static readonly Mem I64 = new Mem(OperandDataType.I64);
-			public static readonly Mem F32 = new Mem(OperandDataType.F32);
-			public static readonly Mem F64 = new Mem(OperandDataType.F64);
-			public static readonly Mem F80 = new Mem(OperandDataType.F80);
+			public static Mem Untyped(int sizeInBytes)
+			{
+				switch (sizeInBytes)
+				{
+					case 1: return M8;
+					case 2: return M16;
+					case 4: return M32;
+					case 8: return M64;
+					case 10: return M80;
+					case 16: return M128;
+					case 32: return M256;
+					case 64: return M512;
+					default: return new Mem(new OperandDataType(ScalarType.Untyped, sizeInBytes));
+				}
+			}
+
+			public static readonly Mem M = new Mem(null);
+			public static readonly Mem M8 = new Mem(OperandDataType.Byte);
+			public static readonly Mem M16 = new Mem(OperandDataType.Word);
+			public static readonly Mem M32 = new Mem(OperandDataType.Dword);
+			public static readonly Mem M64 = new Mem(OperandDataType.Qword);
 			public static readonly Mem M80 = new Mem(OperandDataType.Untyped80);
 			public static readonly Mem M128 = new Mem(OperandDataType.Untyped128);
 			public static readonly Mem M256 = new Mem(OperandDataType.Untyped256);
 			public static readonly Mem M512 = new Mem(OperandDataType.Untyped512);
+
+			public static readonly Mem I8 = new Mem(OperandDataType.I8);
+			public static readonly Mem I16 = new Mem(OperandDataType.I16);
+			public static readonly Mem I32 = new Mem(OperandDataType.I32);
+			public static readonly Mem I64 = new Mem(OperandDataType.I64);
+
+			public static readonly Mem F16 = new Mem(OperandDataType.F16);
+			public static readonly Mem F32 = new Mem(OperandDataType.F32);
+			public static readonly Mem F64 = new Mem(OperandDataType.F64);
+			public static readonly Mem F80 = new Mem(OperandDataType.F80);
 		}
 
 		// NEG r/m8
@@ -292,8 +317,6 @@ namespace Asmuth.X86.Asm
 
 			public Imm(OperandDataType dataType)
 			{
-				if (dataType.ScalarSizeInBytes == 0)
-					throw new ArgumentException("Immediates cannot be zero-sized.", nameof(dataType));
 				if (dataType.IsVector)
 					throw new ArgumentException("Immediates cannot be vectored.", nameof(dataType));
 				this.DataType = dataType;
@@ -332,6 +355,11 @@ namespace Asmuth.X86.Asm
 			public static readonly Imm I16 = new Imm(OperandDataType.I16);
 			public static readonly Imm I32 = new Imm(OperandDataType.I32);
 			public static readonly Imm I64 = new Imm(OperandDataType.I64);
+
+			public static readonly Imm MOffs8 = new Imm(OperandDataType.NearPtr8);
+			public static readonly Imm MOffs16 = new Imm(OperandDataType.NearPtr16);
+			public static readonly Imm MOffs32 = new Imm(OperandDataType.NearPtr32);
+			public static readonly Imm MOffs64 = new Imm(OperandDataType.NearPtr64);
 		}
 
 		// SAL r/m8, 1 

@@ -11,7 +11,7 @@ namespace Asmuth.X86.Asm
 		SignedInt,
 		UnsignedInt,
 		Float,
-		NearPointer, // moffs16, moffs32, moffs64 - like UnsignedInt?
+		NearPointer, // moffs8, moffs16, moffs32, moffs64
 		FarPointer, // ptr16:16, ptr16:32, ptr16:64
 		UnpackedBcd,
 		PackedBcd, // m80bcd
@@ -22,7 +22,8 @@ namespace Asmuth.X86.Asm
 	{
 		public static bool IsValidSizeInBytes(this ScalarType type, int size)
 		{
-			if (type == ScalarType.Untyped) return unchecked((uint)size <= 10);
+			if (type == ScalarType.Untyped)
+				return size > 0 && (unchecked((uint)size <= 10) || size == 16 || size == 32 || size == 64);
 
 			uint packedValidSizes = GetPackedValidSizes(type);
 			while (packedValidSizes != 0)
@@ -55,7 +56,7 @@ namespace Asmuth.X86.Asm
 				case ScalarType.SignedInt: return 0x08_04_02_01;
 				case ScalarType.UnsignedInt: return 0x08_04_02_01;
 				case ScalarType.Float: return 0x0A_08_04_02;
-				case ScalarType.NearPointer: return 0x08_04_02;
+				case ScalarType.NearPointer: return 0x08_04_02_01; // 1 byte for moffs8
 				case ScalarType.FarPointer: return 0x0A_06_04;
 				case ScalarType.PackedBcd: return 1; // m80bcd is considered a vector
 				case ScalarType.UnpackedBcd: return 1;
@@ -68,7 +69,7 @@ namespace Asmuth.X86.Asm
 	[StructLayout(LayoutKind.Sequential, Size = 2)]
 	public readonly struct OperandDataType : IEquatable<OperandDataType>
 	{
-		private readonly byte scalarTypeAndSizeInBytes;
+		private readonly byte scalarTypeAndSizeInBytesMinusOne;
 		private readonly byte vectorLengthLog2;
 
 		public OperandDataType(ScalarType scalarType, int scalarSizeInBytes, byte vectorLength)
@@ -80,12 +81,12 @@ namespace Asmuth.X86.Asm
 		{
 			if (!scalarType.IsValidSizeInBytes(scalarSizeInBytes))
 				throw new ArgumentOutOfRangeException(nameof(scalarSizeInBytes));
-			scalarTypeAndSizeInBytes = (byte)(((int)scalarType << 4) | scalarSizeInBytes);
+			scalarTypeAndSizeInBytesMinusOne = (byte)(((int)scalarType << 4) | (scalarSizeInBytes - 1));
 			vectorLengthLog2 = 0;
 		}
 
-		public ScalarType ScalarType => (ScalarType)(scalarTypeAndSizeInBytes >> 4);
-		public int ScalarSizeInBytes => scalarTypeAndSizeInBytes & 0xF;
+		public ScalarType ScalarType => (ScalarType)(scalarTypeAndSizeInBytesMinusOne >> 4);
+		public int ScalarSizeInBytes => (scalarTypeAndSizeInBytesMinusOne & 0xF) + 1;
 		public int ScalarSizeInBits => ScalarSizeInBytes * 8;
 		public int VectorLength => 1 << vectorLengthLog2;
 		public bool IsVector => vectorLengthLog2 > 0;
@@ -99,17 +100,14 @@ namespace Asmuth.X86.Asm
 		}
 
 		public bool Equals(OperandDataType other)
-			=> scalarTypeAndSizeInBytes == other.scalarTypeAndSizeInBytes
+			=> scalarTypeAndSizeInBytesMinusOne == other.scalarTypeAndSizeInBytesMinusOne
 			&& vectorLengthLog2 == other.vectorLengthLog2;
 		public override bool Equals(object obj) => obj is OperandDataType && Equals((OperandDataType)obj);
-		public override int GetHashCode() => ((int)scalarTypeAndSizeInBytes << 8) | vectorLengthLog2;
+		public override int GetHashCode() => ((int)scalarTypeAndSizeInBytesMinusOne << 8) | vectorLengthLog2;
 		public static bool Equals(OperandDataType lhs, OperandDataType rhs) => lhs.Equals(rhs);
 		public static bool operator ==(OperandDataType lhs, OperandDataType rhs) => Equals(lhs, rhs);
 		public static bool operator !=(OperandDataType lhs, OperandDataType rhs) => !Equals(lhs, rhs);
-
-		[Obsolete("TODO: Disallow zero-sized OperandDataTypes.")]
-		public static readonly OperandDataType None = new OperandDataType(ScalarType.Untyped, 0);
-
+		
 		public static readonly OperandDataType Byte = new OperandDataType(ScalarType.Untyped, 1);
 		public static readonly OperandDataType Word = new OperandDataType(ScalarType.Untyped, 2);
 		public static readonly OperandDataType Dword = new OperandDataType(ScalarType.Untyped, 4);
@@ -134,6 +132,7 @@ namespace Asmuth.X86.Asm
 		public static readonly OperandDataType F64 = new OperandDataType(ScalarType.Float, 8);
 		public static readonly OperandDataType F80 = new OperandDataType(ScalarType.Float, 10);
 
+		public static readonly OperandDataType NearPtr8 = new OperandDataType(ScalarType.NearPointer, 1);
 		public static readonly OperandDataType NearPtr16 = new OperandDataType(ScalarType.NearPointer, 2);
 		public static readonly OperandDataType NearPtr32 = new OperandDataType(ScalarType.NearPointer, 4);
 		public static readonly OperandDataType NearPtr64 = new OperandDataType(ScalarType.NearPointer, 8);
