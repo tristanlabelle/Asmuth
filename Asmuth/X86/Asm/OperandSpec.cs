@@ -121,10 +121,11 @@ namespace Asmuth.X86.Asm
 					throw new ArgumentOutOfRangeException(nameof(field));
 				}
 				
-				if (RegisterClass == RegisterClass.GprByte && regCode >= 4 && regCode < 8)
-					throw new NotImplementedException("GPR high bytes.");
-				var register = new Register(RegisterClass, regCode);
-				return register.Name;
+				// Delegate to Gpr class to handle potential high byte register
+				if (RegisterClass == RegisterClass.GprByte)
+					return Gpr.Byte((GprCode)regCode, instruction.NonLegacyPrefixes.Form != NonLegacyPrefixesForm.Escapes).Name;
+				
+				return new Register(RegisterClass, regCode).Name;
 			}
 
 			public override string ToString() => RegisterClass.Name;
