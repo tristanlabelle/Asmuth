@@ -42,9 +42,8 @@ namespace Asmuth.X86.Asm.Nasm
 		public static TEnum GetEnumerantOrDefault(string name)
 		{
 			if (name == null) throw new ArgumentNullException(nameof(name));
-
-			TEnum enumerant;
-			namesToEnumerants.TryGetValue(name, out enumerant);
+			
+			namesToEnumerants.TryGetValue(name, out TEnum enumerant);
 			return enumerant;
 		}
 
@@ -52,14 +51,12 @@ namespace Asmuth.X86.Asm.Nasm
 		{
 			if (name == null) throw new ArgumentNullException(nameof(name));
 
-			TEnum enumerant;
-			return namesToEnumerants.TryGetValue(name, out enumerant) ? enumerant : (TEnum?)null;
+			return namesToEnumerants.TryGetValue(name, out TEnum enumerant) ? enumerant : (TEnum?)null;
 		}
 
 		public static string GetNameOrNull(TEnum enumerant)
 		{
-			string name;
-			enumerantToNames.TryGetValue(enumerant, out name);
+			enumerantToNames.TryGetValue(enumerant, out string name);
 			return name;
 		}
 	}

@@ -109,7 +109,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 			// Operands
 			var operandsColumn = columnMatches[1].Value;
-			entryData.Operands = ParseOperands(operandFieldsString, operandsColumn);
+			entryData.Operands = ParseOperands(operandsColumn, operandFieldsString);
 
 			// Flags
 			var flagsColumn = columnMatches[3].Value;
@@ -169,11 +169,11 @@ namespace Asmuth.X86.Asm.Nasm
 			return tokens;
 		}
 
-		private static IReadOnlyList<NasmOperand> ParseOperands(string fieldsString, string valuesString)
+		private static IReadOnlyList<NasmOperand> ParseOperands(string operandsString, string fieldsString)
 		{
 			var operands = new List<NasmOperand>();
 
-			if (valuesString == "void" || valuesString == "ignore")
+			if (operandsString == "void" || operandsString == "ignore")
 			{
 				Debug.Assert(fieldsString.Length == 0);
 				return operands;
@@ -184,33 +184,55 @@ namespace Asmuth.X86.Asm.Nasm
 				// This only happens for pseudo-instructions
 				return operands;
 			}
-
-			valuesString = valuesString.Replace("*", string.Empty); // '*' is for "relaxed", but it's not clear what this encodes
-
+			
 			// ':' delimits operands like ',' but indicates that the syntax uses the ':' delimiter,
 			// for example, CALL 42:666
-			var values = Regex.Split(valuesString, "[,:]");
+			var operandStrings = Regex.Split(operandsString, "[,:]");
+			var operandSeparators = Regex.Replace(operandsString, "[^,:]", string.Empty);
+			Debug.Assert(operandSeparators.Length == operandStrings.Length - 1);
 			
 			if (fieldsString == "r+mi")
 			{
 				// Hack around the IMUL special case
+				// IMUL reg32,imm8 [r+mi: o32 6b /r ib,s] 386
 				fieldsString = "rmi";
-				values = new[] { values[0], values[0].Replace("reg", "rm"), values[1] };
+				operandStrings = new[] { operandStrings[0], operandStrings[0].Replace("reg", "rm"), operandStrings[1] };
+				operandSeparators = ',' + operandSeparators;
 			}
 
-			if (values.Length != fieldsString.Length)
+			if (operandStrings.Length != fieldsString.Length)
 				throw new FormatException("Not all operands have associated opcode fields.");
 
-			for (int i = 0; i < values.Length; ++i)
+			for (int i = 0; i < operandStrings.Length; ++i)
 			{
 				var field = ParseOperandField(fieldsString[i]);
 
-				var valueComponents = values[i].Split('|');
-				var typeString = valueComponents[0];
-				var type = (NasmOperandType)Enum.Parse(typeof(NasmOperandType), valueComponents[0], ignoreCase: true);
-				operands.Add(new NasmOperand(field, type));
-				// TODO: Parse NASM operand flags (after the '|')
-				// TODO: Support star'ed types like "xmmreg*"
+				var flags = NasmOperandFlags.None;
+
+				// Handle trailing *
+				var operandString = operandStrings[i];
+				if (operandString.EndsWith("*"))
+				{
+					flags |= NasmOperandFlags.Relaxed;
+					operandString = operandString.Substring(0, operandString.Length - 1);
+				}
+
+				var operandParts = operandString.Split('|');
+				var type = (NasmOperandType)Enum.Parse(typeof(NasmOperandType), operandParts[0], ignoreCase: true);
+
+				for (int j = 1; j < operandParts.Length; ++j)
+				{
+					var flagStr = operandParts[j];
+					var flag = NasmEnum<NasmOperandFlags>.GetEnumerantOrNull(flagStr);
+					if (!flag.HasValue) throw new FormatException($"Unsupported operand flag: {flagStr}.");
+					flags |= flag.Value;
+				}
+
+				// Take into account ':' separators.
+				if (i < operandStrings.Length - 1 && operandSeparators[i] == ':')
+					flags |= NasmOperandFlags.Colon;
+
+				operands.Add(new NasmOperand(field, type, flags));
 			}
 
 			return operands;

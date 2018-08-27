@@ -20,7 +20,6 @@ namespace Asmuth.X86.Asm.Nasm
 			public IReadOnlyList<NasmEncodingToken> EncodingTokens;
 			public IReadOnlyCollection<string> Flags;
 			public VexEncoding? VexEncoding;
-			public NasmOperandFlags OperandFlags;
 			public NasmEVexTupleType EVexTupleType;
 		}
 
@@ -38,7 +37,6 @@ namespace Asmuth.X86.Asm.Nasm
 			this.data.Flags = data.Flags == null
 				? EmptyArray<string>.Rank1 : data.Flags.ToArray();
 			this.data.VexEncoding = data.VexEncoding;
-			this.data.OperandFlags = data.OperandFlags;
 			this.data.EVexTupleType = data.EVexTupleType;
 		}
 
@@ -48,7 +46,6 @@ namespace Asmuth.X86.Asm.Nasm
 		public IReadOnlyList<NasmEncodingToken> EncodingTokens => data.EncodingTokens;
 		public VexEncoding? VexEncoding => data.VexEncoding;
 		public VexType VexType => data.VexEncoding.HasValue ? data.VexEncoding.Value.Type : VexType.None;
-		public NasmOperandFlags OperandFlags => data.OperandFlags;
 		public NasmEVexTupleType EVexTupleType => data.EVexTupleType;
 		public IReadOnlyCollection<string> Flags => data.Flags;
 		public bool IsAssembleOnly => Flags.Contains(NasmInstructionFlags.AssemblerOnly);

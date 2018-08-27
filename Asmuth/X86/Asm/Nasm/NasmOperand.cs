@@ -10,11 +10,13 @@ namespace Asmuth.X86.Asm.Nasm
 	{
 		public OperandField? Field { get; }
 		public NasmOperandType Type { get; }
+		public NasmOperandFlags Flags { get; }
 
-		public NasmOperand(OperandField? field, NasmOperandType type)
+		public NasmOperand(OperandField? field, NasmOperandType type, NasmOperandFlags flags)
 		{
 			this.Field = field;
 			this.Type = type;
+			this.Flags = flags;
 		}
 
 		public OperandSpec TryToOperandSpec(int? defaultSizeInBytes)

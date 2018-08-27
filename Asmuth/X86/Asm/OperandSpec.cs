@@ -339,9 +339,10 @@ namespace Asmuth.X86.Asm
 
 				if ((DataType.ScalarType != ScalarType.Untyped
 					&& DataType.ScalarType != ScalarType.SignedInt
-					&& DataType.ScalarType != ScalarType.UnsignedInt)
+					&& DataType.ScalarType != ScalarType.UnsignedInt
+					&& DataType.ScalarType != ScalarType.NearPointer)
 					|| DataType.IsVector)
-					throw new NotImplementedException("Formatting non-int immediates.");
+					throw new NotImplementedException("Formatting non-integral immediates.");
 
 				var value = instruction.ImmediateData.RawStorage;
 				return value < 0x10
