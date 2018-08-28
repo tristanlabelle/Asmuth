@@ -105,7 +105,7 @@ namespace Asmuth.X86
 			var rexBuilder = new Rex.Builder();
 			if (reg.Size == IntegerSize.Qword)
 			{
-				rexBuilder.OperandSize64 = true;
+				rexBuilder.OperandSizePromotion = true;
 			}
 			else if (reg.Size == IntegerSize.Byte)
 			{

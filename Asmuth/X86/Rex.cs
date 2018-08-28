@@ -13,7 +13,7 @@ namespace Asmuth.X86
 			public bool ModRegExtension;
 			public bool BaseRegExtension;
 			public bool IndexRegExtension;
-			public bool OperandSize64;
+			public bool OperandSizePromotion;
 
 			public Rex Build() => new Rex(this);
 
@@ -26,7 +26,7 @@ namespace Asmuth.X86
 		private const byte BaseRegExtensionBit = 0b0001;
 		private const byte IndexRegExtensionBit = 0b0010;
 		private const byte ModRegExtensionBit = 0b0100;
-		private const byte OperandSize64Bit = 0b1000;
+		private const byte OperandSizePromotionBit = 0b1000;
 
 		public byte LowNibble { get; }
 
@@ -42,14 +42,14 @@ namespace Asmuth.X86
 			if (builder.ModRegExtension) LowNibble |= ModRegExtensionBit;
 			if (builder.BaseRegExtension) LowNibble |= BaseRegExtensionBit;
 			if (builder.IndexRegExtension) LowNibble |= IndexRegExtensionBit;
-			if (builder.OperandSize64) LowNibble |= OperandSize64Bit;
+			if (builder.OperandSizePromotion) LowNibble |= OperandSizePromotionBit;
 		}
 		
 		public byte Byte => (byte)(ReservedValue | LowNibble);
 		public bool BaseRegExtension => (LowNibble & BaseRegExtensionBit) != 0;
 		public bool IndexRegExtension => (LowNibble & IndexRegExtensionBit) != 0;
 		public bool ModRegExtension => (LowNibble & ModRegExtensionBit) != 0;
-		public bool OperandSize64 => (LowNibble & OperandSize64Bit) != 0;
+		public bool OperandSizePromotion => (LowNibble & OperandSizePromotionBit) != 0;
 
 		public bool Equals(Rex other) => LowNibble == other.LowNibble;
 		public override bool Equals(object obj) => obj is Rex && Equals((Rex)obj);

@@ -57,7 +57,7 @@ namespace Asmuth.X86
 			public bool ModRegExtension;
 			public bool BaseRegExtension;
 			public bool IndexRegExtension;
-			public bool RexW;
+			public bool OperandSizePromotion;
 			public SseVectorSize VectorSize;
 			public OpcodeMap OpcodeMap;
 			public SimdPrefix SimdPrefix;
@@ -81,7 +81,7 @@ namespace Asmuth.X86
 		private const ushort ModRegExtensionBit = 1 << 15;
 		private const ushort BaseRegExtensionBit = 1 << 14;
 		private const ushort IndexRegExtensionBit = 1 << 13;
-		private const ushort RexWBit = 1 << 7;
+		private const ushort OperandSizePromotionBit = 1 << 7;
 		private const ushort VectorSize256Bit = 1 << 2;
 		private const int OpcodeMapShift = 8;
 		private const int NonDestructiveRegShift = 3;
@@ -122,7 +122,7 @@ namespace Asmuth.X86
 			if (builder.ModRegExtension) xoredValue |= ModRegExtensionBit;
 			if (builder.BaseRegExtension) xoredValue |= BaseRegExtensionBit;
 			if (builder.IndexRegExtension) xoredValue |= IndexRegExtensionBit;
-			if (builder.RexW) xoredValue |= RexWBit;
+			if (builder.OperandSizePromotion) xoredValue |= OperandSizePromotionBit;
 			if (builder.VectorSize == SseVectorSize._256) xoredValue |= VectorSize256Bit;
 		}
 
@@ -134,7 +134,7 @@ namespace Asmuth.X86
 		public bool IndexRegExtension => (xoredValue & IndexRegExtensionBit) != 0;
 		public bool VectorSize256 => (xoredValue & VectorSize256Bit) != 0;
 		public SseVectorSize VectorSize => VectorSize256 ? SseVectorSize._256 : SseVectorSize._128;
-		public bool RexW => (xoredValue & RexWBit) != 0;
+		public bool OperandSizePromotion => (xoredValue & OperandSizePromotionBit) != 0;
 		public OpcodeMap OpcodeMap => (OpcodeMap)((xoredValue >> OpcodeMapShift) & 0x1F);
 		public byte NonDestructiveReg => (byte)((xoredValue >> NonDestructiveRegShift) & 0xF);
 		public SimdPrefix SimdPrefix => (SimdPrefix)(xoredValue & 3);
@@ -151,7 +151,7 @@ namespace Asmuth.X86
 				VectorSize = VectorSize,
 				SimdPrefix = SimdPrefix,
 				OpcodeMap = OpcodeMap,
-				RexW = RexW
+				OperandSizePromotion = OperandSizePromotion
 			}.Build();
 		}
 
@@ -175,45 +175,54 @@ namespace Asmuth.X86
 		}
 	}
 
-	[Flags]
-	public enum EVex : uint
+	public readonly struct EVex : IEquatable<EVex>
 	{
-		ByteCount = 4,
-		FirstByte = 0x62,
+		public const byte FirstByte = 0x62;
+		private const uint ModRegExtensionBit = 1 << 23;
+		private const uint IndexExtensionBit = 1 << 22;
+		private const uint ModBaseExtensionBit = 1 << 21;
+		private const uint ModRegSecondExtensionBit = 1 << 20;
+		private const int OpcodeMapShift = 16;
+		private const uint OperandSizePromotionBit = 1 << 15;
+		private const int NonDestructiveRegShift = 11;
+		private const int SimdPrefixShift = 8;
+		private const uint ZeroingMaskingBit = 1 << 7;
+		private const int VectorLengthShift = 1 << 5;
+		private const uint BroadcastBit = 1 << 4;
+		private const uint NonDestructiveRegExtensionBit = 1 << 3;
+		private const int OpmaskRegShift = 0;
 
-		Reserved_Mask = (0xFFU << 24) | (3 << 2) | (1 << 10),
-		Reserved_Value = (0x62U << 24) | (1 << 10),
+		private readonly uint bytes;
 
-		// Compressed legacy escape
-		mm_Shift = 0,
-		mm_None = 0U << (int)mm_Shift,
-		mm_0F = 1U << (int)mm_Shift,
-		mm_0F3B = 2U << (int)mm_Shift,
-		mm_0F3A = 3U << (int)mm_Shift,
-		mm_Mask = 3U << (int)mm_Shift,
+		public EVex(byte secondByte, byte thirdByte, byte fourthByte)
+		{
+			bytes = ((uint)secondByte << 16) | ((uint)thirdByte << 8) | (uint)fourthByte;
+		}
 
-		R2 = 1 << 4,
-		B = 1 << 5,
-		X = 1 << 6,
-		R = 1 << 7,
+		public EVex(byte firstByte, byte secondByte, byte thirdByte, byte fourthByte)
+			: this(secondByte, thirdByte, fourthByte)
+		{
+			if (firstByte != FirstByte) throw new ArgumentOutOfRangeException(nameof(firstByte));
+		}
 
-		// Compressed legacy prefix
-		pp_Shift = 8,
-		pp_None = 0U << (int)pp_Shift,
-		pp_66 = 1U << (int)pp_Shift,
-		pp_F3 = 2U << (int)pp_Shift,
-		pp_F2 = 3U << (int)pp_Shift,
-		pp_Mask = 3U << (int)pp_Shift,
+		public byte SecondByte => (byte)(bytes >> 16);
+		public byte ThirdByte => (byte)(bytes >> 8);
+		public byte FourthByte => (byte)bytes;
 
-		// NDS Register specifier
-		vvvv_Shift = 11,
-		vvvv_Mask = 15U << (int)vvvv_Shift,
+		public OpcodeMap OpcodeMap => (OpcodeMap)((bytes >> OpcodeMapShift) & 3);
+		public SimdPrefix SimdPrefix => (SimdPrefix)((bytes >> SimdPrefixShift) & 3);
+		public SseVectorSize VectorSize => SseVectorSize._128 + (byte)((bytes >> VectorLengthShift) & 3);
+		public bool OperandSizePromotion => (bytes & OperandSizePromotionBit) != 0;
+		public byte OpmaskReg => (byte)((bytes >> OpmaskRegShift) & 7);
+		public bool IsZeroMasking => (bytes & ZeroingMaskingBit) != 0;
+		public bool IsMergeMasking => !IsZeroMasking;
+		public bool Broadcast_Rounding_SuppressAllExceptions => (bytes & BroadcastBit) != 0;
 
-		W = 1 << 15,
-		V2 = 1 << 19,
-		b = 1 << 20,
-		L = 1 << 21,
-		L2 = 1 << 22,
-		z = 1 << 23
+		public bool Equals(EVex other) => bytes == other.bytes;
+		public override bool Equals(object obj) => obj is EVex && Equals((EVex)obj);
+		public override int GetHashCode() => unchecked((int)bytes);
+		public static bool Equals(EVex lhs, EVex rhs) => lhs.Equals(rhs);
+		public static bool operator ==(EVex lhs, EVex rhs) => Equals(lhs, rhs);
+		public static bool operator !=(EVex lhs, EVex rhs) => !Equals(lhs, rhs);
 	}
 }

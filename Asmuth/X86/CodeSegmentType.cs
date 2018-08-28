@@ -37,12 +37,12 @@ namespace Asmuth.X86
 		{
 			return GetIntegerOperandSize(type,
 				@override: legacyPrefixes.HasOperandSizeOverride,
-				rexW: nonLegacyPrefixes.OperandSize64);
+				promotion: nonLegacyPrefixes.OperandSizePromotion);
 		}
 		public static IntegerSize GetIntegerOperandSize(this CodeSegmentType type,
-			bool @override, bool rexW)
+			bool @override, bool promotion)
 		{
-			if (rexW)
+			if (promotion)
 			{
 				if (type != CodeSegmentType.LongMode) throw new ArgumentException();
 				// 2.2.1.2
@@ -61,12 +61,12 @@ namespace Asmuth.X86
 		{
 			return GetWordOrDwordIntegerOperandSize(type,
 				@override: legacyPrefixes.HasOperandSizeOverride,
-				rexW: nonLegacyPrefixes.OperandSize64);
+				promotion: nonLegacyPrefixes.OperandSizePromotion);
 		}
 		public static IntegerSize GetWordOrDwordIntegerOperandSize(this CodeSegmentType type,
-			bool @override, bool rexW)
+			bool @override, bool promotion)
 		{
-			if (rexW)
+			if (promotion)
 			{
 				if (type != CodeSegmentType.LongMode) throw new ArgumentException();
 				// 2.2.1.2

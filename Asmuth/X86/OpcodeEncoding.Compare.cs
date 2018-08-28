@@ -33,7 +33,7 @@ namespace Asmuth.X86
 
 				if (!Compare((int?)lhs.VectorSize, (int?)rhs.VectorSize)) return;
 				if (!Compare((int?)lhs.SimdPrefix, (int?)rhs.SimdPrefix)) return;
-				if (!Compare(lhs.RexW, rhs.RexW)) return;
+				if (!Compare(lhs.OperandSizePromotion, rhs.OperandSizePromotion)) return;
 				if (!Compare((int)lhs.Map, (int)rhs.Map)) return;
 
 				if (!MainByte(lhs.MainByte, lhs.MainByteMask, rhs.MainByte, rhs.MainByteMask)) return;

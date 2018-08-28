@@ -264,7 +264,9 @@ namespace Asmuth.X86
 			switch (substate.ExpectNonLegacyPrefixByte.Form)
 			{
 				case NonLegacyPrefixesForm.Vex2:
-					builder.NonLegacyPrefixes = new NonLegacyPrefixes(new Vex2(secondByte: (byte)substate.ExpectNonLegacyPrefixByte.Accumulator));
+					builder.NonLegacyPrefixes = new NonLegacyPrefixes(new Vex2(
+						(byte)(substate.ExpectNonLegacyPrefixByte.Accumulator >> 8),
+						(byte)substate.ExpectNonLegacyPrefixByte.Accumulator));
 					break;
 
 				case NonLegacyPrefixesForm.Vex3:
@@ -276,7 +278,11 @@ namespace Asmuth.X86
 					break;
 
 				case NonLegacyPrefixesForm.EVex:
-					builder.NonLegacyPrefixes = new NonLegacyPrefixes((EVex)substate.ExpectNonLegacyPrefixByte.Accumulator);
+					builder.NonLegacyPrefixes = new NonLegacyPrefixes(new EVex(
+						(byte)(substate.ExpectNonLegacyPrefixByte.Accumulator >> 24),
+						(byte)(substate.ExpectNonLegacyPrefixByte.Accumulator >> 16),
+						(byte)(substate.ExpectNonLegacyPrefixByte.Accumulator >> 8),
+						(byte)substate.ExpectNonLegacyPrefixByte.Accumulator));
 					break;
 
 				default: throw new UnreachableException();

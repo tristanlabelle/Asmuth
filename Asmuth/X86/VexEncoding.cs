@@ -30,7 +30,7 @@ namespace Asmuth.X86
 			public SseVectorSize? VectorSize;
 			public SimdPrefix SimdPrefix;
 			public OpcodeMap OpcodeMap;
-			public bool? RexW;
+			public bool? OperandSizePromotion;
 
 			public void Validate()
 			{
@@ -48,8 +48,8 @@ namespace Asmuth.X86
 		private const int VectorSizeShift = RegOperandShift + 2;
 		private const int SimdPrefixShift = VectorSizeShift + 2;
 		private const int OpcodeMapShift = SimdPrefixShift + 2;
-		private const int RexWShift = OpcodeMapShift + 4;
-		private const ushort TestOverflow = 3 << RexWShift;
+		private const int OperandSizePromotionShift = OpcodeMapShift + 4;
+		private const ushort TestOverflow = 3 << OperandSizePromotionShift;
 
 		private readonly ushort data;
 
@@ -63,7 +63,7 @@ namespace Asmuth.X86
 				| ((data.VectorSize.HasValue ? (int)data.VectorSize.Value + 1 : 0) << VectorSizeShift)
 				| ((int)data.SimdPrefix << SimdPrefixShift)
 				| ((int)data.OpcodeMap << OpcodeMapShift)
-				| ((data.RexW.HasValue ? (data.RexW.Value ? 2 : 1) : 0) << RexWShift));
+				| ((data.OperandSizePromotion.HasValue ? (data.OperandSizePromotion.Value ? 2 : 1) : 0) << OperandSizePromotionShift));
 		}
 
 		public VexType Type => (VexType)((int)VexType.Vex + ((data >> TypeShift) & 3));
@@ -71,7 +71,7 @@ namespace Asmuth.X86
 		public SseVectorSize? VectorSize => (SseVectorSize?)AsZeroIsNullInt((data >> VectorSizeShift) & 3);
 		public SimdPrefix SimdPrefix => (SimdPrefix)((data >> SimdPrefixShift) & 3);
 		public OpcodeMap OpcodeMap => (OpcodeMap)((data >> OpcodeMapShift) & 0xF);
-		public bool? RexW => AsZeroIsNullBool((data >> RexWShift) & 3);
+		public bool? OperandSizePromotion => AsZeroIsNullBool((data >> OperandSizePromotionShift) & 3);
 
 		public string ToIntelStyleString()
 		{
@@ -130,7 +130,7 @@ namespace Asmuth.X86
 				default: throw new ArgumentException();
 			}
 
-			str.Append(RexW.HasValue ? (RexW.Value ? ".w1" : ".w0") : ".wig");
+			str.Append(OperandSizePromotion.HasValue ? (OperandSizePromotion.Value ? ".w1" : ".w0") : ".wig");
 
 			return str.ToString();
 		}

@@ -28,13 +28,13 @@ namespace Asmuth.X86
 				// vex.m3.w0.nds.l0.p1
 				// xop.m10.lz.w0
 				builder.OpcodeMap = ParseOpcodeMap(tokens, ref tokenIndex);
-				builder.RexW = TryParseRexW(tokens, ref tokenIndex);
+				builder.OperandSizePromotion = TryParseRexW(tokens, ref tokenIndex);
 				builder.RegOperand = TryParseVvvv(tokens, ref tokenIndex);
 				builder.VectorSize = TryParseVectorSize(tokens, ref tokenIndex);
 				builder.SimdPrefix = TryParseSimdPrefix(tokens, ref tokenIndex);
 
 				// In NASM's insns, the W flag can also be at the end.
-				if (!builder.RexW.HasValue) builder.RexW = TryParseRexW(tokens, ref tokenIndex);
+				if (!builder.OperandSizePromotion.HasValue) builder.OperandSizePromotion = TryParseRexW(tokens, ref tokenIndex);
 			}
 			else
 			{
@@ -45,7 +45,7 @@ namespace Asmuth.X86
 				builder.VectorSize = TryParseVectorSize(tokens, ref tokenIndex);
 				builder.SimdPrefix = TryParseSimdPrefix(tokens, ref tokenIndex);
 				builder.OpcodeMap = ParseOpcodeMap(tokens, ref tokenIndex);
-				builder.RexW = TryParseRexW(tokens, ref tokenIndex);
+				builder.OperandSizePromotion = TryParseRexW(tokens, ref tokenIndex);
 			}
 
 			if (tokenIndex != tokens.Length) throw new FormatException("Unknown tokens in VEX encoding string.");

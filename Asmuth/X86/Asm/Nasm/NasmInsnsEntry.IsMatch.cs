@@ -140,7 +140,7 @@ namespace Asmuth.X86.Asm.Nasm
 						break;
 
 					case NasmEncodingTokenType.Rex_NoW:
-						if (instruction.NonLegacyPrefixes.OperandSize64) return false;
+						if (instruction.NonLegacyPrefixes.OperandSizePromotion) return false;
 						break;
 
 					case NasmEncodingTokenType.Rex_LockAsRexR: break;

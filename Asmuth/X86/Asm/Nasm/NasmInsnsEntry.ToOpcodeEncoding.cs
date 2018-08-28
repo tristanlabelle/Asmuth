@@ -195,7 +195,7 @@ namespace Asmuth.X86.Asm.Nasm
 						case NasmEncodingTokenType.OperandSize_64: SetOperandSize(IntegerSize.Qword); break;
 
 						// W-agnostic, like JMP: o64nw e9 rel64
-						case NasmEncodingTokenType.OperandSize_64WithoutW: SetOperandSize(IntegerSize.Qword, optRexW: true); break;
+						case NasmEncodingTokenType.OperandSize_64WithoutW: SetOperandSize(IntegerSize.Qword, optPromotion: true); break;
 
 						// Legacy prefixes
 						case NasmEncodingTokenType.LegacyPrefix_NoSimd:
@@ -407,7 +407,7 @@ namespace Asmuth.X86.Asm.Nasm
 				builder.VexType = vexEncoding.Value.Type;
 				builder.VectorSize = vexEncoding.Value.VectorSize;
 				builder.SimdPrefix = vexEncoding.Value.SimdPrefix;
-				builder.RexW = vexEncoding.Value.RexW;
+				builder.OperandSizePromotion = vexEncoding.Value.OperandSizePromotion;
 				builder.Map = vexEncoding.Value.OpcodeMap;
 				AdvanceTo(State.PreOpcode);
 			}
@@ -450,7 +450,7 @@ namespace Asmuth.X86.Asm.Nasm
 				builder.LongMode = value;
 			}
 			
-			private void SetOperandSize(IntegerSize size, bool optRexW = false)
+			private void SetOperandSize(IntegerSize size, bool optPromotion = false)
 			{
 				if (operandSize.HasValue) throw new FormatException("Multiple operand size specification.");
 
@@ -467,7 +467,7 @@ namespace Asmuth.X86.Asm.Nasm
 						break;
 
 					case IntegerSize.Qword:
-						if (!optRexW) SetRexW(true);
+						if (!optPromotion) SetOperandSizePromotion(true);
 						SetLongMode(true);
 						break;
 
@@ -475,12 +475,12 @@ namespace Asmuth.X86.Asm.Nasm
 				}
 			}
 
-			private void SetRexW(bool set)
+			private void SetOperandSizePromotion(bool set)
 			{
-				if (builder.RexW.GetValueOrDefault(set) != set)
-					throw new FormatException("Conflicting REX.W encoding.");
+				if (builder.OperandSizePromotion.GetValueOrDefault(set) != set)
+					throw new FormatException("Conflicting operand size promotion encoding.");
 
-				builder.RexW = set;
+				builder.OperandSizePromotion = set;
 				if (set) SetLongMode(true);
 			}
 

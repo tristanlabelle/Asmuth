@@ -133,8 +133,8 @@ namespace Asmuth.X86
 			VectorSize_512 = 2 << (int)VectorSize_Shift,
 			VectorSize_Mask = 3 << (int)VectorSize_Shift,
 
-			OperandSize64 = 1 << (int)(VectorSize_Shift + 2),
-			ModRegExtension = OperandSize64 << 1,
+			OperandSizePromotion = 1 << (int)(VectorSize_Shift + 2),
+			ModRegExtension = OperandSizePromotion << 1,
 			BaseRegExtension = ModRegExtension << 1,
 			IndexRegExtension = BaseRegExtension << 1,
 		}
@@ -156,7 +156,7 @@ namespace Asmuth.X86
 		{
 			if (!escapes.IsEncodableAsEscapeBytes()) throw new ArgumentException();
 			flags = BaseFlags(NonLegacyPrefixesForm.Escapes, X86.SimdPrefix.None, escapes);
-			if (rex.OperandSize64) flags |= Flags.OperandSize64;
+			if (rex.OperandSizePromotion) flags |= Flags.OperandSizePromotion;
 			if (rex.ModRegExtension) flags |= Flags.ModRegExtension;
 			if (rex.BaseRegExtension) flags |= Flags.BaseRegExtension;
 			if (rex.IndexRegExtension) flags |= Flags.IndexRegExtension;
@@ -177,7 +177,7 @@ namespace Asmuth.X86
 			if (vex3.ModRegExtension) flags |= Flags.ModRegExtension;
 			if (vex3.BaseRegExtension) flags |= Flags.BaseRegExtension;
 			if (vex3.IndexRegExtension) flags |= Flags.IndexRegExtension;
-			if (vex3.RexW) flags |= Flags.OperandSize64;
+			if (vex3.OperandSizePromotion) flags |= Flags.OperandSizePromotion;
 			if (vex3.VectorSize256) flags |= Flags.VectorSize_256;
 		}
 
@@ -206,7 +206,7 @@ namespace Asmuth.X86
 			}
 		}
 
-		public bool OperandSize64 => (flags & Flags.OperandSize64) != 0;
+		public bool OperandSizePromotion => (flags & Flags.OperandSizePromotion) != 0;
 		public bool ModRegExtension => (flags & Flags.ModRegExtension) != 0;
 		public bool BaseRegExtension => (flags & Flags.BaseRegExtension) != 0;
 		public bool IndexRegExtension => (flags & Flags.IndexRegExtension) != 0;
@@ -258,7 +258,7 @@ namespace Asmuth.X86
 				ModRegExtension = ModRegExtension,
 				BaseRegExtension = BaseRegExtension,
 				IndexRegExtension = IndexRegExtension,
-				OperandSize64 = OperandSize64
+				OperandSizePromotion = OperandSizePromotion
 			};
 		}
 

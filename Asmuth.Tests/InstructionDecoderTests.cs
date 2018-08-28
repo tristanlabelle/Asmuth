@@ -151,7 +151,7 @@ namespace Asmuth.X86
 			{
 				LongMode = false,
 				OperandSize = OperandSizeEncoding.Word,
-				RexW = false,
+				OperandSizePromotion = false,
 				MainByte = 0xB8,
 				ModRM = ModRMEncoding.MainByteReg,
 				ImmediateSizeInBytes = sizeof(short)
@@ -160,7 +160,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				OperandSize = OperandSizeEncoding.Dword,
-				RexW = false,
+				OperandSizePromotion = false,
 				MainByte = 0xB8,
 				ModRM = ModRMEncoding.MainByteReg,
 				ImmediateSizeInBytes = sizeof(int)
@@ -169,7 +169,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				LongMode = true,
-				RexW = true,
+				OperandSizePromotion = true,
 				MainByte = 0xB8,
 				ModRM = ModRMEncoding.MainByteReg,
 				ImmediateSizeInBytes = sizeof(long)
@@ -199,7 +199,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				OperandSize = OperandSizeEncoding.Dword,
-				RexW = false,
+				OperandSizePromotion = false,
 				MainByte = 0xF7,
 				ModRM = ModRMEncoding.FromFixedRegAnyRM(0),
 				ImmediateSizeInBytes = sizeof(int)
@@ -208,7 +208,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				OperandSize = OperandSizeEncoding.Dword,
-				RexW = false,
+				OperandSizePromotion = false,
 				MainByte = 0xF7,
 				ModRM = ModRMEncoding.FromFixedRegAnyRM(3)
 			}, "neg r/m32");
@@ -240,7 +240,7 @@ namespace Asmuth.X86
 					if (addressSize == AddressSize._16)
 					{
 						builder.LongMode = false;
-						builder.RexW = false;
+						builder.OperandSizePromotion = false;
 					}
 					else if (addressSize == AddressSize._64)
 					{
@@ -251,7 +251,7 @@ namespace Asmuth.X86
 					{
 						builder.OperandSize = OperandSizeEncoding.Word;
 						builder.LongMode = false;
-						builder.RexW = false;
+						builder.OperandSizePromotion = false;
 					}
 					else if (operandSize == IntegerSize.Dword)
 					{
@@ -260,7 +260,7 @@ namespace Asmuth.X86
 					else if (operandSize == IntegerSize.Qword)
 					{
 						builder.LongMode = true;
-						builder.RexW = true;
+						builder.OperandSizePromotion = true;
 					}
 
 					table.Add(builder, $"[a{addressSize.InBits()}] mov eax,moffs{operandSize.InBits()}");
@@ -413,7 +413,7 @@ namespace Asmuth.X86
 			Assert.AreEqual(NonLegacyPrefixesForm.Vex3, instruction.NonLegacyPrefixes.Form);
 			Assert.AreEqual(SseVectorSize._128, instruction.NonLegacyPrefixes.VectorSize);
 			Assert.AreEqual((byte)0, instruction.NonLegacyPrefixes.NonDestructiveReg);
-			Assert.IsFalse(instruction.NonLegacyPrefixes.OperandSize64);
+			Assert.IsFalse(instruction.NonLegacyPrefixes.OperandSizePromotion);
 			Assert.IsFalse(instruction.NonLegacyPrefixes.ModRegExtension);
 			Assert.IsFalse(instruction.NonLegacyPrefixes.BaseRegExtension);
 			Assert.IsFalse(instruction.NonLegacyPrefixes.IndexRegExtension);

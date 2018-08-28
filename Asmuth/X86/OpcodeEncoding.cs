@@ -11,7 +11,7 @@ namespace Asmuth.X86
 		// No Byte because r/m8 are different opcodes
 		Word,
 		Dword
-		// No Qword because disambiguation is done through bool? LongMode/RexW
+		// No Qword because disambiguation is done through bool? LongMode/OperandSizePromotion
 	}
 
 	public static class OperandSizeEncodingEnum
@@ -38,7 +38,7 @@ namespace Asmuth.X86
 			public OperandSizeEncoding OperandSize;
 			public VexType VexType;
 			public SseVectorSize? VectorSize;
-			public bool? RexW;
+			public bool? OperandSizePromotion;
 			public SimdPrefix? SimdPrefix;
 			public OpcodeMap Map;
 			public byte MainByte;
@@ -83,15 +83,15 @@ namespace Asmuth.X86
 			| (AsZeroIsNull((int?)addressSize) << 2)
 			| (byte)operandSize);
 
-		// 0b00AABBCC: VexType, Nullable<VectorSize>, Nullable<RexW>
+		// 0b00AABBCC: VexType, Nullable<VectorSize>, Nullable<OperandSizePromotion>
 		private readonly byte vexFields;
 		public VexType VexType => (VexType)((vexFields >> 4) & 3);
 		public SseVectorSize? VectorSize => (SseVectorSize?)AsInt_ZeroIsNull((vexFields >> 2) & 3);
-		public bool? RexW => AsBool_ZeroIsNull(vexFields & 3);
-		private static byte MakeVexFields(VexType vexType, SseVectorSize? vectorSize, bool? rexW)
+		public bool? OperandSizePromotion => AsBool_ZeroIsNull(vexFields & 3);
+		private static byte MakeVexFields(VexType vexType, SseVectorSize? vectorSize, bool? operandSizePromotion)
 			=> (byte)(((int)vexType << 4)
 			| (AsZeroIsNull((int?)vectorSize) << 2)
-			| AsZeroIsNull(rexW));
+			| AsZeroIsNull(operandSizePromotion));
 
 		// 0b0AAABBBB: Nullable<SimdPrefix>, Map
 		private readonly byte mapFields;
@@ -116,7 +116,7 @@ namespace Asmuth.X86
 		{
 			builder.Validate();
 			contextFields = MakeContextFields(builder.LongMode, builder.AddressSize, builder.OperandSize);
-			vexFields = MakeVexFields(builder.VexType, builder.VectorSize, builder.RexW);
+			vexFields = MakeVexFields(builder.VexType, builder.VectorSize, builder.OperandSizePromotion);
 			mapFields = MakeMapFields(builder.SimdPrefix, builder.Map);
 			MainByte = builder.MainByte;
 			ModRM = builder.ModRM;
@@ -148,7 +148,7 @@ namespace Asmuth.X86
 			if (nonLegacyPrefixes.VexType != VexType) return false;
 			if (nonLegacyPrefixes.VectorSize != VectorSize.GetValueOrDefault(nonLegacyPrefixes.VectorSize)) return false;
 
-			var integerSize = codeSegmentType.GetIntegerOperandSize(legacyPrefixes.HasOperandSizeOverride, nonLegacyPrefixes.OperandSize64);
+			var integerSize = codeSegmentType.GetIntegerOperandSize(legacyPrefixes.HasOperandSizeOverride, nonLegacyPrefixes.OperandSizePromotion);
 			if (integerSize != OperandSize.AsIntegerSize().GetValueOrDefault(integerSize)) return false;
 			
 			var potentialSimdPrefix = nonLegacyPrefixes.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix;
@@ -190,7 +190,7 @@ namespace Asmuth.X86
 				VectorSize = VectorSize,
 				SimdPrefix = SimdPrefix.Value,
 				OpcodeMap = Map,
-				RexW = RexW
+				OperandSizePromotion = OperandSizePromotion
 			}.Build();
 		}
 
@@ -258,7 +258,7 @@ namespace Asmuth.X86
 				}
 			}
 
-			if (RexW == true)
+			if (OperandSizePromotion == true)
 				str.Append("rex.w ");
 
 			switch (Map)
