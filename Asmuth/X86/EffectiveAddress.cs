@@ -593,8 +593,8 @@ namespace Asmuth.X86
 			
 			if (RequiresSegmentOverride)
 			{
-				str.Append(Segment.GetLetter());
-				str.Append("S:");
+				str.Append(Segment.GetName());
+				str.Append(':');
 			}
 
 			str.Append('[');
@@ -638,9 +638,9 @@ namespace Asmuth.X86
 			}
 			else if (displacementToPrint != 0)
 			{
-				if (displacementToPrint >= 0) str.Append('+');
-				bool hex = displacementToPrint < -9 || displacementToPrint > 9;
-				str.AppendFormat(CultureInfo.InvariantCulture, hex ? "0x{0:X}" : "{0:D}", displacementToPrint);
+				if (displacementToPrint >= 0 || !firstTerm) str.Append('+');
+				bool hex = displacementToPrint <= -16 || displacementToPrint >= 16;
+				str.AppendFormat(CultureInfo.InvariantCulture, hex ? "0x{0:x}" : "{0:d}", displacementToPrint);
 			}
 
 			str.Append(']');
@@ -651,7 +651,7 @@ namespace Asmuth.X86
 		private void AppendAddress(StringBuilder str, ulong address)
 		{
 			str.Append("0x");
-			str.Append(address.ToString("X").PadLeft(AddressSize.InBytes() * 2, '0'));
+			str.Append(address.ToString("x").PadLeft(AddressSize.InBytes() * 2, '0'));
 		}
 
 		public override string ToString() => ToString(vectorSib: false);

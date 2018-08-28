@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Text;
 
 namespace Asmuth.X86.Asm
@@ -15,7 +16,13 @@ namespace Asmuth.X86.Asm
 
 		public abstract bool IsValidField(OperandField field);
 
-		public abstract string Format(in Instruction instruction, OperandField? field);
+		public abstract void Format(TextWriter textWriter, in Instruction instruction, OperandField? field);
+		public string Format(in Instruction instruction, OperandField? field)
+		{
+			var stringWriter = new StringWriter();
+			Format(stringWriter, in instruction, field);
+			return stringWriter.ToString();
+		}
 
 		public abstract override string ToString();
 
@@ -39,8 +46,8 @@ namespace Asmuth.X86.Asm
 
 			public override bool IsValidField(OperandField field) => false;
 
-			public override string Format(in Instruction instruction, OperandField? field)
-				=> Register.Name;
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
+				=> textWriter.Write(Register.Name);
 
 			public override string ToString() => Register.Name;
 
@@ -87,7 +94,7 @@ namespace Asmuth.X86.Asm
 				|| field == OperandField.BaseReg
 				|| field == OperandField.NonDestructiveReg;
 
-			public override string Format(in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
 			{
 				byte regCode;
 				if (field == OperandField.ModReg)
@@ -124,9 +131,9 @@ namespace Asmuth.X86.Asm
 				
 				// Delegate to Gpr class to handle potential high byte register
 				if (RegisterClass == RegisterClass.GprByte)
-					return Gpr.Byte((GprCode)regCode, instruction.NonLegacyPrefixes.Form != NonLegacyPrefixesForm.Escapes).Name;
-				
-				return new Register(RegisterClass, regCode).Name;
+					textWriter.Write(Gpr.Byte((GprCode)regCode, instruction.NonLegacyPrefixes.Form != NonLegacyPrefixesForm.Escapes).Name);
+				else
+					textWriter.Write(new Register(RegisterClass, regCode).Name);
 			}
 
 			public override string ToString() => RegisterClass.Name;
@@ -161,19 +168,15 @@ namespace Asmuth.X86.Asm
 			public override IntegerSize? ImpliedIntegerOperandSize
 				=> DataType.HasValue ? DataType.Value.GetImpliedGprSize() : null;
 
-			public override bool IsValidField(OperandField field)
-				=> field == OperandField.BaseReg || field == OperandField.Immediate;
+			public override bool IsValidField(OperandField field) => field == OperandField.BaseReg;
 
-			public override string Format(in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
 			{
-				if (field == OperandField.BaseReg)
-				{
-					return instruction.GetRMEffectiveAddress().ToString();
-				}
-				else
-				{
-					throw new NotImplementedException();
-				}
+				if (DataType == OperandDataType.Byte) textWriter.Write("byte ptr ");
+				else if (DataType == OperandDataType.Word) textWriter.Write("word ptr ");
+				else if (DataType == OperandDataType.Dword) textWriter.Write("dword ptr ");
+				else if (DataType == OperandDataType.Qword) textWriter.Write("qword ptr ");
+				textWriter.Write(instruction.GetRMEffectiveAddress().ToString());
 			}
 
 			public override string ToString() 
@@ -290,13 +293,15 @@ namespace Asmuth.X86.Asm
 			public override bool IsValidField(OperandField field)
 				=> field == OperandField.BaseReg;
 
-			public override string Format(in Instruction instruction, OperandField? field)
+			public OperandSpec GetActualSpec(ModRM modRM)
+				=> modRM.IsDirect ? (OperandSpec)RegSpec: (OperandSpec)MemSpec;
+
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
 			{
 				if (!instruction.ModRM.HasValue) throw new ArgumentOutOfRangeException(nameof(field));
 
-				return instruction.ModRM.Value.IsDirect
-					? RegSpec.Format(instruction, field)
-					: MemSpec.Format(instruction, field);
+				var actualSpec = GetActualSpec(instruction.ModRM.Value);
+				actualSpec.Format(textWriter, instruction, field);
 			}
 
 			public override string ToString()
@@ -343,7 +348,7 @@ namespace Asmuth.X86.Asm
 
 			public override bool IsValidField(OperandField field) => field == OperandField.BaseReg;
 
-			public override string Format(in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
 			{
 				throw new NotImplementedException();
 			}
@@ -378,7 +383,7 @@ namespace Asmuth.X86.Asm
 
 			public override bool IsValidField(OperandField field) => field == OperandField.Immediate;
 
-			public override string Format(in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
 			{
 				if (instruction.EffectiveAddressSize != AddressSize)
 					throw new InvalidOperationException();
@@ -387,8 +392,11 @@ namespace Asmuth.X86.Asm
 				ulong address = instruction.ImmediateData.AsUInt(AddressSize.ToIntegerSize());
 
 				var addressFormat = "x" + (instruction.EffectiveAddressSize.InBytes() * 2);
-				return segmentBase.GetName() + ":[0x"
-					+ address.ToString(addressFormat, CultureInfo.InvariantCulture) + "]";
+
+				textWriter.Write(segmentBase.GetName());
+				textWriter.Write(":[0x");
+				textWriter.Write(address.ToString(addressFormat, CultureInfo.InvariantCulture));
+				textWriter.Write(']');
 			}
 
 			public override string ToString() => "moffs" + DataType.TotalSizeInBits;
@@ -410,7 +418,7 @@ namespace Asmuth.X86.Asm
 			public override bool IsValidField(OperandField field)
 				=> field == OperandField.Immediate || field == OperandField.SecondImmediate;
 
-			public override string Format(in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
 			{
 				if (DataType.TotalSizeInBytes > instruction.ImmediateSizeInBytes)
 					throw new InvalidOperationException("Instruction doesn't have an immediate big enough to encode operand.");
@@ -428,9 +436,9 @@ namespace Asmuth.X86.Asm
 					throw new NotImplementedException("Formatting non-integral immediates.");
 
 				var value = instruction.ImmediateData.RawStorage;
-				return value < 0x10
+				textWriter.Write(value < 0x10
 					? value.ToString(CultureInfo.InvariantCulture)
-					: "0x" + value.ToString("x", CultureInfo.InvariantCulture);
+					: "0x" + value.ToString("x", CultureInfo.InvariantCulture));
 			}
 
 			public override string ToString() => "imm" + DataType.ScalarSizeInBytes;
@@ -514,11 +522,11 @@ namespace Asmuth.X86.Asm
 
 			public override bool IsValidField(OperandField field) => false;
 
-			public override string Format(in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
 			{
-				return Value < 0x10
+				textWriter.Write(Value < 0x10
 					? Value.ToString(CultureInfo.InvariantCulture)
-					: "0x" + Value.ToString("x2", CultureInfo.InvariantCulture);
+					: "0x" + Value.ToString("x2", CultureInfo.InvariantCulture));
 			}
 
 			public override string ToString() => Value.ToString();
@@ -538,24 +546,14 @@ namespace Asmuth.X86.Asm
 
 			public override bool IsValidField(OperandField field) => field == OperandField.Immediate;
 
-			public override string Format(in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
 			{
 				if (OffsetSize.InBytes() != instruction.ImmediateSizeInBytes)
 					throw new InvalidOperationException("Instruction immediate size doesn't match operand.");
 
-				long value;
-				switch (OffsetSize)
-				{
-					case IntegerSize.Byte: value = instruction.ImmediateData.AsInt8(); break;
-					case IntegerSize.Word: value = instruction.ImmediateData.AsInt16(); break;
-					case IntegerSize.Dword: value = instruction.ImmediateData.AsInt32(); break;
-					case IntegerSize.Qword: value = instruction.ImmediateData.AsInt64(); break;
-					default: throw new UnreachableException();
-				}
-
-				var str = value.ToString(CultureInfo.InvariantCulture);
-				if (value >= 0) str = "+" + str;
-				return str;
+				long value = instruction.ImmediateData.AsInt(OffsetSize);
+				if (value >= 0) textWriter.Write('+');
+				textWriter.Write(value.ToString(CultureInfo.InvariantCulture));
 			}
 
 			public override string ToString() => "rel" + OffsetSize.InBits();

@@ -138,7 +138,15 @@ namespace Asmuth.Disassembler
 						while (Console.CursorLeft < 32)
 							Console.Write(' ');
 
-						Console.WriteLine(instructionDefinition.Format(in instruction));
+						Console.Write(instructionDefinition.Mnemonic);
+
+						Console.Write(' ');
+						while (Console.CursorLeft < 44)
+							Console.Write(' ');
+
+						instructionDefinition.FormatOperandList(Console.Out, in instruction);
+
+						Console.WriteLine();
 					}
 				}
 			}

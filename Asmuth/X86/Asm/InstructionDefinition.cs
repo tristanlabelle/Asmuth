@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -56,21 +57,15 @@ namespace Asmuth.X86.Asm
 		#endregion
 
 		#region Methods
-		public string Format(in Instruction instruction)
+		public void FormatOperandList(TextWriter textWriter, in Instruction instruction)
 		{
-			var stringBuilder = new StringBuilder(Mnemonic.Length + Operands.Count * 6);
-
-			stringBuilder.Append(Mnemonic);
-
 			bool firstOperand = true;
 			foreach (var operand in Operands)
 			{
-				stringBuilder.Append(firstOperand ? " " : ", ");
-				stringBuilder.Append(operand.Spec.Format(in instruction, operand.Field));
+				textWriter.Write(firstOperand ? ' ' : ',');
+				operand.Spec.Format(textWriter, in instruction, operand.Field);
 				firstOperand = false;
 			}
-
-			return stringBuilder.ToString();
 		}
 
 		public override string ToString()

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -96,16 +97,16 @@ namespace Asmuth.X86.Asm.Nasm
 
 			// Fill up mnemonic, taking into account +cc cases
 			string[] conditionCodeMnemonics = null;
-			if (hasConditionCodeVariants && Mnemonic.EndsWith("cc", StringComparison.InvariantCultureIgnoreCase))
+			if (hasConditionCodeVariants && Mnemonic.EndsWith("cc", StringComparison.InvariantCulture))
 			{
-				string baseMnemonic = Mnemonic.Substring(0, Mnemonic.Length - 2);
+				string baseMnemonic = Mnemonic.ToLowerInvariant().Substring(0, Mnemonic.Length - 2);
 				conditionCodeMnemonics = new string[conditionCodeVariantCount];
 				for (int i = 0; i < conditionCodeVariantCount; ++i)
-					conditionCodeMnemonics[i] = baseMnemonic + ((ConditionCode)i).GetMnemonicSuffix().ToUpperInvariant();
+					conditionCodeMnemonics[i] = baseMnemonic + ((ConditionCode)i).GetMnemonicSuffix();
 			}
 			else
 			{
-				data.Mnemonic = Mnemonic;
+				data.Mnemonic = Mnemonic.ToLowerInvariant();
 			}
 
 			// For each variant
