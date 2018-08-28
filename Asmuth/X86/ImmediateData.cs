@@ -53,10 +53,28 @@ namespace Asmuth.X86
 			return rawStorage;
 		}
 
-		public sbyte AsSInt8() => unchecked((sbyte)AsUInt8());
+		public ulong AsUInt(IntegerSize size)
+		{
+			if (size == IntegerSize.Byte) return AsUInt8();
+			if (size == IntegerSize.Word) return AsUInt16();
+			if (size == IntegerSize.Dword) return AsUInt32();
+			if (size == IntegerSize.Qword) return AsUInt64();
+			throw new ArgumentOutOfRangeException(nameof(size));
+		}
+
+		public sbyte AsInt8() => unchecked((sbyte)AsUInt8());
 		public short AsInt16() => unchecked((short)AsUInt16());
 		public int AsInt32() => unchecked((int)AsUInt32());
 		public long AsInt64() => unchecked((long)rawStorage);
+		
+		public long AsInt(IntegerSize size)
+		{
+			if (size == IntegerSize.Byte) return AsInt8();
+			if (size == IntegerSize.Word) return AsInt16();
+			if (size == IntegerSize.Dword) return AsInt32();
+			if (size == IntegerSize.Qword) return AsInt64();
+			throw new ArgumentOutOfRangeException(nameof(size));
+		}
 
 		public (ushort, ushort) AsFarPtr16()
 		{

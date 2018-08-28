@@ -56,6 +56,14 @@ namespace Asmuth.X86.Asm.Nasm
 		#region Methods
 		public bool HasFlag(string flag) => Flags.Contains(flag, StringComparer.InvariantCultureIgnoreCase);
 
+		public NasmOperand? FindOperand(OperandField field)
+		{
+			for (int i = 0; i < data.Operands.Count; ++i)
+				if (data.Operands[i].Field == field)
+					return data.Operands[i];
+			return null;
+		}
+
 		public string GetEncodingString()
 		{
 			var str = new StringBuilder();
@@ -74,10 +82,12 @@ namespace Asmuth.X86.Asm.Nasm
 		{
 			if (!CanConvertToOpcodeEncoding) throw new InvalidOperationException();
 
-			int operandSizeVariantCount = OpcodeEncodingOperandSizeVariantCount;
+			GetAddressAndOperandSizeVariantCounts(
+				out int addressSizeVariantCount,
+				out int operandSizeVariantCount);
 			bool hasConditionCodeVariants = HasConditionCodeVariants;
 			int conditionCodeVariantCount = hasConditionCodeVariants ? ConditionCodeEnum.Count : 1;
-			int variantCount = operandSizeVariantCount * conditionCodeVariantCount;
+			int variantCount = addressSizeVariantCount * operandSizeVariantCount * conditionCodeVariantCount;
 
 			var variants = new InstructionDefinition[variantCount];
 			int variantIndex = 0;
@@ -99,27 +109,32 @@ namespace Asmuth.X86.Asm.Nasm
 			}
 
 			// For each variant
-			for (int j = 0; j < operandSizeVariantCount; j++)
+			for (int i = 0; i < addressSizeVariantCount; ++i)
 			{
-				var operandSize = operandSizeVariantCount == 1 ? null
-					: (IntegerSize?)((int)IntegerSize.Word + j);
+				var addressSize = addressSizeVariantCount == 1 ? null : (AddressSize?)i;
 
-				data.Operands = GetOperandDefinitions(operandSize);
-
-				for (int i = 0; i < conditionCodeVariantCount; i++)
+				for (int j = 0; j < operandSizeVariantCount; j++)
 				{
-					ConditionCode? conditionCode = null;
-					if (hasConditionCodeVariants)
-					{
-						conditionCode = (ConditionCode)i;
-						if (conditionCodeMnemonics != null)
-							data.Mnemonic = conditionCodeMnemonics[i];
-					}
-					
-					data.Encoding = GetOpcodeEncoding(conditionCode, operandSize);
+					var operandSize = operandSizeVariantCount == 1 ? null
+						: (IntegerSize?)((int)IntegerSize.Word + j);
 
-					variants[variantIndex] = new InstructionDefinition(in data);
-					variantIndex++;
+					data.Operands = GetOperandDefinitions(addressSize, operandSize);
+
+					for (int k = 0; k < conditionCodeVariantCount; k++)
+					{
+						ConditionCode? conditionCode = null;
+						if (hasConditionCodeVariants)
+						{
+							conditionCode = (ConditionCode)k;
+							if (conditionCodeMnemonics != null)
+								data.Mnemonic = conditionCodeMnemonics[k];
+						}
+
+						data.Encoding = GetOpcodeEncoding(addressSize, operandSize, conditionCode);
+
+						variants[variantIndex] = new InstructionDefinition(in data);
+						variantIndex++;
+					}
 				}
 			}
 

@@ -218,36 +218,58 @@ namespace Asmuth.X86
 		}
 
 		[TestMethod]
-		public void TestAddressSizeAmbiguity()
+		public void TestMOffs()
 		{
 			var table = new OpcodeEncodingTable<string>();
 
-			table.Add(new OpcodeEncoding.Builder
+			// Add all possible variants of "mov eax,moffs*"
+			for (var addressSize = AddressSize._16; addressSize <= AddressSize._64; ++addressSize)
 			{
-				LongMode = false,
-				AddressSize = AddressSize._16,
-				MainByte = 0xC7,
-				ImmediateSizeInBytes = sizeof(short)
-			}, "mov ax,moffs16");
+				var minOperandSize = addressSize == AddressSize._64
+					? IntegerSize.Dword : IntegerSize.Word;
+				var maxOperandSize = minOperandSize + 1;
+				for (IntegerSize operandSize = minOperandSize; operandSize <= maxOperandSize; operandSize++)
+				{
+					var builder = new OpcodeEncoding.Builder
+					{
+						AddressSize = addressSize,
+						MainByte = 0xC7,
+						ImmediateSizeInBytes = addressSize.InBytes()
+					};
+					
+					if (addressSize == AddressSize._16)
+					{
+						builder.LongMode = false;
+						builder.RexW = false;
+					}
+					else if (addressSize == AddressSize._64)
+					{
+						builder.LongMode = true;
+					}
 
-			table.Add(new OpcodeEncoding.Builder
-			{
-				AddressSize = AddressSize._32,
-				MainByte = 0xC7,
-				ImmediateSizeInBytes = sizeof(int)
-			}, "mov eax,moffs32");
+					if (operandSize == IntegerSize.Word)
+					{
+						builder.OperandSize = OperandSizeEncoding.Word;
+						builder.LongMode = false;
+						builder.RexW = false;
+					}
+					else if (operandSize == IntegerSize.Dword)
+					{
+						builder.OperandSize = OperandSizeEncoding.Dword;
+					}
+					else if (operandSize == IntegerSize.Qword)
+					{
+						builder.LongMode = true;
+						builder.RexW = true;
+					}
 
-			table.Add(new OpcodeEncoding.Builder
-			{
-				LongMode = true,
-				AddressSize = AddressSize._64,
-				MainByte = 0xC7,
-				ImmediateSizeInBytes = sizeof(long)
-			}, "mov rax,moffs64");
+					table.Add(builder, $"[a{addressSize.InBits()}] mov eax,moffs{operandSize.InBits()}");
+				}
+			}
 
 			// In different code segment types
-			Assert.AreEqual(2, DecodeSingle_16Bits(table, 0xC7, 0x00, 0x00).ImmediateSizeInBytes);
-			Assert.AreEqual(4, DecodeSingle_32Bits(table, 0xC7, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(2, DecodeSingle_16Bits(table, 0x66, 0xC7, 0x00, 0x00).ImmediateSizeInBytes);
+			Assert.AreEqual(4, DecodeSingle_32Bits(table, 0x66, 0xC7, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
 			Assert.AreEqual(8, DecodeSingle_64Bits(table, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00).ImmediateSizeInBytes);
 
 			// With address size override

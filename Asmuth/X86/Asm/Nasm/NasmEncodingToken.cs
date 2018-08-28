@@ -77,11 +77,11 @@ namespace Asmuth.X86.Asm.Nasm
 		Vex = Category_Vex, // value unused, vex data stored as a VexOpcodeEncoding value
 
 		[NasmName("a16")]
-		AddressSize_Fixed16 = Category_AddressSize,
+		AddressSize_16 = Category_AddressSize,
 		[NasmName("a32")]
-		AddressSize_Fixed32,
+		AddressSize_32,
 		[NasmName("a64")]
-		AddressSize_Fixed64,
+		AddressSize_64,
 		[NasmName("adf")]
 		AddressSize_NoOverride,
 

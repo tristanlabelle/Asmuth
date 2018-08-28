@@ -8,38 +8,38 @@ namespace Asmuth.X86.Asm.Nasm
 {
     partial class NasmInsnsEntry
     {
-		public OperandDefinition[] GetOperandDefinitions(IntegerSize? operandSize = null)
+		public OperandDefinition[] GetOperandDefinitions(AddressSize? addressSize = null, IntegerSize? operandSize = null)
 		{
-			var specs = GetOperandSpecs(operandSize);
+			var specs = GetOperandSpecs(addressSize, operandSize);
 			var defs = new OperandDefinition[specs.Length];
 			for (int i = 0; i < specs.Length; ++i)
 				defs[i] = new OperandDefinition(specs[i], Operands[i].Field);
 			return defs;
 		}
 
-		public OperandSpec[] GetOperandSpecs(IntegerSize? operandSize = null)
+		public OperandSpec[] GetOperandSpecs(AddressSize? addressSize = null, IntegerSize? operandSize = null)
 		{
 			if (operandSize.HasValue)
-				return GetOperandSpecs(defaultSizeInBytes: operandSize.Value.InBytes(), sizeMatch: false);
+				return GetOperandSpecs(addressSize, operandSize.Value.InBytes(), sizeMatch: false);
 
 			foreach (string flag in Flags)
 			{
 				if (flag == NasmInstructionFlags.SizeMatch)
-					return GetOperandSpecs(defaultSizeInBytes: null, sizeMatch: true);
+					return GetOperandSpecs(addressSize, defaultSizeInBytes: null, sizeMatch: true);
 				else if (flag == NasmInstructionFlags.SizeMatchFirstTwo)
 					throw new NotImplementedException("NASM size match first two.");
 				else
 				{
 					var defaultSizeInBytes = NasmInstructionFlags.TryAsDefaultOperandSizeInBytes(flag);
 					if (defaultSizeInBytes.HasValue)
-						return GetOperandSpecs(defaultSizeInBytes.Value, sizeMatch: false);
+						return GetOperandSpecs(addressSize, defaultSizeInBytes.Value, sizeMatch: false);
 				}
 			}
 
-			return GetOperandSpecs(defaultSizeInBytes: null, sizeMatch: false);
+			return GetOperandSpecs(addressSize, defaultSizeInBytes: null, sizeMatch: false);
 		}
 
-		private OperandSpec[] GetOperandSpecs(int? defaultSizeInBytes, bool sizeMatch)
+		private OperandSpec[] GetOperandSpecs(AddressSize? addressSize, int? defaultSizeInBytes, bool sizeMatch)
 		{
 			Debug.Assert(!defaultSizeInBytes.HasValue || !sizeMatch);
 
@@ -53,7 +53,7 @@ namespace Asmuth.X86.Asm.Nasm
 			int? impliedSizeInBytes = null;
 			for (int i = 0; i < Operands.Count; ++i)
 			{
-				var operandFormat = TryToOperandSpec(i, defaultSizeInBytes);
+				var operandFormat = TryToOperandSpec(i, addressSize, defaultSizeInBytes);
 				if (operandFormat == null)
 				{
 					if (!sizeMatch) throw new FormatException("Unspecified operand size.");
@@ -76,13 +76,13 @@ namespace Asmuth.X86.Asm.Nasm
 			{
 				// Do a second pass with the implied size
 				if (!impliedSizeInBytes.HasValue) throw new FormatException();
-				return GetOperandSpecs(impliedSizeInBytes.Value, sizeMatch: false);
+				return GetOperandSpecs(addressSize, impliedSizeInBytes.Value, sizeMatch: false);
 			}
 
 			return operandFormats;
 		}
 
-		private OperandSpec TryToOperandSpec(int operandIndex, int? defaultSizeInBytes)
+		private OperandSpec TryToOperandSpec(int operandIndex, AddressSize? addressSize, int? defaultSizeInBytes)
 		{
 			var operand = Operands[operandIndex];
 
@@ -125,7 +125,7 @@ namespace Asmuth.X86.Asm.Nasm
 				}
 			}
 
-			return operand.TryToOperandSpec(defaultSizeInBytes);
+			return operand.TryToOperandSpec(addressSize, defaultSizeInBytes);
 		}
 	}
 }

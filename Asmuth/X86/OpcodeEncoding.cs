@@ -43,7 +43,7 @@ namespace Asmuth.X86
 			public OpcodeMap Map;
 			public byte MainByte;
 			public ModRMEncoding ModRM;
-			public byte ImmediateSizeInBytes;
+			public int ImmediateSizeInBytes;
 			public byte? Imm8Ext;
 
 			public void Validate()

@@ -209,6 +209,26 @@ namespace Asmuth.X86.Asm.Nasm
 			}); // VPCMOV
 		}
 
+		[TestMethod]
+		public void TestVariantCounts()
+		{
+			var entry = NasmInsns.ParseLine("CMOVcc reg32,reg32 [rm: o32 0f 40+c /r] P6");
+			Assert.IsTrue(entry.HasConditionCodeVariants);
+
+			int addressSizeVariantCount, operandSizeVariantCount;
+			entry = NasmInsns.ParseLine("MOV reg_eax,mem_offs [-i: o32 a1 iwdq] 386,SM");
+			entry.GetAddressAndOperandSizeVariantCounts(
+				out addressSizeVariantCount, out operandSizeVariantCount);
+			Assert.AreEqual(3, addressSizeVariantCount);
+			Assert.AreEqual(1, operandSizeVariantCount);
+
+			entry = NasmInsns.ParseLine("JMP imm:imm [ji: odf ea iwd iw] 8086,NOLONG");
+			entry.GetAddressAndOperandSizeVariantCounts(
+				out addressSizeVariantCount, out operandSizeVariantCount);
+			Assert.AreEqual(1, addressSizeVariantCount);
+			Assert.AreEqual(2, operandSizeVariantCount);
+		}
+
 		private static void AssertEncoding(string nasmEncodingStr,
 			NasmOperandType? rmOperandType, OpcodeEncoding expectedEncoding)
 		{

@@ -11,8 +11,10 @@ namespace Asmuth.X86.Asm.Nasm
 		public struct OpcodeEncodingConversionParams
 		{
 			public bool? LongMode { get; set; } // Unspecified by encoding tokens
+			public AddressSize? AddressSize { get; set; } // For mem_offs
 			public ConditionCode? ConditionCode { get; set; } // For +cc opcodes
 			public IntegerSize? OperandSize { get; set; } // For iwd/iwdq immediates
+			public bool HasMOffs { get; set; }
 
 			// For /r disambiguation
 			private bool disallowRegRM;
@@ -57,41 +59,68 @@ namespace Asmuth.X86.Asm.Nasm
 		public bool HasConditionCodeVariants
 			=> EncodingTokens.Any(t => t.Type == NasmEncodingTokenType.Byte_PlusConditionCode);
 
-		public int OpcodeEncodingOperandSizeVariantCount
+		public bool GetAddressAndOperandSizeVariantCounts(
+			out int addressSizeVariantCount, out int operandSizeVariantCount)
 		{
-			get
-			{
-				int count = 1;
-				if (EncodingTokens.Contains(NasmEncodingTokenType.Immediate_WordOrDwordOrQword))
-					count = 3;
-				else if (EncodingTokens.Contains(NasmEncodingTokenType.Immediate_WordOrDword))
-					count = 2;
+			addressSizeVariantCount = 1;
+			operandSizeVariantCount = 1;
 
-				// There are no variants if there is also an operand size token.
-				// This works around entries like: MOV reg_ax,mem_offs [o16 a1 iwdq]
-				if (count > 1
-					&& (EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_16)
-					|| EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_32)
-					|| EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_64)
-					|| EncodingTokens.Contains(NasmEncodingTokenType.OperandSize_64WithoutW)))
+			// Do a first pass to locate the iwd/iwdq immediates
+			// and sort them as address or operand size-dependent.
+			OperandField immediateField = OperandField.Immediate;
+			for (int i = 0; i < EncodingTokens.Count; ++i)
+			{
+				var tokenType = EncodingTokens[i].Type;
+				if ((tokenType & NasmEncodingTokenType.Category_Mask) != NasmEncodingTokenType.Category_Immediate
+					|| tokenType == NasmEncodingTokenType.Immediate_Segment)
+					continue;
+
+				int variantCount = 1;
+				if (tokenType == NasmEncodingTokenType.Immediate_WordOrDword) variantCount = 2;
+				else if (tokenType == NasmEncodingTokenType.Immediate_WordOrDwordOrQword) variantCount = 3;
+
+				if (variantCount > 1)
 				{
-					count = 1;
+					Debug.Assert(immediateField <= OperandField.SecondImmediate);
+					bool isMOffs = FindOperand(immediateField).Value.Type == NasmOperandType.Mem_Offs;
+					if (isMOffs) addressSizeVariantCount = Math.Max(addressSizeVariantCount, variantCount);
+					else operandSizeVariantCount = Math.Max(operandSizeVariantCount, variantCount);
 				}
 
-				return count;
+				++immediateField;
 			}
+
+			// Do a first pass to find explicit address/operand size tokens
+			for (int i = 0; i < EncodingTokens.Count; ++i)
+			{
+				var tokenType = EncodingTokens[i].Type;
+				if (tokenType == NasmEncodingTokenType.AddressSize_16
+					|| tokenType == NasmEncodingTokenType.AddressSize_32
+					|| tokenType == NasmEncodingTokenType.AddressSize_64)
+					addressSizeVariantCount = 1;
+				else if (tokenType == NasmEncodingTokenType.OperandSize_16
+					|| tokenType == NasmEncodingTokenType.OperandSize_32
+					|| tokenType == NasmEncodingTokenType.OperandSize_64
+					|| tokenType == NasmEncodingTokenType.OperandSize_64WithoutW)
+					operandSizeVariantCount = 1;
+			}
+
+			return addressSizeVariantCount * operandSizeVariantCount > 1;
 		}
 
 		public OpcodeEncoding GetOpcodeEncoding(
-			ConditionCode? conditionCode = null,
-			IntegerSize? operandSize = null)
+			AddressSize? addressSize = null,
+			IntegerSize? operandSize = null,
+			ConditionCode? conditionCode = null)
 		{
 			if (!CanConvertToOpcodeEncoding) throw new InvalidOperationException();
 
 			var @params = new OpcodeEncodingConversionParams
 			{
+				AddressSize = addressSize,
+				OperandSize = operandSize,
 				ConditionCode = conditionCode,
-				OperandSize = operandSize
+				HasMOffs = Operands.Any(o => o.Type == NasmOperandType.Mem_Offs)
 			};
 			
 			// Fill up the long mode flag from the instruction flags
@@ -145,8 +174,9 @@ namespace Asmuth.X86.Asm.Nasm
 				in OpcodeEncodingConversionParams @params)
 			{
 				state = State.Prefixes;
-				builder.LongMode = @params.LongMode;
 
+				if (@params.LongMode.HasValue) SetLongMode(@params.LongMode.Value);
+				if (@params.AddressSize.HasValue) SetAddressSize(@params.AddressSize.Value);
 				if (@params.OperandSize.HasValue) SetOperandSize(@params.OperandSize.Value);
 
 				foreach (var token in tokens)
@@ -155,9 +185,9 @@ namespace Asmuth.X86.Asm.Nasm
 					{
 						case NasmEncodingTokenType.Vex: SetVex(vexEncoding); break;
 
-						case NasmEncodingTokenType.AddressSize_Fixed16: SetAddressSize(AddressSize._16); break;
-						case NasmEncodingTokenType.AddressSize_Fixed32: SetAddressSize(AddressSize._32); break;
-						case NasmEncodingTokenType.AddressSize_Fixed64: SetAddressSize(AddressSize._64); break;
+						case NasmEncodingTokenType.AddressSize_16: SetAddressSize(AddressSize._16); break;
+						case NasmEncodingTokenType.AddressSize_32: SetAddressSize(AddressSize._32); break;
+						case NasmEncodingTokenType.AddressSize_64: SetAddressSize(AddressSize._64); break;
 						case NasmEncodingTokenType.AddressSize_NoOverride: break; // ?
 
 						case NasmEncodingTokenType.OperandSize_16: SetOperandSize(IntegerSize.Word); break;
@@ -290,8 +320,11 @@ namespace Asmuth.X86.Asm.Nasm
 							break;
 
 						case NasmEncodingTokenType.Immediate_WordOrDword:
+							AddVariableSizedImmediate(allowQword: false, moffs: @params.HasMOffs);
+							break;
+
 						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword:
-							AddOperandSizeDependentImmediate(allowQword: true);
+							AddVariableSizedImmediate(allowQword: true, moffs: @params.HasMOffs);
 							break;
 
 						case NasmEncodingTokenType.Immediate_Qword:
@@ -379,12 +412,22 @@ namespace Asmuth.X86.Asm.Nasm
 				AdvanceTo(State.PreOpcode);
 			}
 
-			private void AddOperandSizeDependentImmediate(bool allowQword)
+			// TODO: Simplify this? iwd is always for far ptrs and iwdq for mem_offs
+			private void AddVariableSizedImmediate(bool allowQword, bool moffs)
 			{
-				if (!operandSize.HasValue) throw new FormatException("No operand size provided for iwd/idwq immediate.");
+				int immediateSizeInBytes;
+				if (moffs)
+				{
+					if (!builder.AddressSize.HasValue) throw new FormatException("No address size provided for iwd/idwq moffs.");
+					immediateSizeInBytes = builder.AddressSize.Value.InBytes();
+				}
+				else
+				{
+					if (!operandSize.HasValue) throw new FormatException("No operand size provided for iwd/idwq immediate.");
+					immediateSizeInBytes = operandSize.Value.InBytes();
+				}
 
-				int immediateSizeInBytes = operandSize.Value.InBytes();
-				if (operandSize == IntegerSize.Qword && !allowQword)
+				if (immediateSizeInBytes == 8 && !allowQword)
 					immediateSizeInBytes = 4;
 
 				AddImmediateWithSizeInBytes(immediateSizeInBytes);

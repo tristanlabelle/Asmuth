@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 
@@ -76,7 +77,7 @@ namespace Asmuth.X86.Asm
 				this.RegisterClass = @class;
 			}
 
-			public RegOrMem OrMem(OperandDataType dataType) => new RegOrMem(this, new Mem(dataType));
+			public RegOrMem OrMem(OperandDataType dataType) => new RegOrMem(this, Mem.WithDataType(dataType));
 
 			public override IntegerSize? ImpliedIntegerOperandSize => RegisterClass.IsSized
 				? IntegerSizeEnum.TryFromBytes(RegisterClass.SizeInBytes.Value) : null;
@@ -155,7 +156,7 @@ namespace Asmuth.X86.Asm
 			public int SizeInBytes => DataType.HasValue ? DataType.Value.TotalSizeInBytes : 0;
 			public int SizeInBits => SizeInBytes * 8;
 
-			public Mem(OperandDataType? dataType) => this.DataType = dataType;
+			private Mem(OperandDataType? dataType) => this.DataType = dataType;
 
 			public override IntegerSize? ImpliedIntegerOperandSize
 				=> DataType.HasValue ? DataType.Value.GetImpliedGprSize() : null;
@@ -177,6 +178,45 @@ namespace Asmuth.X86.Asm
 
 			public override string ToString() 
 				=> SizeInBytes == 0 ? "m" : ("m" + SizeInBits.ToString());
+
+			public static Mem WithDataType(OperandDataType dataType)
+			{
+				if (!dataType.IsVector)
+				{
+					switch (dataType.ScalarType)
+					{
+						case ScalarType.Untyped: return Untyped(dataType.TotalSizeInBytes);
+
+						case ScalarType.SignedInt:
+							if (dataType.ScalarSizeInBytes == 1) return I8;
+							if (dataType.ScalarSizeInBytes == 2) return I16;
+							if (dataType.ScalarSizeInBytes == 4) return I32;
+							if (dataType.ScalarSizeInBytes == 8) return I64;
+							break;
+
+						case ScalarType.Float:
+							if (dataType.ScalarSizeInBytes == 2) return F16;
+							if (dataType.ScalarSizeInBytes == 4) return F32;
+							if (dataType.ScalarSizeInBytes == 8) return F64;
+							if (dataType.ScalarSizeInBytes == 10) return F80;
+							break;
+
+						case ScalarType.NearPointer:
+							if (dataType.ScalarSizeInBytes == 2) return NearPtr16;
+							if (dataType.ScalarSizeInBytes == 4) return NearPtr32;
+							if (dataType.ScalarSizeInBytes == 8) return NearPtr64;
+							break;
+
+						case ScalarType.FarPointer:
+							if (dataType.ScalarSizeInBytes == 4) return FarPtr16;
+							if (dataType.ScalarSizeInBytes == 6) return FarPtr32;
+							if (dataType.ScalarSizeInBytes == 10) return FarPtr64;
+							break;
+					}
+				}
+
+				return new Mem(dataType);
+			}
 
 			public static Mem Untyped(int sizeInBytes)
 			{
@@ -213,6 +253,14 @@ namespace Asmuth.X86.Asm
 			public static readonly Mem F32 = new Mem(OperandDataType.F32);
 			public static readonly Mem F64 = new Mem(OperandDataType.F64);
 			public static readonly Mem F80 = new Mem(OperandDataType.F80);
+
+			public static readonly Mem NearPtr16 = new Mem(OperandDataType.NearPtr16);
+			public static readonly Mem NearPtr32 = new Mem(OperandDataType.NearPtr32);
+			public static readonly Mem NearPtr64 = new Mem(OperandDataType.NearPtr64);
+
+			public static readonly Mem FarPtr16 = new Mem(OperandDataType.FarPtr16);
+			public static readonly Mem FarPtr32 = new Mem(OperandDataType.FarPtr32);
+			public static readonly Mem FarPtr64 = new Mem(OperandDataType.FarPtr64);
 		}
 
 		// NEG r/m8
@@ -259,14 +307,17 @@ namespace Asmuth.X86.Asm
 
 			RegisterClass IWithReg.RegisterClass => RegSpec.RegisterClass;
 
-			public static readonly RegOrMem RM8 = new RegOrMem(Reg.Gpr8, Mem.I8);
-			public static readonly RegOrMem RM16 = new RegOrMem(Reg.Gpr16, Mem.I16);
-			public static readonly RegOrMem RM32 = new RegOrMem(Reg.Gpr32, Mem.I32);
-			public static readonly RegOrMem RM64 = new RegOrMem(Reg.Gpr64, Mem.I64);
-			public static readonly RegOrMem Mmx = new RegOrMem(Reg.Mmx, Mem.F64);
-			public static readonly RegOrMem Xmm = new RegOrMem(Reg.Xmm, Mem.M128);
-			public static readonly RegOrMem Ymm = new RegOrMem(Reg.Ymm, Mem.M256);
-			public static readonly RegOrMem Zmm = new RegOrMem(Reg.Zmm, Mem.M512);
+			public static readonly RegOrMem RM8_Untyped = new RegOrMem(Reg.Gpr8, Mem.M8);
+			public static readonly RegOrMem RM16_Untyped = new RegOrMem(Reg.Gpr16, Mem.M16);
+			public static readonly RegOrMem RM32_Untyped = new RegOrMem(Reg.Gpr32, Mem.M32);
+			public static readonly RegOrMem RM64_Untyped = new RegOrMem(Reg.Gpr64, Mem.M64);
+			public static readonly RegOrMem RM16_NearPtr = new RegOrMem(Reg.Gpr16, Mem.NearPtr16);
+			public static readonly RegOrMem RM32_NearPtr = new RegOrMem(Reg.Gpr32, Mem.NearPtr32);
+			public static readonly RegOrMem RM64_NearPtr = new RegOrMem(Reg.Gpr64, Mem.NearPtr64);
+			public static readonly RegOrMem Mmx_Untyped = new RegOrMem(Reg.Mmx, Mem.M64);
+			public static readonly RegOrMem Xmm_Untyped = new RegOrMem(Reg.Xmm, Mem.M128);
+			public static readonly RegOrMem Ymm_Untyped = new RegOrMem(Reg.Ymm, Mem.M256);
+			public static readonly RegOrMem Zmm_Untyped = new RegOrMem(Reg.Zmm, Mem.M512);
 		}
 
 		// Memory operand with vector SIB
@@ -311,15 +362,46 @@ namespace Asmuth.X86.Asm
 			public static readonly VMem VM64Z = new VMem(SseVectorSize._512, IntegerSize.Qword);
 		}
 
+		// MOV EAX,moffs32
+		public sealed class MOffs : OperandSpec
+		{
+			public AddressSize AddressSize { get; }
+			public OperandDataType DataType { get; }
+
+			public MOffs(AddressSize addressSize, OperandDataType dataType)
+			{
+				this.AddressSize = addressSize;
+				this.DataType = dataType;
+			}
+
+			public override IntegerSize? ImpliedIntegerOperandSize => DataType.GetImpliedGprSize();
+
+			public override bool IsValidField(OperandField field) => field == OperandField.Immediate;
+
+			public override string Format(in Instruction instruction, OperandField? field)
+			{
+				if (instruction.EffectiveAddressSize != AddressSize)
+					throw new InvalidOperationException();
+				var segmentBase = instruction.LegacyPrefixes.SegmentOverride ?? SegmentRegister.DS;
+
+				ulong address = instruction.ImmediateData.AsUInt(AddressSize.ToIntegerSize());
+
+				var addressFormat = "x" + (instruction.EffectiveAddressSize.InBytes() * 2);
+				return segmentBase.GetName() + ":[0x"
+					+ address.ToString(addressFormat, CultureInfo.InvariantCulture) + "]";
+			}
+
+			public override string ToString() => "moffs" + DataType.TotalSizeInBits;
+		}
+
 		// PUSH imm32 
 		public sealed class Imm : OperandSpec
 		{
 			public OperandDataType DataType { get; }
 
-			public Imm(OperandDataType dataType)
+			private Imm(OperandDataType dataType)
 			{
-				if (dataType.IsVector)
-					throw new ArgumentException("Immediates cannot be vectored.", nameof(dataType));
+				Debug.Assert(!dataType.IsVector);
 				this.DataType = dataType;
 			}
 
@@ -353,15 +435,72 @@ namespace Asmuth.X86.Asm
 
 			public override string ToString() => "imm" + DataType.ScalarSizeInBytes;
 
+			public static Imm WithDataType(OperandDataType dataType)
+			{
+				if (dataType.IsVector)
+					throw new ArgumentException("Immediates cannot be vectored.", nameof(dataType));
+
+				switch (dataType.ScalarType)
+				{
+					case ScalarType.Untyped:
+						if (dataType.ScalarSizeInBytes == 1) return Byte;
+						if (dataType.ScalarSizeInBytes == 2) return Word;
+						if (dataType.ScalarSizeInBytes == 4) return Dword;
+						if (dataType.ScalarSizeInBytes == 8) return Qword;
+						break;
+
+					case ScalarType.SignedInt:
+						if (dataType.ScalarSizeInBytes == 1) return I8;
+						if (dataType.ScalarSizeInBytes == 2) return I16;
+						if (dataType.ScalarSizeInBytes == 4) return I32;
+						if (dataType.ScalarSizeInBytes == 8) return I64;
+						break;
+
+					case ScalarType.UnsignedInt:
+						if (dataType.ScalarSizeInBytes == 1) return U8;
+						if (dataType.ScalarSizeInBytes == 2) return U16;
+						if (dataType.ScalarSizeInBytes == 4) return U32;
+						if (dataType.ScalarSizeInBytes == 8) return U64;
+						break;
+
+					case ScalarType.NearPointer:
+						if (dataType.ScalarSizeInBytes == 2) return NearPtr16;
+						if (dataType.ScalarSizeInBytes == 4) return NearPtr32;
+						if (dataType.ScalarSizeInBytes == 8) return NearPtr64;
+						break;
+
+					case ScalarType.FarPointer:
+						if (dataType.ScalarSizeInBytes == 4) return FarPtr16;
+						if (dataType.ScalarSizeInBytes == 6) return FarPtr32;
+						if (dataType.ScalarSizeInBytes == 10) return FarPtr64;
+						break;
+				}
+
+				return new Imm(dataType);
+			}
+
+			public static readonly Imm Byte = new Imm(OperandDataType.Byte);
+			public static readonly Imm Word = new Imm(OperandDataType.Word);
+			public static readonly Imm Dword = new Imm(OperandDataType.Dword);
+			public static readonly Imm Qword = new Imm(OperandDataType.Qword);
+
 			public static readonly Imm I8 = new Imm(OperandDataType.I8);
 			public static readonly Imm I16 = new Imm(OperandDataType.I16);
 			public static readonly Imm I32 = new Imm(OperandDataType.I32);
 			public static readonly Imm I64 = new Imm(OperandDataType.I64);
 
-			public static readonly Imm MOffs8 = new Imm(OperandDataType.NearPtr8);
-			public static readonly Imm MOffs16 = new Imm(OperandDataType.NearPtr16);
-			public static readonly Imm MOffs32 = new Imm(OperandDataType.NearPtr32);
-			public static readonly Imm MOffs64 = new Imm(OperandDataType.NearPtr64);
+			public static readonly Imm U8 = new Imm(OperandDataType.U8);
+			public static readonly Imm U16 = new Imm(OperandDataType.U16);
+			public static readonly Imm U32 = new Imm(OperandDataType.U32);
+			public static readonly Imm U64 = new Imm(OperandDataType.U64);
+
+			public static readonly Imm NearPtr16 = new Imm(OperandDataType.NearPtr16);
+			public static readonly Imm NearPtr32 = new Imm(OperandDataType.NearPtr32);
+			public static readonly Imm NearPtr64 = new Imm(OperandDataType.NearPtr64);
+
+			public static readonly Imm FarPtr16 = new Imm(OperandDataType.FarPtr16);
+			public static readonly Imm FarPtr32 = new Imm(OperandDataType.FarPtr32);
+			public static readonly Imm FarPtr64 = new Imm(OperandDataType.FarPtr64);
 		}
 
 		// SAL r/m8, 1 
@@ -407,7 +546,7 @@ namespace Asmuth.X86.Asm
 				long value;
 				switch (OffsetSize)
 				{
-					case IntegerSize.Byte: value = instruction.ImmediateData.AsSInt8(); break;
+					case IntegerSize.Byte: value = instruction.ImmediateData.AsInt8(); break;
 					case IntegerSize.Word: value = instruction.ImmediateData.AsInt16(); break;
 					case IntegerSize.Dword: value = instruction.ImmediateData.AsInt32(); break;
 					case IntegerSize.Qword: value = instruction.ImmediateData.AsInt64(); break;

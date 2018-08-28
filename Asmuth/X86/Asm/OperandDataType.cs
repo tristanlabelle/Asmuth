@@ -11,7 +11,7 @@ namespace Asmuth.X86.Asm
 		SignedInt,
 		UnsignedInt,
 		Float,
-		NearPointer, // moffs8, moffs16, moffs32, moffs64
+		NearPointer,
 		FarPointer, // ptr16:16, ptr16:32, ptr16:64
 		UnpackedBcd,
 		PackedBcd, // m80bcd
@@ -56,7 +56,7 @@ namespace Asmuth.X86.Asm
 				case ScalarType.SignedInt: return 0x08_04_02_01;
 				case ScalarType.UnsignedInt: return 0x08_04_02_01;
 				case ScalarType.Float: return 0x0A_08_04_02;
-				case ScalarType.NearPointer: return 0x08_04_02_01; // 1 byte for moffs8
+				case ScalarType.NearPointer: return 0x08_04_02;
 				case ScalarType.FarPointer: return 0x0A_06_04;
 				case ScalarType.PackedBcd: return 1; // m80bcd is considered a vector
 				case ScalarType.UnpackedBcd: return 1;
@@ -131,8 +131,7 @@ namespace Asmuth.X86.Asm
 		public static readonly OperandDataType F32 = new OperandDataType(ScalarType.Float, 4);
 		public static readonly OperandDataType F64 = new OperandDataType(ScalarType.Float, 8);
 		public static readonly OperandDataType F80 = new OperandDataType(ScalarType.Float, 10);
-
-		public static readonly OperandDataType NearPtr8 = new OperandDataType(ScalarType.NearPointer, 1);
+		
 		public static readonly OperandDataType NearPtr16 = new OperandDataType(ScalarType.NearPointer, 2);
 		public static readonly OperandDataType NearPtr32 = new OperandDataType(ScalarType.NearPointer, 4);
 		public static readonly OperandDataType NearPtr64 = new OperandDataType(ScalarType.NearPointer, 8);

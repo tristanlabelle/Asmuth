@@ -45,7 +45,7 @@ namespace Asmuth.X86.Asm.Nasm
 
 			CollectionAssert.AreEqual(new[]
 			{
-				new NasmOperand(OperandField.ModReg, NasmOperandType.Reg32)
+				new NasmOperand(OperandField.ModReg, NasmOperandType.Reg32, NasmOperandFlags.None)
 			}, entry.Operands.ToArray());
 
 			CollectionAssert.AreEqual(new[]
@@ -64,9 +64,9 @@ namespace Asmuth.X86.Asm.Nasm
 
 			CollectionAssert.AreEqual(new[]
 			{
-				new NasmOperand(OperandField.BaseReg, NasmOperandType.RM32),
-				new NasmOperand(OperandField.ModReg, NasmOperandType.XmmReg),
-				new NasmOperand(OperandField.Immediate, NasmOperandType.Imm),
+				new NasmOperand(OperandField.BaseReg, NasmOperandType.RM32, NasmOperandFlags.None),
+				new NasmOperand(OperandField.ModReg, NasmOperandType.XmmReg, NasmOperandFlags.None),
+				new NasmOperand(OperandField.Immediate, NasmOperandType.Imm, NasmOperandFlags.None),
 			}, entry.Operands.ToArray());
 
 			CollectionAssert.AreEqual(new[]
