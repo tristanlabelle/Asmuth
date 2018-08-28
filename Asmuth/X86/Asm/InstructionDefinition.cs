@@ -57,13 +57,13 @@ namespace Asmuth.X86.Asm
 		#endregion
 
 		#region Methods
-		public void FormatOperandList(TextWriter textWriter, in Instruction instruction)
+		public void FormatOperandList(TextWriter textWriter, in Instruction instruction, ulong? ip = null)
 		{
 			bool firstOperand = true;
 			foreach (var operand in Operands)
 			{
 				textWriter.Write(firstOperand ? ' ' : ',');
-				operand.Spec.Format(textWriter, in instruction, operand.Field);
+				operand.Spec.Format(textWriter, in instruction, operand.Field, ip);
 				firstOperand = false;
 			}
 		}

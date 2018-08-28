@@ -16,11 +16,12 @@ namespace Asmuth.X86.Asm
 
 		public abstract bool IsValidField(OperandField field);
 
-		public abstract void Format(TextWriter textWriter, in Instruction instruction, OperandField? field);
-		public string Format(in Instruction instruction, OperandField? field)
+		public abstract void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip = null);
+
+		public string Format(in Instruction instruction, OperandField? field, ulong? ip = null)
 		{
 			var stringWriter = new StringWriter();
-			Format(stringWriter, in instruction, field);
+			Format(stringWriter, in instruction, field, ip);
 			return stringWriter.ToString();
 		}
 
@@ -46,7 +47,7 @@ namespace Asmuth.X86.Asm
 
 			public override bool IsValidField(OperandField field) => false;
 
-			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
 				=> textWriter.Write(Register.Name);
 
 			public override string ToString() => Register.Name;
@@ -94,7 +95,7 @@ namespace Asmuth.X86.Asm
 				|| field == OperandField.BaseReg
 				|| field == OperandField.NonDestructiveReg;
 
-			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
 			{
 				byte regCode;
 				if (field == OperandField.ModReg)
@@ -170,13 +171,13 @@ namespace Asmuth.X86.Asm
 
 			public override bool IsValidField(OperandField field) => field == OperandField.BaseReg;
 
-			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
 			{
 				if (DataType == OperandDataType.Byte) textWriter.Write("byte ptr ");
 				else if (DataType == OperandDataType.Word) textWriter.Write("word ptr ");
 				else if (DataType == OperandDataType.Dword) textWriter.Write("dword ptr ");
 				else if (DataType == OperandDataType.Qword) textWriter.Write("qword ptr ");
-				textWriter.Write(instruction.GetRMEffectiveAddress().ToString());
+				textWriter.Write(instruction.GetRMEffectiveAddress().ToString(ip, vectorSib: false));
 			}
 
 			public override string ToString() 
@@ -296,12 +297,12 @@ namespace Asmuth.X86.Asm
 			public OperandSpec GetActualSpec(ModRM modRM)
 				=> modRM.IsDirect ? (OperandSpec)RegSpec: (OperandSpec)MemSpec;
 
-			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
 			{
 				if (!instruction.ModRM.HasValue) throw new ArgumentOutOfRangeException(nameof(field));
 
 				var actualSpec = GetActualSpec(instruction.ModRM.Value);
-				actualSpec.Format(textWriter, instruction, field);
+				actualSpec.Format(textWriter, instruction, field, ip);
 			}
 
 			public override string ToString()
@@ -348,7 +349,7 @@ namespace Asmuth.X86.Asm
 
 			public override bool IsValidField(OperandField field) => field == OperandField.BaseReg;
 
-			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
 			{
 				throw new NotImplementedException();
 			}
@@ -383,7 +384,7 @@ namespace Asmuth.X86.Asm
 
 			public override bool IsValidField(OperandField field) => field == OperandField.Immediate;
 
-			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
 			{
 				if (instruction.EffectiveAddressSize != AddressSize)
 					throw new InvalidOperationException();
@@ -418,7 +419,7 @@ namespace Asmuth.X86.Asm
 			public override bool IsValidField(OperandField field)
 				=> field == OperandField.Immediate || field == OperandField.SecondImmediate;
 
-			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
 			{
 				if (DataType.TotalSizeInBytes > instruction.ImmediateSizeInBytes)
 					throw new InvalidOperationException("Instruction doesn't have an immediate big enough to encode operand.");
@@ -522,7 +523,7 @@ namespace Asmuth.X86.Asm
 
 			public override bool IsValidField(OperandField field) => false;
 
-			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
 			{
 				textWriter.Write(Value < 0x10
 					? Value.ToString(CultureInfo.InvariantCulture)
@@ -546,11 +547,12 @@ namespace Asmuth.X86.Asm
 
 			public override bool IsValidField(OperandField field) => field == OperandField.Immediate;
 
-			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field)
+			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
 			{
 				if (OffsetSize.InBytes() != instruction.ImmediateSizeInBytes)
 					throw new InvalidOperationException("Instruction immediate size doesn't match operand.");
 
+				if (ip.HasValue) throw new NotImplementedException();
 				long value = instruction.ImmediateData.AsInt(OffsetSize);
 				if (value >= 0) textWriter.Write('+');
 				textWriter.Write(value.ToString(CultureInfo.InvariantCulture));

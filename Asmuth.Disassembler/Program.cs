@@ -144,7 +144,7 @@ namespace Asmuth.Disassembler
 						while (Console.CursorLeft < 44)
 							Console.Write(' ');
 
-						instructionDefinition.FormatOperandList(Console.Out, in instruction);
+						instructionDefinition.FormatOperandList(Console.Out, in instruction, ip: codeAddress);
 
 						Console.WriteLine();
 					}

@@ -586,9 +586,9 @@ namespace Asmuth.X86
 				modRM, sib, Displacement);
 		}
 
-		public string ToString(bool vectorSib, ulong? rip = null)
+		public string ToString(ulong? ip = null, bool vectorSib = false)
 		{
-			// SS:[eax+eax*8+0x2000000000]
+			// ss:[eax+eax*8+0x2000000000]
 			var str = new StringBuilder(30);
 			
 			if (RequiresSegmentOverride)
@@ -606,9 +606,9 @@ namespace Asmuth.X86
 			{
 				if (@base == AddressBaseRegister.Rip)
 				{
-					if (rip.HasValue)
+					if (ip.HasValue)
 					{
-						ulong address = checked((ulong)((long)rip.Value + Displacement));
+						ulong address = checked((ulong)((long)ip.Value + Displacement));
 						AppendAddress(str, address);
 						displacementToPrint = 0;
 					}
