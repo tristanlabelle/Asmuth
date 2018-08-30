@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Asm
+namespace Asmuth.X86
 {
 	public readonly struct OperandDefinition
 	{

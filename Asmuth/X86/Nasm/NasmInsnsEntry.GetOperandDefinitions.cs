@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
-namespace Asmuth.X86.Asm.Nasm
+namespace Asmuth.X86.Nasm
 {
     partial class NasmInsnsEntry
     {
@@ -85,8 +85,8 @@ namespace Asmuth.X86.Asm.Nasm
 		private OperandSpec TryToOperandSpec(int operandIndex, AddressSize? addressSize, int? defaultSizeInBytes)
 		{
 			var operand = Operands[operandIndex];
-
-			if (operand.Type == NasmOperandType.Imm && !defaultSizeInBytes.HasValue)
+			
+			if (operand.Type == NasmOperandType.Imm)
 			{
 				// Attempt to use the encoding tokens to determine the immediate size
 
@@ -100,29 +100,9 @@ namespace Asmuth.X86.Asm.Nasm
 				
 				// Assume trailing encoding tokens map one-to-one to immediates
 				var tokenType = EncodingTokens[EncodingTokens.Count - (immediateCount - immediateIndex)].Type;
-				switch (tokenType)
-				{
-					case NasmEncodingTokenType.Immediate_Byte:
-					case NasmEncodingTokenType.Immediate_Byte_Signed:
-					case NasmEncodingTokenType.Immediate_Byte_Unsigned:
-					case NasmEncodingTokenType.Immediate_RelativeOffset8:
-					case NasmEncodingTokenType.Immediate_Is4:
-						defaultSizeInBytes = 1;
-						break;
+				var immediateSpec = NasmOperand.TryGetImmediateOperandSpec(tokenType, defaultSizeInBytes);
 
-					case NasmEncodingTokenType.Immediate_Word:
-						defaultSizeInBytes = 2;
-						break;
-
-					case NasmEncodingTokenType.Immediate_Dword:
-					case NasmEncodingTokenType.Immediate_Dword_Signed:
-						defaultSizeInBytes = 4;
-						break;
-
-					case NasmEncodingTokenType.Immediate_Qword:
-						defaultSizeInBytes = 8;
-						break;
-				}
+				if (immediateSpec != null) return immediateSpec;
 			}
 
 			return operand.TryToOperandSpec(addressSize, defaultSizeInBytes);

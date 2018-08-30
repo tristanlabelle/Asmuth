@@ -8,7 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Asm.Nasm
+namespace Asmuth.X86.Nasm
 {
 	/// <summary>
 	/// Provides methods for manipulating instruction definitions in NASM's insns.dat format.

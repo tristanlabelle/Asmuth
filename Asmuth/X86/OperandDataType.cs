@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Asmuth.X86.Asm
+namespace Asmuth.X86
 {
 	public enum ScalarType : byte
 	{

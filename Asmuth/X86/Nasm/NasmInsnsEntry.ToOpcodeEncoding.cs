@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
-namespace Asmuth.X86.Asm.Nasm
+namespace Asmuth.X86.Nasm
 {
 	partial class NasmInsnsEntry
 	{

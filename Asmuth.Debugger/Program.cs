@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.IO;
 using Asmuth.X86;
-using Asmuth.X86.Asm.Nasm;
+using Asmuth.X86.Nasm;
 
 namespace Asmuth.Debugger
 {

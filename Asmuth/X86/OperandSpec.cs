@@ -5,7 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-namespace Asmuth.X86.Asm
+namespace Asmuth.X86
 {
 	public abstract class OperandSpec
 	{
@@ -541,7 +541,7 @@ namespace Asmuth.X86.Asm
 		{
 			public IntegerSize OffsetSize { get; }
 
-			public Rel(IntegerSize offsetSize) => this.OffsetSize = offsetSize;
+			private Rel(IntegerSize offsetSize) => this.OffsetSize = offsetSize;
 
 			public override IntegerSize? ImpliedIntegerOperandSize => null;
 
@@ -552,17 +552,34 @@ namespace Asmuth.X86.Asm
 				if (OffsetSize.InBytes() != instruction.ImmediateSizeInBytes)
 					throw new InvalidOperationException("Instruction immediate size doesn't match operand.");
 
-				if (ip.HasValue) throw new NotImplementedException();
-				long value = instruction.ImmediateData.AsInt(OffsetSize);
-				if (value >= 0) textWriter.Write('+');
-				textWriter.Write(value.ToString(CultureInfo.InvariantCulture));
+				long offset = instruction.ImmediateData.AsInt(OffsetSize);
+				if (ip.HasValue)
+				{
+					ulong address = (ulong)((long)ip.Value + offset);
+					textWriter.Write("0x");
+					var addressFormat = "x" + (instruction.EffectiveAddressSize.InBytes() * 2);
+					textWriter.Write(offset.ToString(addressFormat, CultureInfo.InvariantCulture));
+				}
+				else
+				{
+					if (offset >= 0) textWriter.Write('+');
+					textWriter.Write(offset.ToString(CultureInfo.InvariantCulture));
+				}
 			}
 
 			public override string ToString() => "rel" + OffsetSize.InBits();
 
-			public static readonly Rel Rel8 = new Rel(IntegerSize.Byte);
-			public static readonly Rel Rel16 = new Rel(IntegerSize.Word);
-			public static readonly Rel Rel32 = new Rel(IntegerSize.Dword);
+			public static Rel WithOffsetSize(IntegerSize offsetSize)
+			{
+				if (offsetSize == IntegerSize.Byte) return Short;
+				if (offsetSize == IntegerSize.Word) return Long16;
+				if (offsetSize == IntegerSize.Dword) return Long32;
+				throw new ArgumentOutOfRangeException(nameof(offsetSize));
+			}
+
+			public static readonly Rel Short = new Rel(IntegerSize.Byte);
+			public static readonly Rel Long16 = new Rel(IntegerSize.Word);
+			public static readonly Rel Long32 = new Rel(IntegerSize.Dword);
 		}
 	}
 }

@@ -2,12 +2,37 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Asmuth.X86.Asm.Nasm
+namespace Asmuth.X86.Nasm
 {
-    partial struct NasmOperand
-    {
+	partial struct NasmOperand
+	{
 		public OperandSpec TryToOperandSpec(AddressSize? addressSize, int? defaultSizeInBytes)
 			=> TryToOperandSpec(Type, Flags, addressSize, defaultSizeInBytes);
+
+		public static OperandSpec TryGetImmediateOperandSpec(
+			NasmEncodingTokenType type, int? defaultSizeInBytes)
+		{
+			switch (type)
+			{
+				case NasmEncodingTokenType.Immediate_Byte: return OperandSpec.Imm.Byte;
+				case NasmEncodingTokenType.Immediate_Byte_Signed: return OperandSpec.Imm.I8;
+				case NasmEncodingTokenType.Immediate_Byte_Unsigned: return OperandSpec.Imm.U8;
+				case NasmEncodingTokenType.Immediate_Word: return OperandSpec.Imm.Word;
+				case NasmEncodingTokenType.Immediate_Dword: return OperandSpec.Imm.Dword;
+				case NasmEncodingTokenType.Immediate_Dword_Signed: return OperandSpec.Imm.I32;
+				case NasmEncodingTokenType.Immediate_Qword: return OperandSpec.Imm.Qword;
+
+				case NasmEncodingTokenType.Immediate_RelativeOffset8: return OperandSpec.Rel.Short;
+				case NasmEncodingTokenType.Immediate_RelativeOffset:
+					if (defaultSizeInBytes == 2) return OperandSpec.Rel.Long16;
+					if (defaultSizeInBytes == 4) return OperandSpec.Rel.Long32;
+					return null;
+
+				case NasmEncodingTokenType.Immediate_Is4: return null;
+
+				default: return null;
+			}
+		}
 
 		public static OperandSpec TryToOperandSpec(
 			NasmOperandType type, NasmOperandFlags flags,
@@ -157,7 +182,7 @@ namespace Asmuth.X86.Asm.Nasm
 				if (size == IntegerSize.Qword) return OperandSpec.RegOrMem.RM64_NearPtr;
 				throw new FormatException($"Unexpected near pointer size: {size.InBytes()} bytes.");
 			}
-			
+
 			if (size == IntegerSize.Byte) return OperandSpec.RegOrMem.RM8_Untyped;
 			if (size == IntegerSize.Word) return OperandSpec.RegOrMem.RM16_Untyped;
 			if (size == IntegerSize.Dword) return OperandSpec.RegOrMem.RM32_Untyped;
