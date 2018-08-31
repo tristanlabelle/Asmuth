@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -21,24 +22,22 @@ namespace Asmuth.X86.Xed
 			\s*$", RegexOptions.IgnorePatternWhitespace);
 		private static readonly Regex stateMacroLineRegex = new Regex(@"^\s*(\w+)\s+(.+?)\s*$");
 
-		public static IReadOnlyDictionary<string, XedXType> ParseXTypes(TextReader reader)
+		public static IEnumerable<KeyValuePair<string, XedXType>> ParseXTypes(TextReader reader)
 		{
-			var xtypes = new Dictionary<string, XedXType>();
 			foreach (var lineMatch in ParseLineBased(reader, xtypesLineRegex))
 			{
 				if (!Enum.TryParse<XedType>(lineMatch.Groups[2].Value, ignoreCase: true, out var type))
 					throw new FormatException();
 				if (!ushort.TryParse(lineMatch.Groups[3].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var bitsPerElement))
 					throw new FormatException();
-				xtypes.Add(lineMatch.Groups[1].Value, new XedXType(type, bitsPerElement));
+				yield return new KeyValuePair<string, XedXType>(
+					lineMatch.Groups[1].Value, new XedXType(type, bitsPerElement));
 			}
-			return xtypes;
 		}
 
-		public static IReadOnlyDictionary<string, XedOperandWidth> ParseOperandWidths(
+		public static IEnumerable<KeyValuePair<string, XedOperandWidth>> ParseOperandWidths(
 			TextReader reader, Func<string, XedXType> xtypeLookup)
 		{
-			var widths = new Dictionary<string, XedOperandWidth>();
 			foreach (var lineMatch in ParseLineBased(reader, widthsLineRegex))
 			{
 				var xtype = xtypeLookup(lineMatch.Groups[2].Value);
@@ -65,17 +64,32 @@ namespace Asmuth.X86.Xed
 					width = new XedOperandWidth(xtype, width16);
 				}
 
-				widths.Add(lineMatch.Groups[1].Value, width);
+				var key = lineMatch.Groups[1].Value;
+				yield return new KeyValuePair<string, XedOperandWidth>(key, width);
 			}
-			return widths;
 		}
 
-		public static IReadOnlyDictionary<string, string> ParseStateMacros(TextReader reader)
+		public static IEnumerable<KeyValuePair<string, ImmutableArray<XedPatternBlot>>>
+			ParseStateMacros(TextReader reader)
 		{
-			var xtypes = new Dictionary<string, string>();
+			var blotsBuilder = ImmutableArray.CreateBuilder<XedPatternBlot>();
 			foreach (var lineMatch in ParseLineBased(reader, stateMacroLineRegex))
-				xtypes.Add(lineMatch.Groups[1].Value, lineMatch.Groups[2].Value);
-			return xtypes;
+			{
+				var blotStrs = Regex.Split(lineMatch.Groups[2].Value, @"\s+");
+				blotsBuilder.Capacity = blotStrs.Length;
+				for (int i = 0; i < blotStrs.Length; ++i)
+					blotsBuilder[i] = XedPatternBlot.Parse(blotStrs[i]);
+
+				var key = lineMatch.Groups[1].Value;
+				yield return new KeyValuePair<string, ImmutableArray<XedPatternBlot>>(
+					key, blotsBuilder.MoveToImmutable());
+			}
+		}
+
+		public static IEnumerable<XedPatternMacro> ParsePatternMacros(
+			TextReader reader, Func<string, ImmutableArray<XedPatternBlot>> stateMacroResolver)
+		{
+			throw new NotImplementedException();
 		}
 
 		private static IEnumerable<Match> ParseLineBased(TextReader reader, Regex lineRegex)
