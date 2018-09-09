@@ -12,8 +12,7 @@ namespace Asmuth.X86.Xed
 		Term, // W1 (?)
 		Equal, // MOD=3 or MOD[0b11]
 		NotEqual, // MOD!=3
-		VariableBits // MOD[mm]
-		// TODO: UIMM0[i/16] 
+		VariableBits // MOD[mm], UIMM0[i/16] 
 	}
 
 	public static class XedPatternBlotTypeEnum
@@ -80,7 +79,8 @@ namespace Asmuth.X86.Xed
 				| (?<key>\w+)(
 					(?<ne>!)?=(?<value>\d+)
 					| \[(?<value>0b[01]+)\]
-					| \[(?<bitsvar>(?<l>[a-z])\k<l>*)\])?
+					| \[(?<bitsvar>(?<l>[a-z])\k<l>*)\]
+					| \[(?<bitsvar>[a-z])/(?<bitcount>\d+)\])?
 			)\s*$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
 		public static XedPatternBlot Parse(string str)
@@ -93,7 +93,10 @@ namespace Asmuth.X86.Xed
 
 			var key = match.Groups["key"].Value;
 			if (match.Groups["bitsvar"].Success)
-				return VariableBits(key, match.Groups["bitsvar"].Value[0]);
+			{
+				var name = match.Groups["bitsvar"].Value;
+				return VariableBits(key, name[0]); // TODO: Length is probably important
+			}
 
 			var value = byte.Parse(match.Groups["value"].Value, CultureInfo.InvariantCulture);
 			return match.Groups["ne"].Success ? NotEqual(key, value) : Equal(key, value);
