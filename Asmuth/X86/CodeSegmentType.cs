@@ -22,8 +22,8 @@ namespace Asmuth.X86
 		// Code segment flags L = 1, D = 0
 		// Defaults to 64-bits addresses, overridable to 32-bits
 		// Defaults to 32-bits operands, overridable to 16-bits
-		// Long Mode
-		LongMode
+		// Intel64 / Long Mode
+		X64
 	}
 
 	public static class CodeSegmentTypeEnum
@@ -44,7 +44,7 @@ namespace Asmuth.X86
 		{
 			if (promotion)
 			{
-				if (type != CodeSegmentType.LongMode) throw new ArgumentException();
+				if (type != CodeSegmentType.X64) throw new ArgumentException();
 				// 2.2.1.2
 				// • For non-byte operations: if a 66H prefix is used with prefix (REX.W = 1),
 				//   66H is ignored.
@@ -68,7 +68,7 @@ namespace Asmuth.X86
 		{
 			if (promotion)
 			{
-				if (type != CodeSegmentType.LongMode) throw new ArgumentException();
+				if (type != CodeSegmentType.X64) throw new ArgumentException();
 				// 2.2.1.2
 				// • For non-byte operations: if a 66H prefix is used with prefix (REX.W = 1),
 				//   66H is ignored.
@@ -90,11 +90,11 @@ namespace Asmuth.X86
 		{
 			if (type == CodeSegmentType.IA32_Default16) return @override ? AddressSize._32 : AddressSize._16;
 			if (type == CodeSegmentType.IA32_Default32) return @override ? AddressSize._16 : AddressSize._32;
-			if (type == CodeSegmentType.LongMode) return @override ? AddressSize._32 : AddressSize._64;
+			if (type == CodeSegmentType.X64) return @override ? AddressSize._32 : AddressSize._64;
 			throw new ArgumentOutOfRangeException(nameof(type));
 		}
 		public static bool Supports(this CodeSegmentType type, AddressSize addressSize)
-			=> type == CodeSegmentType.LongMode 
+			=> type == CodeSegmentType.X64 
 			? (addressSize != AddressSize._16) : (addressSize != AddressSize._64);
 		public static bool Supports(this CodeSegmentType type, AddressSize addressSize,
 			out bool withOverride)
@@ -106,9 +106,9 @@ namespace Asmuth.X86
 		#endregion
 
 		public static bool IsIA32(this CodeSegmentType type)
-			=> type != CodeSegmentType.LongMode;
+			=> type != CodeSegmentType.X64;
 
-		public static bool IsLongMode(this CodeSegmentType type)
-			=> type == CodeSegmentType.LongMode;
+		public static bool IsX64(this CodeSegmentType type)
+			=> type == CodeSegmentType.X64;
 	}
 }

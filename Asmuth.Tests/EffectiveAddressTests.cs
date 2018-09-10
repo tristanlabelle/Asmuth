@@ -116,7 +116,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_SibZeroIndex()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType.LongMode, new EffectiveAddress.Encoding(
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType.X64, new EffectiveAddress.Encoding(
 				ModRM.WithSib(ModRMMod.Indirect, reg: 0),
 				new Sib(SibScale._1, index: null, @base: GprCode.B)));
 
@@ -128,7 +128,7 @@ namespace Asmuth.X86
 		[TestMethod]
 		public void FromEncoding_RegExtensions()
 		{
-			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType.LongMode, new EffectiveAddress.Encoding(
+			var effectiveAddress = EffectiveAddress.FromEncoding(CodeSegmentType.X64, new EffectiveAddress.Encoding(
 				EffectiveAddress.EncodingFlags.BaseRegExtension | EffectiveAddress.EncodingFlags.IndexRegExtension,
 				ModRM.WithSib(ModRMMod.Indirect, reg: 0),
 				new Sib(SibScale._1, index: GprCode.C, @base: GprCode.B)));

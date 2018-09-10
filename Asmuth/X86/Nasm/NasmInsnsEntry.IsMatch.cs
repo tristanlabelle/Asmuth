@@ -92,7 +92,7 @@ namespace Asmuth.X86.Nasm
 						break;
 
 					case NasmEncodingTokenType.OperandSize_64WithoutW:
-						if (!instruction.CodeSegmentType.IsLongMode()
+						if (!instruction.CodeSegmentType.IsX64()
 							|| instruction.LegacyPrefixes.HasOperandSizeOverride) return false;
 						break;
 

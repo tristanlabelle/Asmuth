@@ -338,7 +338,7 @@ namespace Asmuth.X86
 			if (encoding.ModRM.IsDirect)
 				throw new ArgumentException("ModRM does not encode a memory operand.");
 
-			if ((encoding.BaseRegExtension || encoding.IndexRegExtension) && codeSegmentType != CodeSegmentType.LongMode)
+			if ((encoding.BaseRegExtension || encoding.IndexRegExtension) && codeSegmentType != CodeSegmentType.X64)
 				throw new ArgumentException();
 
 			var addressSize = codeSegmentType.GetEffectiveAddressSize(encoding.AddressSizeOverride);
@@ -362,7 +362,7 @@ namespace Asmuth.X86
 				if (encoding.ModRM.IsAbsoluteRM_32)
 				{
 					// Absolute in 32 bits, rip-relative in 64 bits
-					return codeSegmentType.IsLongMode()
+					return codeSegmentType.IsX64()
 						? RipRelative(addressSize, encoding.SegmentOverride, encoding.Displacement)
 						: Absolute(addressSize, encoding.Displacement);
 				}

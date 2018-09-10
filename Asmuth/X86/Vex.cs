@@ -46,7 +46,7 @@ namespace Asmuth.X86
 
 		public static bool Test(CodeSegmentType codeSegmentType, byte firstByte, byte secondByte)
 			=> (firstByte == FirstByte) &&
-				(codeSegmentType.IsLongMode() || !((ModRM)secondByte).IsMemoryRM);
+				(codeSegmentType.IsX64() || !((ModRM)secondByte).IsMemoryRM);
 	}
 
 	[StructLayout(LayoutKind.Sequential, Size = sizeof(ushort))]
@@ -167,7 +167,7 @@ namespace Asmuth.X86
 			// VEX3 is ambiguous with LES (C4 /r)
 			// XOP is ambiguous with POP (8F /0)
 			if (firstByte == FirstByte_Vex3)
-				return codeSegmentType.IsLongMode() || ((ModRM)secondByte).IsRegRM;
+				return codeSegmentType.IsX64() || ((ModRM)secondByte).IsRegRM;
 			else if (firstByte == FirstByte_Xop)
 				return ((ModRM)secondByte).Reg != 0;
 			else

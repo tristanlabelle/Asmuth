@@ -22,7 +22,7 @@ namespace Asmuth.X86
 
 			private void Encoding(OpcodeEncoding lhs, OpcodeEncoding rhs)
 			{
-				if (!Compare(lhs.LongMode, rhs.LongMode)) return;
+				if (!Compare(lhs.X64, rhs.X64)) return;
 				if (!Compare((int?)lhs.AddressSize, (int?)rhs.AddressSize)) return;
 				if (!Compare((int?)lhs.OperandSize, (int?)rhs.OperandSize)) return;
 				if (lhs.VexType != rhs.VexType)

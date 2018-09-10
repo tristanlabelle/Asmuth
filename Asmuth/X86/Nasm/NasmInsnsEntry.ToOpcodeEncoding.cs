@@ -10,7 +10,7 @@ namespace Asmuth.X86.Nasm
 	{
 		public struct OpcodeEncodingConversionParams
 		{
-			public bool? LongMode { get; set; } // Unspecified by encoding tokens
+			public bool? X64 { get; set; } // Unspecified by encoding tokens
 			public AddressSize? AddressSize { get; set; } // For mem_offs
 			public ConditionCode? ConditionCode { get; set; } // For +cc opcodes
 			public IntegerSize? OperandSize { get; set; } // For iwd/iwdq immediates
@@ -127,8 +127,8 @@ namespace Asmuth.X86.Nasm
 			var longMode = HasFlag(NasmInstructionFlags.LongMode);
 			var noLongMode = HasFlag(NasmInstructionFlags.NoLongMode);
 			if (longMode && noLongMode) throw new FormatException("Long and no-long mode specified.");
-			if (longMode) @params.LongMode = true;
-			else if (noLongMode) @params.LongMode = false;
+			if (longMode) @params.X64 = true;
+			else if (noLongMode) @params.X64 = false;
 			
 			// Fill up the RM reg vs mem from the operands
 			foreach (var operand in Operands)
@@ -175,7 +175,7 @@ namespace Asmuth.X86.Nasm
 			{
 				state = State.Prefixes;
 
-				if (@params.LongMode.HasValue) SetLongMode(@params.LongMode.Value);
+				if (@params.X64.HasValue) SetX64(@params.X64.Value);
 				if (@params.AddressSize.HasValue) SetAddressSize(@params.AddressSize.Value);
 				if (@params.OperandSize.HasValue) SetOperandSize(@params.OperandSize.Value);
 
@@ -332,7 +332,7 @@ namespace Asmuth.X86.Nasm
 							break;
 
 						case NasmEncodingTokenType.Immediate_RelativeOffset:
-							if (builder.LongMode == true || builder.OperandSize == OperandSizeEncoding.Dword)
+							if (builder.X64 == true || builder.OperandSize == OperandSizeEncoding.Dword)
 								AddImmediateWithSizeInBytes(sizeof(int));
 							else if (builder.OperandSize == OperandSizeEncoding.Word)
 								AddImmediateWithSizeInBytes(sizeof(short));
@@ -439,15 +439,15 @@ namespace Asmuth.X86.Nasm
 				if (builder.AddressSize.HasValue) throw new FormatException("Multiple address size tokens.");
 
 				builder.AddressSize = size;
-				if (size == AddressSize._16) SetLongMode(false);
-				else if (size == AddressSize._64) SetLongMode(true);
+				if (size == AddressSize._16) SetX64(false);
+				else if (size == AddressSize._64) SetX64(true);
 			}
 
-			private void SetLongMode(bool value)
+			private void SetX64(bool value)
 			{
-				if (builder.LongMode.GetValueOrDefault(value) != value)
+				if (builder.X64.GetValueOrDefault(value) != value)
 					throw new FormatException("Conflicting long mode flag.");
-				builder.LongMode = value;
+				builder.X64 = value;
 			}
 			
 			private void SetOperandSize(IntegerSize size, bool optPromotion = false)
@@ -459,7 +459,7 @@ namespace Asmuth.X86.Nasm
 				{
 					case IntegerSize.Word:
 						builder.OperandSize = OperandSizeEncoding.Word;
-						SetLongMode(false);
+						SetX64(false);
 						break;
 
 					case IntegerSize.Dword:
@@ -468,7 +468,7 @@ namespace Asmuth.X86.Nasm
 
 					case IntegerSize.Qword:
 						if (!optPromotion) SetOperandSizePromotion(true);
-						SetLongMode(true);
+						SetX64(true);
 						break;
 
 					default: throw new ArgumentException();
@@ -481,7 +481,7 @@ namespace Asmuth.X86.Nasm
 					throw new FormatException("Conflicting operand size promotion encoding.");
 
 				builder.OperandSizePromotion = set;
-				if (set) SetLongMode(true);
+				if (set) SetX64(true);
 			}
 
 			private void SetSimdPrefix(SimdPrefix prefix)

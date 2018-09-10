@@ -68,7 +68,7 @@ namespace Asmuth.X86
 					return NonLegacyPrefixesForm.EVex;
 
 				default:
-					return codeSegmentType.IsLongMode() && Rex.Test(first)
+					return codeSegmentType.IsX64() && Rex.Test(first)
 						? NonLegacyPrefixesForm.RexAndEscapes : NonLegacyPrefixesForm.Escapes;
 			}
 		}

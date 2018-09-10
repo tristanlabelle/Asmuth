@@ -120,7 +120,7 @@ namespace Asmuth.X86
 			var rex = rexBuilder.Build();
 			if (rex != default)
 			{
-				if (!codeSegmentType.IsLongMode()) throw new ArgumentException();
+				if (!codeSegmentType.IsX64()) throw new ArgumentException();
 				Write(rex);
 			}
 		} 

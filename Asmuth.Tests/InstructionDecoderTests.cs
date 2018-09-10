@@ -149,7 +149,7 @@ namespace Asmuth.X86
 
 			table.Add(new OpcodeEncoding.Builder
 			{
-				LongMode = false,
+				X64 = false,
 				OperandSize = OperandSizeEncoding.Word,
 				OperandSizePromotion = false,
 				MainByte = 0xB8,
@@ -168,7 +168,7 @@ namespace Asmuth.X86
 
 			table.Add(new OpcodeEncoding.Builder
 			{
-				LongMode = true,
+				X64 = true,
 				OperandSizePromotion = true,
 				MainByte = 0xB8,
 				ModRM = ModRMEncoding.MainByteReg,
@@ -239,18 +239,18 @@ namespace Asmuth.X86
 					
 					if (addressSize == AddressSize._16)
 					{
-						builder.LongMode = false;
+						builder.X64 = false;
 						builder.OperandSizePromotion = false;
 					}
 					else if (addressSize == AddressSize._64)
 					{
-						builder.LongMode = true;
+						builder.X64 = true;
 					}
 
 					if (operandSize == IntegerSize.Word)
 					{
 						builder.OperandSize = OperandSizeEncoding.Word;
-						builder.LongMode = false;
+						builder.X64 = false;
 						builder.OperandSizePromotion = false;
 					}
 					else if (operandSize == IntegerSize.Dword)
@@ -259,7 +259,7 @@ namespace Asmuth.X86
 					}
 					else if (operandSize == IntegerSize.Qword)
 					{
-						builder.LongMode = true;
+						builder.X64 = true;
 						builder.OperandSizePromotion = true;
 					}
 
@@ -307,14 +307,14 @@ namespace Asmuth.X86
 
 			table.Add(new OpcodeEncoding.Builder
 			{
-				LongMode = false,
+				X64 = false,
 				MainByte = 0x40,
 				ModRM = ModRMEncoding.MainByteReg
 			}, "inc r16/32");
 
 			table.Add(new OpcodeEncoding.Builder
 			{
-				LongMode = false,
+				X64 = false,
 				MainByte = 0x48,
 				ModRM = ModRMEncoding.MainByteReg
 			}, "dec r16/32");
@@ -482,7 +482,7 @@ namespace Asmuth.X86
 			=> DecodeSingle(lookup, CodeSegmentType.IA32_Default32, bytes);
 
 		private static Instruction DecodeSingle_64Bits(IInstructionDecoderLookup lookup, params byte[] bytes)
-			=> DecodeSingle(lookup, CodeSegmentType.LongMode, bytes);
+			=> DecodeSingle(lookup, CodeSegmentType.X64, bytes);
 		
 		private static object DecodeSingleForTag(IInstructionDecoderLookup lookup,
 			CodeSegmentType codeSegmentType, params byte[] bytes)

@@ -11,7 +11,7 @@ namespace Asmuth.X86
 		// No Byte because r/m8 are different opcodes
 		Word,
 		Dword
-		// No Qword because disambiguation is done through bool? LongMode/OperandSizePromotion
+		// No Qword because disambiguation is done through bool? X64/OperandSizePromotion
 	}
 
 	public static class OperandSizeEncodingEnum
@@ -33,7 +33,7 @@ namespace Asmuth.X86
 		#region Builder Struct
 		public struct Builder
 		{
-			public bool? LongMode;
+			public bool? X64;
 			public AddressSize? AddressSize;
 			public OperandSizeEncoding OperandSize;
 			public VexType VexType;
@@ -48,11 +48,11 @@ namespace Asmuth.X86
 
 			public void Validate()
 			{
-				if (AddressSize == X86.AddressSize._64 && LongMode != true)
-					throw new ArgumentException("64-bit addresses imply long mode.");
-				if (AddressSize == X86.AddressSize._16 && LongMode != false)
+				if (AddressSize == X86.AddressSize._64 && X64 != true)
+					throw new ArgumentException("64-bit addresses imply X64 mode.");
+				if (AddressSize == X86.AddressSize._16 && X64 != false)
 					throw new ArgumentException("16-bit addresses imply IA32 mode.");
-				if (OperandSize == OperandSizeEncoding.Word && LongMode != false)
+				if (OperandSize == OperandSizeEncoding.Word && X64 != false)
 					throw new ArgumentException("16-bit operands imply IA32 mode.");
 				if (Map == OpcodeMap.Default && SimdPrefix.HasValue)
 					throw new ArgumentException("Default opcode map implies no SIMD prefix.");
@@ -73,13 +73,13 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Packed Fields
-		// 0b00AABBCC: Nullable<LongMode>, Nullable<AddressSize>, Nullable<OperandSize>
+		// 0b00AABBCC: Nullable<X64>, Nullable<AddressSize>, Nullable<OperandSize>
 		private readonly byte contextFields;
-		public bool? LongMode => AsBool_ZeroIsNull((contextFields >> 4) & 3);
+		public bool? X64 => AsBool_ZeroIsNull((contextFields >> 4) & 3);
 		public AddressSize? AddressSize => (AddressSize?)AsInt_ZeroIsNull((contextFields >> 2) & 3);
 		public OperandSizeEncoding OperandSize => (OperandSizeEncoding)(contextFields & 3);
-		private static byte MakeContextFields(bool? longMode, AddressSize? addressSize, OperandSizeEncoding operandSize)
-			=> (byte)((AsZeroIsNull(longMode) << 4)
+		private static byte MakeContextFields(bool? x64, AddressSize? addressSize, OperandSizeEncoding operandSize)
+			=> (byte)((AsZeroIsNull(x64) << 4)
 			| (AsZeroIsNull((int?)addressSize) << 2)
 			| (byte)operandSize);
 
@@ -115,7 +115,7 @@ namespace Asmuth.X86
 		public OpcodeEncoding(ref Builder builder)
 		{
 			builder.Validate();
-			contextFields = MakeContextFields(builder.LongMode, builder.AddressSize, builder.OperandSize);
+			contextFields = MakeContextFields(builder.X64, builder.AddressSize, builder.OperandSize);
 			vexFields = MakeVexFields(builder.VexType, builder.VectorSize, builder.OperandSizePromotion);
 			mapFields = MakeMapFields(builder.SimdPrefix, builder.Map);
 			MainByte = builder.MainByte;
@@ -130,10 +130,10 @@ namespace Asmuth.X86
 
 		public bool IsValidInCodeSegment(CodeSegmentType codeSegmentType)
 		{
-			if (!LongMode.HasValue) return true;
-			return LongMode.Value
-				? codeSegmentType == CodeSegmentType.LongMode
-				: codeSegmentType != CodeSegmentType.LongMode;
+			if (!X64.HasValue) return true;
+			return X64.Value
+				? codeSegmentType == CodeSegmentType.X64
+				: codeSegmentType != CodeSegmentType.X64;
 		}
 
 		#region Matching
@@ -201,8 +201,8 @@ namespace Asmuth.X86
 
 			str.Append('[');
 
-			if (LongMode.HasValue)
-				str.Append(LongMode.Value ? "x64 " : "ia32 ");
+			if (X64.HasValue)
+				str.Append(X64.Value ? "x64 " : "ia32 ");
 
 			if (AddressSize.HasValue)
 				str.AppendFormat(CultureInfo.InvariantCulture, "a{0} ",
