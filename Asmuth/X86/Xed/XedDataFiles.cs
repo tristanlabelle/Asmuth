@@ -102,30 +102,30 @@ namespace Asmuth.X86.Xed
 			public string Name { get; }
 			public string Class { get; }
 			public string MaxEnclosingRegName_IA32 { get; }
-			public string MaxEnclosingRegName_LongMode { get; }
+			public string MaxEnclosingRegName_X64 { get; }
 			private readonly ushort widthInBits_IA32;
-			private readonly ushort widthInBits_LongMode;
+			private readonly ushort widthInBits_X64;
 			private readonly byte idPlusOne;
 			public bool IsHighByte { get; }
 
 			public RegisterEntry(
 				string name, string @class,
-				int widthInBits_IA32, int widthInBits_LongMode,
-				string maxEnclosingRegName_IA32, string maxEnclosingRegName_LongMode,
+				int widthInBits_IA32, int widthInBits_X64,
+				string maxEnclosingRegName_IA32, string maxEnclosingRegName_X64,
 				int? id, bool isHighByte)
 			{
 				this.Name = name;
 				this.Class = @class;
 				this.MaxEnclosingRegName_IA32 = maxEnclosingRegName_IA32;
-				this.MaxEnclosingRegName_LongMode = maxEnclosingRegName_LongMode;
+				this.MaxEnclosingRegName_X64 = maxEnclosingRegName_X64;
 				this.widthInBits_IA32 = checked((ushort)widthInBits_IA32);
-				this.widthInBits_LongMode = checked((ushort)widthInBits_LongMode);
+				this.widthInBits_X64 = checked((ushort)widthInBits_X64);
 				this.idPlusOne = id.HasValue ? checked((byte)(id.Value + 1)) : (byte)0;
 				this.IsHighByte = isHighByte;
 			}
 
 			public int WidthInBits_IA32 => widthInBits_IA32;
-			public int WidthInBits_LongMode => widthInBits_LongMode;
+			public int WidthInBits_X64 => widthInBits_X64;
 			public byte? ID => idPlusOne == 0 ? null : (byte?)(idPlusOne - 1);
 		}
 
