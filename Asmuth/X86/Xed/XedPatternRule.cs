@@ -7,11 +7,11 @@ namespace Asmuth.X86.Xed
 {
 	public readonly struct XedPatternRuleCase
 	{
-		public ImmutableArray<XedPatternBlot> Conditions { get; }
-		public ImmutableArray<XedPatternBlot> Actions { get; }
+		public ImmutableArray<XedBlot> Conditions { get; }
+		public ImmutableArray<XedBlot> Actions { get; }
 
-		public XedPatternRuleCase(ImmutableArray<XedPatternBlot> conditions,
-			ImmutableArray<XedPatternBlot> actions)
+		public XedPatternRuleCase(ImmutableArray<XedBlot> conditions,
+			ImmutableArray<XedBlot> actions)
 		{
 			this.Conditions = conditions;
 			this.Actions = actions;

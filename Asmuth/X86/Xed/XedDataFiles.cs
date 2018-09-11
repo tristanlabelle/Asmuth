@@ -77,21 +77,13 @@ namespace Asmuth.X86.Xed
 		#region StateMacros
 		private static readonly Regex stateMacroLineRegex = new Regex(@"^\s*(\w+)\s+(.+?)\s*$");
 
-		public static IEnumerable<KeyValuePair<string, ImmutableArray<XedPatternBlot>>>
+		public static IEnumerable<KeyValuePair<string, string>>
 			ParseStateMacros(TextReader reader)
 		{
-			var blotsBuilder = ImmutableArray.CreateBuilder<XedPatternBlot>();
 			foreach (var lineMatch in ParseLineBased(reader, stateMacroLineRegex))
-			{
-				var blotStrs = Regex.Split(lineMatch.Groups[2].Value, @"\s+");
-				blotsBuilder.Capacity = blotStrs.Length;
-				for (int i = 0; i < blotStrs.Length; ++i)
-					blotsBuilder[i] = XedPatternBlot.Parse(blotStrs[i]);
-
-				var key = lineMatch.Groups[1].Value;
-				yield return new KeyValuePair<string, ImmutableArray<XedPatternBlot>>(
-					key, blotsBuilder.MoveToImmutable());
-			}
+				yield return new KeyValuePair<string, string>(
+					lineMatch.Groups[1].Value,
+					lineMatch.Groups[2].Value);
 		}
 		#endregion
 
@@ -182,12 +174,12 @@ namespace Asmuth.X86.Xed
 		private static readonly Regex patternRuleCaseLineRegex = new Regex(@"^\s*(.*?)\s*\|\s*(.*?)\s*$");
 
 		public static IEnumerable<XedPatternRule> ParsePatternRules(
-			TextReader reader, Func<string, ImmutableArray<XedPatternBlot>> stateMacroResolver)
+			TextReader reader, Func<string, ImmutableArray<XedBlot>> stateMacroResolver)
 		{
 			string ruleName = null;
 			bool returnsRegister = false;
-			var conditionsBuilder = ImmutableArray.CreateBuilder<XedPatternBlot>();
-			var actionssBuilder = ImmutableArray.CreateBuilder<XedPatternBlot>();
+			var conditionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
+			var actionssBuilder = ImmutableArray.CreateBuilder<XedBlot>();
 
 			while (true)
 			{
