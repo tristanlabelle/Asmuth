@@ -11,14 +11,14 @@ namespace Asmuth.X86.Xed
 	/// </summary>
 	public readonly struct XedOperandWidth : IEquatable<XedOperandWidth>
 	{
-		private readonly XedXType xtype;
+		public XedXType XType { get; }
 		private readonly ushort widthInBits_16, widthInBits_32, widthInBits_64;
 
 		public XedOperandWidth(XedXType xtype, int widthInBits)
 		{
 			if (widthInBits >= 8 && widthInBits % 8 != 0)
 				throw new ArgumentOutOfRangeException(nameof(widthInBits));
-			this.xtype = xtype;
+			this.XType = xtype;
 			widthInBits_16 = widthInBits_32 = widthInBits_64 = (ushort)widthInBits;
 		}
 
@@ -48,15 +48,14 @@ namespace Asmuth.X86.Xed
 			if ((widthInBits_64 < widthInBits_16 || widthInBits_64 < widthInBits_32) && widthInBits_64 != 0)
 				throw new ArgumentOutOfRangeException(nameof(widthInBits_64));
 
-			this.xtype = xtype;
+			this.XType = xtype;
 			this.widthInBits_16 = (ushort)widthInBits_16;
 			this.widthInBits_32 = (ushort)widthInBits_32;
 			this.widthInBits_64 = (ushort)widthInBits_64;
 		}
-
-		public XedXType XType => xtype;
-		public XedBaseType BaseType => xtype.BaseType;
-		public int BitsPerElement => xtype.BitsPerElement;
+		
+		public XedBaseType BaseType => XType.BaseType;
+		public int BitsPerElement => XType.BitsPerElement;
 		public int WidthInBits_16 => widthInBits_16;
 		public int WidthInBits_32 => widthInBits_32;
 		public int WidthInBits_64 => widthInBits_64;
@@ -64,22 +63,50 @@ namespace Asmuth.X86.Xed
 			? widthInBits_16 : (int?)null;
 		public bool IsVector => BitsPerElement > 0 && WidthInBits_16 > BitsPerElement;
 
-		public bool Equals(XedOperandWidth other) => xtype == other.xtype
+		public bool Equals(XedOperandWidth other) => XType == other.XType
 			&& widthInBits_16 == other.widthInBits_16
 			&& widthInBits_32 == other.widthInBits_32
 			&& widthInBits_64 == other.widthInBits_64;
 		public override bool Equals(object obj) => obj is XedOperandWidth && Equals((XedOperandWidth)obj);
-		public override int GetHashCode() => (xtype.GetHashCode() << 17) ^ widthInBits_16;
+		public override int GetHashCode() => (XType.GetHashCode() << 17) ^ widthInBits_16;
 		public static bool Equals(XedOperandWidth lhs, XedOperandWidth rhs) => lhs.Equals(rhs);
 		public static bool operator ==(XedOperandWidth lhs, XedOperandWidth rhs) => Equals(lhs, rhs);
 		public static bool operator !=(XedOperandWidth lhs, XedOperandWidth rhs) => !Equals(lhs, rhs);
 
 		public override string ToString()
 		{
-			if (xtype.BitsPerElement == WidthInBits) return xtype.ToString();
-			return WidthInBits.HasValue
-				? $"{xtype}<{WidthInBits}>"
-				: $"{xtype}<{WidthInBits_16}/{WidthInBits_32}/{WidthInBits_64}>";
+			var str = new StringBuilder();
+			str.Append(BaseType.ToString());
+			str.Append(':');
+			if (BitsPerElement == 0)
+			{
+				str.Append(WidthInBits_16);
+				if (WidthInBits_64 != WidthInBits_16)
+				{
+					str.Append('/');
+					str.Append(WidthInBits_32);
+					str.Append('/');
+					str.Append(WidthInBits_64);
+				}
+			}
+			else
+			{
+				str.Append(BitsPerElement);
+				if (WidthInBits_64 > BitsPerElement)
+				{
+					str.Append('x');
+					str.Append(WidthInBits_16 / BitsPerElement);
+					if (WidthInBits_64 != WidthInBits_16)
+					{
+						str.Append('/');
+						str.Append(WidthInBits_32 / BitsPerElement);
+						str.Append('/');
+						str.Append(WidthInBits_64 / BitsPerElement);
+					}
+				}
+			}
+
+			return str.ToString();
 		}
 	}
 }

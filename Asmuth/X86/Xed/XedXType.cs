@@ -14,7 +14,9 @@ namespace Asmuth.X86.Xed
 			this.BaseType = baseType;
 			this.bitsPerElement = (ushort)bitsPerElement;
 		}
-		
+
+		public bool IsSized => bitsPerElement > 0;
+		public bool IsUnsized => bitsPerElement == 0;
 		public int BitsPerElement => bitsPerElement;
 
 		public bool Equals(XedXType other) => BaseType == other.BaseType && bitsPerElement == other.bitsPerElement;
@@ -24,6 +26,6 @@ namespace Asmuth.X86.Xed
 		public static bool operator ==(XedXType lhs, XedXType rhs) => Equals(lhs, rhs);
 		public static bool operator !=(XedXType lhs, XedXType rhs) => !Equals(lhs, rhs);
 
-		public override string ToString() => $"{BaseType}:{bitsPerElement}";
+		public override string ToString() => IsSized ? $"{BaseType}:{bitsPerElement}" : BaseType.ToString();
 	}
 }
