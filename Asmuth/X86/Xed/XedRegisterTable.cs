@@ -75,6 +75,7 @@ namespace Asmuth.X86.Xed
 
 		public IReadOnlyList<XedRegister> ByIndex => byIndex;
 		public IReadOnlyDictionary<string, XedRegister> ByName => byName;
+		public int Count => byIndex.Count;
 
 		public XedRegister AddOrUpdate(in XedDataFiles.RegisterEntry dataFileEntry)
 		{
@@ -91,9 +92,9 @@ namespace Asmuth.X86.Xed
 					|| dataFileEntry.IsHighByte != reg.IsHighByte)
 					throw new InvalidOperationException();
 
-				reg.UpdateMaxEnclosingRegs(dataFileEntry.MaxEnclosingRegName_IA32,
+				reg.UpdateMaxEnclosingRegs(
+					dataFileEntry.MaxEnclosingRegName_IA32,
 					dataFileEntry.MaxEnclosingRegName_X64);
-				throw new NotImplementedException();
 			}
 			else
 			{

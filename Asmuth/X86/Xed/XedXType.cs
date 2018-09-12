@@ -6,25 +6,24 @@ namespace Asmuth.X86.Xed
 {
 	public readonly struct XedXType : IEquatable<XedXType>
 	{
-		private readonly XedType type;
+		public XedBaseType BaseType { get; }
 		private readonly ushort bitsPerElement;
 
-		public XedXType(XedType type, int bitsPerElement)
+		public XedXType(XedBaseType baseType, int bitsPerElement)
 		{
-			this.type = type;
+			this.BaseType = baseType;
 			this.bitsPerElement = (ushort)bitsPerElement;
 		}
-
-		public XedType Type => type;
+		
 		public int BitsPerElement => bitsPerElement;
 
-		public bool Equals(XedXType other) => type == other.type && bitsPerElement == other.bitsPerElement;
+		public bool Equals(XedXType other) => BaseType == other.BaseType && bitsPerElement == other.bitsPerElement;
 		public override bool Equals(object obj) => obj is XedXType && Equals((XedXType)obj);
-		public override int GetHashCode() => ((int)type << 16) | bitsPerElement;
+		public override int GetHashCode() => ((int)BaseType << 16) | bitsPerElement;
 		public static bool Equals(XedXType lhs, XedXType rhs) => lhs.Equals(rhs);
 		public static bool operator ==(XedXType lhs, XedXType rhs) => Equals(lhs, rhs);
 		public static bool operator !=(XedXType lhs, XedXType rhs) => !Equals(lhs, rhs);
 
-		public override string ToString() => $"{type}:{bitsPerElement}";
+		public override string ToString() => $"{BaseType}:{bitsPerElement}";
 	}
 }

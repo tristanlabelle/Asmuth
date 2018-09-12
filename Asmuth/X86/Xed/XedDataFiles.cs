@@ -15,18 +15,21 @@ namespace Asmuth.X86.Xed
 		#region XTypes
 		private static readonly Regex xtypesLineRegex = new Regex(@"^\s*(\w+)\s+(\w+)\s+(\d+)\s*$");
 
-		public static IEnumerable<KeyValuePair<string, XedXType>> ParseXTypes(TextReader reader)
+		private static KeyValuePair<string, XedXType> ParseXType(Match lineMatch)
 		{
-			foreach (var lineMatch in ParseLineBased(reader, xtypesLineRegex))
-			{
-				if (!Enum.TryParse<XedType>(lineMatch.Groups[2].Value, ignoreCase: true, out var type))
-					throw new FormatException();
-				if (!ushort.TryParse(lineMatch.Groups[3].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var bitsPerElement))
-					throw new FormatException();
-				yield return new KeyValuePair<string, XedXType>(
-					lineMatch.Groups[1].Value, new XedXType(type, bitsPerElement));
-			}
+			if (!Enum.TryParse<XedBaseType>(lineMatch.Groups[2].Value, ignoreCase: true, out var type))
+				throw new FormatException();
+			if (!ushort.TryParse(lineMatch.Groups[3].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var bitsPerElement))
+				throw new FormatException();
+			return new KeyValuePair<string, XedXType>(
+				lineMatch.Groups[1].Value, new XedXType(type, bitsPerElement));
 		}
+
+		public static KeyValuePair<string, XedXType> ParseXType(string line, bool allowComments = true)
+			=> ParseXType(MatchLine(line, xtypesLineRegex, allowComments));
+
+		public static IEnumerable<KeyValuePair<string, XedXType>> ParseXTypes(TextReader reader)
+			=> ParseLineBased(reader, xtypesLineRegex, ParseXType);
 		#endregion
 
 		#region OperandWidths
@@ -39,52 +42,59 @@ namespace Asmuth.X86.Xed
 			)?
 			\s*$", RegexOptions.IgnorePatternWhitespace);
 
+		public static KeyValuePair<string, XedOperandWidth> ParseOperandWidth(
+			Match lineMatch, Func<string, XedXType> xtypeLookup)
+		{
+			var xtype = xtypeLookup(lineMatch.Groups[2].Value);
+
+			if (!ushort.TryParse(lineMatch.Groups["size16"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var width16))
+				throw new FormatException();
+			if (!lineMatch.Groups["bits16"].Success) width16 *= 8;
+
+			XedOperandWidth width;
+			if (lineMatch.Groups["size32"].Success)
+			{
+				if (!ushort.TryParse(lineMatch.Groups["size32"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var width32))
+					throw new FormatException();
+				if (!lineMatch.Groups["bits32"].Success) width32 *= 8;
+
+				if (!ushort.TryParse(lineMatch.Groups["size64"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var width64))
+					throw new FormatException();
+				if (!lineMatch.Groups["bits64"].Success) width64 *= 8;
+
+				width = new XedOperandWidth(xtype, width16, width32, width64);
+			}
+			else
+			{
+				width = new XedOperandWidth(xtype, width16);
+			}
+
+			var key = lineMatch.Groups[1].Value;
+			return new KeyValuePair<string, XedOperandWidth>(key, width);
+		}
+
+		public static KeyValuePair<string, XedOperandWidth> ParseOperandWidth(
+			string line, Func<string, XedXType> xtypeLookup, bool allowComments = true)
+			=> ParseOperandWidth(MatchLine(line, widthsLineRegex, allowComments), xtypeLookup);
+
 		public static IEnumerable<KeyValuePair<string, XedOperandWidth>> ParseOperandWidths(
 			TextReader reader, Func<string, XedXType> xtypeLookup)
-		{
-			foreach (var lineMatch in ParseLineBased(reader, widthsLineRegex))
-			{
-				var xtype = xtypeLookup(lineMatch.Groups[2].Value);
-
-				if (!ushort.TryParse(lineMatch.Groups["size16"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var width16))
-					throw new FormatException();
-				if (!lineMatch.Groups["bits16"].Success) width16 *= 8;
-
-				XedOperandWidth width;
-				if (lineMatch.Groups["size32"].Success)
-				{
-					if (!ushort.TryParse(lineMatch.Groups["size32"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var width32))
-						throw new FormatException();
-					if (!lineMatch.Groups["bits32"].Success) width32 *= 8;
-
-					if (!ushort.TryParse(lineMatch.Groups["size64"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var width64))
-						throw new FormatException();
-					if (!lineMatch.Groups["bits64"].Success) width64 *= 8;
-
-					width = new XedOperandWidth(xtype, width16, width32, width64);
-				}
-				else
-				{
-					width = new XedOperandWidth(xtype, width16);
-				}
-
-				var key = lineMatch.Groups[1].Value;
-				yield return new KeyValuePair<string, XedOperandWidth>(key, width);
-			}
-		}
+			=> ParseLineBased(reader, widthsLineRegex, match => ParseOperandWidth(match, xtypeLookup));
 		#endregion
 
 		#region StateMacros
 		private static readonly Regex stateMacroLineRegex = new Regex(@"^\s*(\w+)\s+(.+?)\s*$");
 
-		public static IEnumerable<KeyValuePair<string, string>>
-			ParseStateMacros(TextReader reader)
-		{
-			foreach (var lineMatch in ParseLineBased(reader, stateMacroLineRegex))
-				yield return new KeyValuePair<string, string>(
-					lineMatch.Groups[1].Value,
-					lineMatch.Groups[2].Value);
-		}
+		private static KeyValuePair<string, string> ParseStateMacro(Match lineMatch)
+			=> new KeyValuePair<string, string>(
+				lineMatch.Groups[1].Value, lineMatch.Groups[2].Value);
+
+		public static KeyValuePair<string, string> ParseStateMacro(string line, bool allowComments = true)
+			=> ParseStateMacro(MatchLine(line, stateMacroLineRegex, allowComments));
+
+
+		public static IEnumerable<KeyValuePair<string, string>> ParseStateMacros(TextReader reader)
+			=> ParseLineBased(reader, stateMacroLineRegex, ParseStateMacro);
 		#endregion
 
 		#region Registers
@@ -118,7 +128,7 @@ namespace Asmuth.X86.Xed
 
 			public int WidthInBits_IA32 => widthInBits_IA32;
 			public int WidthInBits_X64 => widthInBits_X64;
-			public byte? ID => idPlusOne == 0 ? null : (byte?)(idPlusOne - 1);
+			public int? ID => idPlusOne == 0 ? null : (int?)(idPlusOne - 1);
 		}
 
 		// name class width max-enclosing-reg-64b/32b-mode regid [h]
@@ -126,49 +136,61 @@ namespace Asmuth.X86.Xed
 			@"^\s*(?<name>\w+)\s+(?<class>\w+)
 			\s+((?<width32>\d+)(/(?<width64>\d+))?|NA)
 			(
-				\s+(?<parent64>\d+)(/(?<parent32>\d+))?
-				\s+(?<id>\d+)
-				(\s+(?<h>h))?
-				(\s+-\s+st\(\d\))?
+				\s+(?<parent64>\w+)(/(?<parent32>\w+))?
+				(
+					\s+(?<id>\d+)
+					(\s+((?<h>h)|-\s*st\(\d\)))?
+				)?
 			)?\s*$",
 			RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture);
 
-		public static IEnumerable<RegisterEntry> ParseRegisters(TextReader reader)
+		private static RegisterEntry ParseRegister(Match lineMatch)
 		{
-			foreach (var lineMatch in ParseLineBased(reader, registerLineRegex))
+			ushort width32 = 0;
+			ushort width64 = 0;
+			if (lineMatch.Groups["width32"].Success)
 			{
-				ushort width32 = 0;
-				ushort width64 = 0;
-				if (lineMatch.Groups["width32"].Success)
-				{
-					width32 = ushort.Parse(lineMatch.Groups["width32"].Value, CultureInfo.InvariantCulture);
-					if (lineMatch.Groups["width64"].Success)
-						width64 = ushort.Parse(lineMatch.Groups["width64"].Value, CultureInfo.InvariantCulture);
-					else
-						width64 = width32;
-				}
-
-				var name = lineMatch.Groups["name"].Value;
-				string parent32 = name;
-				string parent64 = name;
-				if (lineMatch.Groups["parent64"].Success)
-				{
-					parent64 = lineMatch.Groups["parent64"].Value;
-					parent32 = lineMatch.Groups["parent32"].Success
-						? lineMatch.Groups["parent32"].Value : parent64;
-				}
-
-				byte? id = null;
-				if (lineMatch.Groups["id"].Success)
-					id = byte.Parse(lineMatch.Groups["id"].Value, CultureInfo.InvariantCulture);
-
-				yield return new RegisterEntry(name, lineMatch.Groups["class"].Value,
-					width32, width64, parent32, parent64, id, lineMatch.Groups["h"].Success);
+				width32 = ushort.Parse(lineMatch.Groups["width32"].Value, CultureInfo.InvariantCulture);
+				if (lineMatch.Groups["width64"].Success)
+					width64 = ushort.Parse(lineMatch.Groups["width64"].Value, CultureInfo.InvariantCulture);
+				else
+					width64 = width32;
 			}
+
+			var name = lineMatch.Groups["name"].Value;
+			string parent32 = name;
+			string parent64 = name;
+			if (lineMatch.Groups["parent64"].Success)
+			{
+				parent64 = lineMatch.Groups["parent64"].Value;
+				parent32 = lineMatch.Groups["parent32"].Success
+					? lineMatch.Groups["parent32"].Value : parent64;
+			}
+
+			byte? id = null;
+			if (lineMatch.Groups["id"].Success)
+				id = byte.Parse(lineMatch.Groups["id"].Value, CultureInfo.InvariantCulture);
+
+			return new RegisterEntry(name, lineMatch.Groups["class"].Value,
+				width32, width64, parent32, parent64, id, lineMatch.Groups["h"].Success);
+		}
+
+		public static RegisterEntry ParseRegister(string line, bool allowComments = true)
+			=> ParseRegister(MatchLine(line, registerLineRegex, allowComments));
+
+		public static IEnumerable<RegisterEntry> ParseRegisters(TextReader reader)
+			=> ParseLineBased(reader, registerLineRegex, ParseRegister);
+		
+		public static XedRegisterTable ParseRegisterTable(TextReader reader)
+		{
+			var table = new XedRegisterTable();
+			foreach (var register in ParseRegisters(reader))
+				table.AddOrUpdate(in register);
+			return table;
 		}
 		#endregion
 
-			#region PatternRules
+		#region PatternRules
 		private static readonly Regex patternRuleNameLineRegex = new Regex(
 			@"^\s*(?:(?<reg>xed_reg_enum_t)\s+)?(?<name>\w+)\(\)::\s*$");
 		private static readonly Regex patternRuleCaseLineRegex = new Regex(@"^\s*(.*?)\s*\|\s*(.*?)\s*$");
@@ -206,7 +228,18 @@ namespace Asmuth.X86.Xed
 		}
 		#endregion
 
-		private static IEnumerable<Match> ParseLineBased(TextReader reader, Regex lineRegex)
+		private static Match MatchLine(string line, Regex regex, bool allowComments = true)
+		{
+			if (allowComments) line = commentRegex.Replace(line, string.Empty);
+
+			var match = regex.Match(line);
+			if (!match.Success) throw new FormatException("Badly formatted XED data.");
+
+			return match;
+		}
+
+		private static IEnumerable<T> ParseLineBased<T>(
+			TextReader reader, Regex lineRegex, Func<Match, T> parser)
 		{
 			while (true)
 			{
@@ -215,11 +248,8 @@ namespace Asmuth.X86.Xed
 
 				line = commentRegex.Replace(line, string.Empty);
 				if (line.Length == 0) continue;
-
-				var match = lineRegex.Match(line);
-				if (!match.Success) throw new FormatException("Badly formatted xed data file.");
-
-				yield return match;
+				
+				yield return parser(MatchLine(line, lineRegex, allowComments: false));
 			}
 		}
 	}

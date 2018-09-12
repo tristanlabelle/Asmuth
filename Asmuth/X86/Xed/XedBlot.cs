@@ -16,37 +16,49 @@ namespace Asmuth.X86.Xed
 		Call
 	}
 
-	public readonly struct XedBitsBlotVariable : IEquatable<XedBitsBlotVariable>
+	[StructLayout(LayoutKind.Sequential, Size = 2)]
+	public readonly struct XedBitsBlotSpan : IEquatable<XedBitsBlotSpan>
 	{
-		private readonly byte letterIndex;
-		private readonly byte bitCountMinusOne;
+		private readonly byte valueOrLetter;
+		private readonly byte isVariableAndBitCountMinusOne; // msb = isVariable
+		
+		public XedBitsBlotSpan(byte value, int bitCount)
+		{
+			if (bitCount < 1 || bitCount > 8) throw new ArgumentOutOfRangeException(nameof(bitCount));
+			if ((value & ~((1 << bitCount) - 1)) != 0) throw new ArgumentOutOfRangeException(nameof(value));
+			this.valueOrLetter = value;
+			this.isVariableAndBitCountMinusOne = (byte)(bitCount - 1);
+		}
 
-		public XedBitsBlotVariable(char letter, int bitCount)
+		public XedBitsBlotSpan(char letter, int bitCount)
 		{
 			if (letter < 'a' || letter > 'z') throw new ArgumentOutOfRangeException(nameof(letter));
 			if (bitCount < 1 || bitCount > 64) throw new ArgumentOutOfRangeException(nameof(bitCount));
-			this.letterIndex = (byte)(letter - 'a');
-			this.bitCountMinusOne = (byte)(bitCount - 1);
+			this.valueOrLetter = (byte)letter;
+			this.isVariableAndBitCountMinusOne = (byte)(128 + bitCount - 1);
 		}
 
-		public char Letter => (char)('a' + letterIndex);
-		public int BitCount => bitCountMinusOne + 1;
+		public bool IsVariable => (isVariableAndBitCountMinusOne & 0x80) != 0;
+		public bool IsConstant => (isVariableAndBitCountMinusOne & 0x80) == 0;
+		public char Letter => IsVariable ? (char)valueOrLetter : throw new InvalidOperationException();
+		public byte Value => IsConstant ? valueOrLetter : throw new InvalidOperationException();
+		public int BitCount => (isVariableAndBitCountMinusOne & 0x7F) + 1;
 
-		public bool Equals(XedBitsBlotVariable other) => letterIndex == other.letterIndex
-			&& bitCountMinusOne == other.bitCountMinusOne;
-		public override bool Equals(object obj) => obj is XedBitsBlotVariable && Equals((XedBitsBlotVariable)obj);
-		public override int GetHashCode() => ((int)letterIndex << 8) ^ bitCountMinusOne;
-		public static bool Equals(XedBitsBlotVariable lhs, XedBitsBlotVariable rhs) => lhs.Equals(rhs);
-		public static bool operator ==(XedBitsBlotVariable lhs, XedBitsBlotVariable rhs) => Equals(lhs, rhs);
-		public static bool operator !=(XedBitsBlotVariable lhs, XedBitsBlotVariable rhs) => !Equals(lhs, rhs);
+		public bool Equals(XedBitsBlotSpan other) => valueOrLetter == other.valueOrLetter
+			&& isVariableAndBitCountMinusOne == other.isVariableAndBitCountMinusOne;
+		public override bool Equals(object obj) => obj is XedBitsBlotSpan && Equals((XedBitsBlotSpan)obj);
+		public override int GetHashCode() => ((int)valueOrLetter << 8) ^ isVariableAndBitCountMinusOne;
+		public static bool Equals(XedBitsBlotSpan lhs, XedBitsBlotSpan rhs) => lhs.Equals(rhs);
+		public static bool operator ==(XedBitsBlotSpan lhs, XedBitsBlotSpan rhs) => Equals(lhs, rhs);
+		public static bool operator !=(XedBitsBlotSpan lhs, XedBitsBlotSpan rhs) => !Equals(lhs, rhs);
 		
 		public override string ToString()
 			=> BitCount < 8 ? new string(Letter, BitCount) : $"{Letter}/{BitCount}";
 
-		public static ImmutableArray<XedBitsBlotVariable> Parse(string str)
+		public static ImmutableArray<XedBitsBlotSpan> Parse(string str)
 		{
 			if (str == null) throw new ArgumentNullException(nameof(str));
-			var builder = ImmutableArray.CreateBuilder<XedBitsBlotVariable>(1);
+			var builder = ImmutableArray.CreateBuilder<XedBitsBlotSpan>(1);
 			throw new NotImplementedException();
 		}
 	}
@@ -64,60 +76,42 @@ namespace Asmuth.X86.Xed
 		// UIMM0[i/32]
 
 		public string Field { get; }
-		private readonly ImmutableArray<XedBitsBlotVariable> variables;
-		private readonly byte value;
-		private readonly byte totalBitCountMinusOne;
+		private readonly ImmutableArray<XedBitsBlotSpan> spans;
 
-		public XedBitsBlot(string field, ImmutableArray<XedBitsBlotVariable> variables)
+		public XedBitsBlot(string field, ImmutableArray<XedBitsBlotSpan> spans)
 		{
 			this.Field = field;
-			this.variables = variables.Length > 0 ? variables : throw new ArgumentException();
-			this.value = 0;
-
-			int totalBitCount = 0;
-			foreach (var variable in variables)
-				totalBitCount += variable.BitCount;
-			this.totalBitCountMinusOne = (byte)(totalBitCount - 1);
+			this.spans = spans.Length > 0 ? spans : throw new ArgumentException();
 		}
 
-		public XedBitsBlot(string field, XedBitsBlotVariable variable)
+		public XedBitsBlot(string field, XedBitsBlotSpan span)
 		{
 			this.Field = field;
-			this.variables = ImmutableArray.Create(variable);
-			this.value = 0;
-			this.totalBitCountMinusOne = (byte)(variable.BitCount - 1);
-		}
-
-		public XedBitsBlot(string field, byte value, int bitCount)
-		{
-			if (bitCount < 1 || bitCount > 8) throw new ArgumentOutOfRangeException(nameof(bitCount));
-			if ((value & ~((1 << bitCount) - 1)) != 0) throw new ArgumentOutOfRangeException(nameof(value));
-			this.Field = field;
-			this.variables = default;
-			this.value = value;
-			this.totalBitCountMinusOne = (byte)(bitCount - 1);
+			this.spans = ImmutableArray.Create(span);
 		}
 
 		public XedBitsBlot(byte value)
 		{
 			this.Field = null;
-			this.variables = default;
-			this.value = value;
-			this.totalBitCountMinusOne = 7;
+			this.spans = ImmutableArray.Create(new XedBitsBlotSpan(value, 8));
 		}
 
-		public bool IsConstant => variables.IsDefault;
-		public bool IsVariable => !variables.IsDefault;
-		public int TotalBitCount => totalBitCountMinusOne + 1;
+		public ImmutableArray<XedBitsBlotSpan> Spans => spans;
 
-		public ImmutableArray<XedBitsBlotVariable> Variables => IsVariable
-			? variables : throw new InvalidOperationException();
-		public byte Value => IsConstant ? value : throw new InvalidOperationException();
+		public int TotalBitCount
+		{
+			get
+			{
+				int count = 0;
+				foreach (var span in spans)
+					count += span.BitCount;
+				return count;
+			}
+		}
 		
 		public bool Equals(XedBitsBlot other) => throw new NotImplementedException();
 		public override bool Equals(object obj) => obj is XedBitsBlot && Equals((XedBitsBlot)obj);
-		public override int GetHashCode() => (Field?.GetHashCode()).GetValueOrDefault()
-			^ ((int)value << 16) ^ totalBitCountMinusOne;
+		public override int GetHashCode() => throw new NotImplementedException();
 		public static bool Equals(XedBitsBlot lhs, XedBitsBlot rhs) => lhs.Equals(rhs);
 		public static bool operator ==(XedBitsBlot lhs, XedBitsBlot rhs) => Equals(lhs, rhs);
 		public static bool operator !=(XedBitsBlot lhs, XedBitsBlot rhs) => !Equals(lhs, rhs);
@@ -193,9 +187,6 @@ namespace Asmuth.X86.Xed
 		private struct Union
 		{
 			[FieldOffset(0)] public XedBlotType type;
-			[FieldOffset(1)] public bool bits_isVariable;
-			[FieldOffset(2)] public byte bits_variableCharOrValue;
-			[FieldOffset(3)] public byte bits_bitCountMinusOne;
 			[FieldOffset(1)] public bool predicate_notEqual;
 			[FieldOffset(2)] public byte predicate_value;
 			[FieldOffset(1)] public byte assignment_value;
@@ -203,30 +194,87 @@ namespace Asmuth.X86.Xed
 		}
 
 		public string Field { get; }
-		private readonly string callee;
+		private readonly object calleeOrSpans;
 		private readonly Union union;
-		
-		public XedBlot(in XedBitsBlot bits) => throw new NotImplementedException();
-		public XedBlot(in XedPredicateBlot predicate) => throw new NotImplementedException();
-		public XedBlot(in XedAssignmentBlot assignment) => throw new NotImplementedException();
+
+		public XedBlot(in XedBitsBlot bits)
+		{
+			this.Field = bits.Field;
+			this.calleeOrSpans = bits.Spans;
+			this.union = new Union { type = XedBlotType.Bits };
+		}
+
+		public XedBlot(in XedPredicateBlot predicate)
+		{
+			this.Field = predicate.Field;
+			this.calleeOrSpans = null;
+			this.union = new Union
+			{
+				type = XedBlotType.Predicate,
+				predicate_notEqual = predicate.NotEqual,
+				predicate_value = predicate.Value
+			};
+		}
+
+		public XedBlot(in XedAssignmentBlot assignment)
+		{
+			this.Field = assignment.Field;
+			this.union = new Union { type = XedBlotType.Assignment };
+			if (assignment.IsConstant)
+			{
+				this.calleeOrSpans = null;
+				this.union.assignment_value = (byte)assignment.Value;
+			}
+			else
+			{
+				this.calleeOrSpans = assignment.Callee;
+			}
+		}
 
 		private XedBlot(string callee)
 		{
 			this.Field = null;
-			this.callee = callee ?? throw new ArgumentNullException(nameof(callee));
+			this.calleeOrSpans = callee ?? throw new ArgumentNullException(nameof(callee));
 			this.union = new Union { type = XedBlotType.Call };
 		}
 
 		public XedBlotType Type => union.type;
-		public XedBitsBlot Bits => throw new NotImplementedException();
-		public XedPredicateBlot Predicate => throw new NotImplementedException();
-		public XedAssignmentBlot Assignment => throw new NotImplementedException();
 
-		public bool Equals(XedBlot other) => Field == other.Field
-			&& callee == other.callee && union.raw == other.union.raw;
+		public XedBitsBlot Bits
+		{
+			get
+			{
+				if (Type != XedBlotType.Bits) throw new InvalidOperationException();
+				return new XedBitsBlot(Field, (ImmutableArray<XedBitsBlotSpan>)calleeOrSpans);
+			}
+		}
+
+		public XedPredicateBlot Predicate
+		{
+			get
+			{
+				if (Type != XedBlotType.Predicate) throw new InvalidOperationException();
+				return new XedPredicateBlot(Field, !union.predicate_notEqual, union.predicate_value);
+			}
+		}
+
+		public XedAssignmentBlot Assignment
+		{
+			get
+			{
+				if (Type != XedBlotType.Assignment) throw new InvalidOperationException();
+				return calleeOrSpans == null
+					? new XedAssignmentBlot(Field, (string)calleeOrSpans)
+					: new XedAssignmentBlot(Field, union.assignment_value);
+			}
+		}
+
+		public string Callee => Type == XedBlotType.Call ? (string)calleeOrSpans
+			: throw new InvalidOleVariantTypeException();
+
+		public bool Equals(XedBlot other) => throw new NotImplementedException();
 		public override bool Equals(object obj) => obj is XedBlot && Equals((XedBlot)obj);
-		public override int GetHashCode() => (Field?.GetHashCode()).GetValueOrDefault()
-			^ union.raw;
+		public override int GetHashCode() => (Field?.GetHashCode()).GetValueOrDefault() ^ union.raw;
 		public static bool Equals(XedBlot lhs, XedBlot rhs) => lhs.Equals(rhs);
 		public static bool operator ==(XedBlot lhs, XedBlot rhs) => Equals(lhs, rhs);
 		public static bool operator !=(XedBlot lhs, XedBlot rhs) => !Equals(lhs, rhs);
@@ -235,12 +283,10 @@ namespace Asmuth.X86.Xed
 
 		private static readonly Regex parseRegex = new Regex(
 			@"^\s*(
-				(?<byte>0x[0-9a-f]{2})
+				(?<bits>[a-z0-9_]+)
 				| (?<field>[a-z][a-z0-9]*)(
-					(?<ne>!)?=(?<value>\d+)
-					| \[(?<value>0b[01]+)\]
-					| \[(?<bitsvar>(?<l>[a-z])\k<l>*)\]
-					| \[(?<bitsvar>[a-z])/(?<bitcount>\d+)\])
+					(?<ne>!)?=(?<bits>[0-9]+)
+					| \[(?<bits>[a-z0-9_]+)\])
 				| (?<callee>[a-z][a-z0-9]*)\s*\(\s*\)
 			)\s*$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture);
 
