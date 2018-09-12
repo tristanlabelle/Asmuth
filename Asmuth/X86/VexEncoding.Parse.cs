@@ -65,14 +65,14 @@ namespace Asmuth.X86
 			}
 		}
 
-		private static SseVectorSize? TryParseVectorSize(string[] tokens, ref int tokenIndex)
+		private static AvxVectorSize? TryParseVectorSize(string[] tokens, ref int tokenIndex)
 		{
 			if (tokenIndex == tokens.Length) return null;
 			switch (tokens[tokenIndex])
 			{
-				case "lz": case "l0": case "128": tokenIndex++; return SseVectorSize._128;
-				case "l1": case "256": tokenIndex++; return SseVectorSize._256;
-				case "512": tokenIndex++; return SseVectorSize._512;
+				case "lz": case "l0": case "128": tokenIndex++; return AvxVectorSize._128;
+				case "l1": case "256": tokenIndex++; return AvxVectorSize._256;
+				case "512": tokenIndex++; return AvxVectorSize._512;
 				case "lig": tokenIndex++; return null;
 				default: return null;
 			}

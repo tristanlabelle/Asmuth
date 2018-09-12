@@ -194,7 +194,7 @@ namespace Asmuth.X86.Nasm
 		{
 			if (!defaultSizeInBytes.HasValue)
 			{
-				if (reg.RegisterFamily != RegisterFamily.Sse)
+				if (reg.RegisterFamily != RegisterFamily.SseAvx)
 					return null;
 
 				// Assume xmmrm = xmmrm128, that's our best guess

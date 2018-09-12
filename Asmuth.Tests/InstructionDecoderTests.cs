@@ -352,7 +352,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				VexType = VexType.Vex,
-				VectorSize = SseVectorSize._128,
+				VectorSize = AvxVectorSize._128,
 				SimdPrefix = SimdPrefix._F3,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0xE6,
@@ -395,7 +395,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				VexType = VexType.Vex,
-				VectorSize = SseVectorSize._128,
+				VectorSize = AvxVectorSize._128,
 				SimdPrefix = SimdPrefix._66,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x58,
@@ -411,7 +411,7 @@ namespace Asmuth.X86
 
 			var instruction = DecodeSingle_32Bits(table, vex.FirstByte, vex.SecondByte, vex.ThirdByte, 0x58, modRM);
 			Assert.AreEqual(NonLegacyPrefixesForm.Vex3, instruction.NonLegacyPrefixes.Form);
-			Assert.AreEqual(SseVectorSize._128, instruction.NonLegacyPrefixes.VectorSize);
+			Assert.AreEqual(AvxVectorSize._128, instruction.NonLegacyPrefixes.VectorSize);
 			Assert.AreEqual((byte)0, instruction.NonLegacyPrefixes.NonDestructiveReg);
 			Assert.IsFalse(instruction.NonLegacyPrefixes.OperandSizePromotion);
 			Assert.IsFalse(instruction.NonLegacyPrefixes.ModRegExtension);

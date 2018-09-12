@@ -37,7 +37,7 @@ namespace Asmuth.X86
 			public AddressSize? AddressSize;
 			public OperandSizeEncoding OperandSize;
 			public VexType VexType;
-			public SseVectorSize? VectorSize;
+			public AvxVectorSize? VectorSize;
 			public bool? OperandSizePromotion;
 			public SimdPrefix? SimdPrefix;
 			public OpcodeMap Map;
@@ -86,9 +86,9 @@ namespace Asmuth.X86
 		// 0b00AABBCC: VexType, Nullable<VectorSize>, Nullable<OperandSizePromotion>
 		private readonly byte vexFields;
 		public VexType VexType => (VexType)((vexFields >> 4) & 3);
-		public SseVectorSize? VectorSize => (SseVectorSize?)AsInt_ZeroIsNull((vexFields >> 2) & 3);
+		public AvxVectorSize? VectorSize => (AvxVectorSize?)AsInt_ZeroIsNull((vexFields >> 2) & 3);
 		public bool? OperandSizePromotion => AsBool_ZeroIsNull(vexFields & 3);
-		private static byte MakeVexFields(VexType vexType, SseVectorSize? vectorSize, bool? operandSizePromotion)
+		private static byte MakeVexFields(VexType vexType, AvxVectorSize? vectorSize, bool? operandSizePromotion)
 			=> (byte)(((int)vexType << 4)
 			| (AsZeroIsNull((int?)vectorSize) << 2)
 			| AsZeroIsNull(operandSizePromotion));

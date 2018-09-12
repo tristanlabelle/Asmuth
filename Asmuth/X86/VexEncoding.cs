@@ -27,7 +27,7 @@ namespace Asmuth.X86
 		{
 			public VexType Type;
 			public VexRegOperand RegOperand;
-			public SseVectorSize? VectorSize;
+			public AvxVectorSize? VectorSize;
 			public SimdPrefix SimdPrefix;
 			public OpcodeMap OpcodeMap;
 			public bool? OperandSizePromotion;
@@ -68,7 +68,7 @@ namespace Asmuth.X86
 
 		public VexType Type => (VexType)((int)VexType.Vex + ((data >> TypeShift) & 3));
 		public VexRegOperand RegOperand => (VexRegOperand)((data >> RegOperandShift) & 3);
-		public SseVectorSize? VectorSize => (SseVectorSize?)AsZeroIsNullInt((data >> VectorSizeShift) & 3);
+		public AvxVectorSize? VectorSize => (AvxVectorSize?)AsZeroIsNullInt((data >> VectorSizeShift) & 3);
 		public SimdPrefix SimdPrefix => (SimdPrefix)((data >> SimdPrefixShift) & 3);
 		public OpcodeMap OpcodeMap => (OpcodeMap)((data >> OpcodeMapShift) & 0xF);
 		public bool? OperandSizePromotion => AsZeroIsNullBool((data >> OperandSizePromotionShift) & 3);
@@ -101,9 +101,9 @@ namespace Asmuth.X86
 			switch (VectorSize)
 			{
 				case null: str.Append(".lig"); break;
-				case SseVectorSize._128: str.Append(isEVex ? ".128" : ".l0"); break;
-				case SseVectorSize._256: str.Append(isEVex ? ".256" : ".l1"); break;
-				case SseVectorSize._512:
+				case AvxVectorSize._128: str.Append(isEVex ? ".128" : ".l0"); break;
+				case AvxVectorSize._256: str.Append(isEVex ? ".256" : ".l1"); break;
+				case AvxVectorSize._512:
 					if (!isEVex) throw new ArgumentException();
 					str.Append(".512");
 					break;

@@ -10,7 +10,7 @@ namespace Asmuth.X86
 		Gpr,
 		X87, // ST(0)-ST(7)
 		Mmx, // MM0-MM7 (aliased to X87 registers but not in order)
-		Sse, // [XYZ]MM0-31
+		SseAvx, // [XYZ]MM0-31
 		AvxOpmask, // k0-k7
 
 		Segment, // ES, CS, SS, DS, FS, GS
@@ -49,7 +49,7 @@ namespace Asmuth.X86
 				case RegisterFamily.Gpr: return 0x08_04_02_01;
 				case RegisterFamily.X87: return 0x10;
 				case RegisterFamily.Mmx: return 0x08;
-				case RegisterFamily.Sse: return 0x40_20_10;
+				case RegisterFamily.SseAvx: return 0x40_20_10;
 				case RegisterFamily.AvxOpmask: return 0x08;
 				case RegisterFamily.Segment: return 0x02;
 				case RegisterFamily.Bound: return 0x10;
@@ -99,7 +99,7 @@ namespace Asmuth.X86
 					case RegisterFamily.Gpr: return IsSized ? "r" + SizeInBits : "r";
 					case RegisterFamily.X87: return "st";
 					case RegisterFamily.Mmx: return "mm";
-					case RegisterFamily.Sse:
+					case RegisterFamily.SseAvx:
 						if (SizeInBytes == 16) return "xmm";
 						if (SizeInBytes == 32) return "ymm";
 						if (SizeInBytes == 64) return "zmm";
@@ -138,9 +138,9 @@ namespace Asmuth.X86
 		public static readonly RegisterClass GprQword = new RegisterClass(RegisterFamily.Gpr, sizeInBytes: 8);
 		public static readonly RegisterClass X87 = new RegisterClass(RegisterFamily.X87);
 		public static readonly RegisterClass Mmx = new RegisterClass(RegisterFamily.Mmx);
-		public static readonly RegisterClass Xmm = new RegisterClass(RegisterFamily.Sse, sizeInBytes: 16);
-		public static readonly RegisterClass Ymm = new RegisterClass(RegisterFamily.Sse, sizeInBytes: 32);
-		public static readonly RegisterClass Zmm = new RegisterClass(RegisterFamily.Sse, sizeInBytes: 64);
+		public static readonly RegisterClass Xmm = new RegisterClass(RegisterFamily.SseAvx, sizeInBytes: 16);
+		public static readonly RegisterClass Ymm = new RegisterClass(RegisterFamily.SseAvx, sizeInBytes: 32);
+		public static readonly RegisterClass Zmm = new RegisterClass(RegisterFamily.SseAvx, sizeInBytes: 64);
 		public static readonly RegisterClass AvxOpmask = new RegisterClass(RegisterFamily.AvxOpmask);
 
 		public static readonly RegisterClass Bound = new RegisterClass(RegisterFamily.Bound);

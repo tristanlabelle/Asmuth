@@ -20,7 +20,7 @@ namespace Asmuth.X86
 					case RegisterFamily.X87: return "st" + Index;
 					case RegisterFamily.Mmx: return "mm" + Index;
 
-					case RegisterFamily.Sse:
+					case RegisterFamily.SseAvx:
 						if (SizeInBytes == 16) return "xmm" + Index;
 						if (SizeInBytes == 32) return "ymm" + Index;
 						if (SizeInBytes == 64) return "zmm" + Index;

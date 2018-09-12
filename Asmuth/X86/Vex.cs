@@ -34,7 +34,7 @@ namespace Asmuth.X86
 		public bool ModRegExtension => (xoredValue & ModRegExtensionBit) != 0;
 		public byte NonDestructiveReg => (byte)((xoredValue >> 3) & 0xF);
 		public bool VectorSize256 => (xoredValue & VectorSize256Bit) != 0;
-		public SseVectorSize VectorSize => VectorSize256 ? SseVectorSize._256 : SseVectorSize._128;
+		public AvxVectorSize VectorSize => VectorSize256 ? AvxVectorSize._256 : AvxVectorSize._128;
 		public SimdPrefix SimdPrefix => (SimdPrefix)(xoredValue & 0x3);
 		
 		public bool Equals(Vex2 other) => xoredValue == other.xoredValue;
@@ -58,14 +58,14 @@ namespace Asmuth.X86
 			public bool BaseRegExtension;
 			public bool IndexRegExtension;
 			public bool OperandSizePromotion;
-			public SseVectorSize VectorSize;
+			public AvxVectorSize VectorSize;
 			public OpcodeMap OpcodeMap;
 			public SimdPrefix SimdPrefix;
 			public byte NonDestructiveReg;
 
 			public void Validate()
 			{
-				if (VectorSize >= SseVectorSize._512)
+				if (VectorSize >= AvxVectorSize._512)
 					throw new ArgumentOutOfRangeException(nameof(VectorSize));
 			}
 
@@ -123,7 +123,7 @@ namespace Asmuth.X86
 			if (builder.BaseRegExtension) xoredValue |= BaseRegExtensionBit;
 			if (builder.IndexRegExtension) xoredValue |= IndexRegExtensionBit;
 			if (builder.OperandSizePromotion) xoredValue |= OperandSizePromotionBit;
-			if (builder.VectorSize == SseVectorSize._256) xoredValue |= VectorSize256Bit;
+			if (builder.VectorSize == AvxVectorSize._256) xoredValue |= VectorSize256Bit;
 		}
 
 		public bool IsVex3 => OpcodeMap <= OpcodeMap.Escape0F3A;
@@ -133,7 +133,7 @@ namespace Asmuth.X86
 		public bool BaseRegExtension => (xoredValue & BaseRegExtensionBit) != 0;
 		public bool IndexRegExtension => (xoredValue & IndexRegExtensionBit) != 0;
 		public bool VectorSize256 => (xoredValue & VectorSize256Bit) != 0;
-		public SseVectorSize VectorSize => VectorSize256 ? SseVectorSize._256 : SseVectorSize._128;
+		public AvxVectorSize VectorSize => VectorSize256 ? AvxVectorSize._256 : AvxVectorSize._128;
 		public bool OperandSizePromotion => (xoredValue & OperandSizePromotionBit) != 0;
 		public OpcodeMap OpcodeMap => (OpcodeMap)((xoredValue >> OpcodeMapShift) & 0x1F);
 		public byte NonDestructiveReg => (byte)((xoredValue >> NonDestructiveRegShift) & 0xF);
@@ -211,7 +211,7 @@ namespace Asmuth.X86
 
 		public OpcodeMap OpcodeMap => (OpcodeMap)((bytes >> OpcodeMapShift) & 3);
 		public SimdPrefix SimdPrefix => (SimdPrefix)((bytes >> SimdPrefixShift) & 3);
-		public SseVectorSize VectorSize => SseVectorSize._128 + (byte)((bytes >> VectorLengthShift) & 3);
+		public AvxVectorSize VectorSize => AvxVectorSize._128 + (byte)((bytes >> VectorLengthShift) & 3);
 		public bool OperandSizePromotion => (bytes & OperandSizePromotionBit) != 0;
 		public byte OpmaskReg => (byte)((bytes >> OpmaskRegShift) & 7);
 		public bool IsZeroMasking => (bytes & ZeroingMaskingBit) != 0;

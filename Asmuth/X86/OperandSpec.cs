@@ -280,7 +280,7 @@ namespace Asmuth.X86
 
 				var regSize = regSpec.RegisterClass.SizeInBytes.Value;
 				var memSize = memSpec.SizeInBytes;
-				bool allowSubregister = regSpec.RegisterFamily == RegisterFamily.Sse
+				bool allowSubregister = regSpec.RegisterFamily == RegisterFamily.SseAvx
 					|| regSpec.RegisterFamily == RegisterFamily.AvxOpmask;
 				if (allowSubregister ? (regSize < memSize) : (regSize != memSize))
 					throw new ArgumentException("RM mem size inconsistent with register class.");
@@ -330,10 +330,10 @@ namespace Asmuth.X86
 		// VGATHERDPD xmm1, vm32x, xmm2
 		public sealed class VMem : OperandSpec
 		{
-			public SseVectorSize IndexRegSize { get; }
+			public AvxVectorSize IndexRegSize { get; }
 			public IntegerSize IndicesSize { get; }
 
-			public VMem(SseVectorSize indexRegSize, IntegerSize indicesSize)
+			public VMem(AvxVectorSize indexRegSize, IntegerSize indicesSize)
 			{
 				if (indicesSize != IntegerSize.Dword && indicesSize != IntegerSize.Qword)
 					throw new ArgumentOutOfRangeException(nameof(indicesSize));
@@ -360,12 +360,12 @@ namespace Asmuth.X86
 					+ IndexRegClass.Name[0];
 			}
 
-			public static readonly VMem VM32X = new VMem(SseVectorSize._128, IntegerSize.Dword);
-			public static readonly VMem VM32Y = new VMem(SseVectorSize._256, IntegerSize.Dword);
-			public static readonly VMem VM32Z = new VMem(SseVectorSize._512, IntegerSize.Dword);
-			public static readonly VMem VM64X = new VMem(SseVectorSize._128, IntegerSize.Qword);
-			public static readonly VMem VM64Y = new VMem(SseVectorSize._256, IntegerSize.Qword);
-			public static readonly VMem VM64Z = new VMem(SseVectorSize._512, IntegerSize.Qword);
+			public static readonly VMem VM32X = new VMem(AvxVectorSize._128, IntegerSize.Dword);
+			public static readonly VMem VM32Y = new VMem(AvxVectorSize._256, IntegerSize.Dword);
+			public static readonly VMem VM32Z = new VMem(AvxVectorSize._512, IntegerSize.Dword);
+			public static readonly VMem VM64X = new VMem(AvxVectorSize._128, IntegerSize.Qword);
+			public static readonly VMem VM64Y = new VMem(AvxVectorSize._256, IntegerSize.Qword);
+			public static readonly VMem VM64Z = new VMem(AvxVectorSize._512, IntegerSize.Qword);
 		}
 
 		// MOV EAX,moffs32
