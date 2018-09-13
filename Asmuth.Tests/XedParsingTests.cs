@@ -109,5 +109,29 @@ namespace Asmuth.X86.Xed
 			Assert.AreEqual(widthInBits_32, result.Value.WidthInBits_32);
 			Assert.AreEqual(widthInBits_64, result.Value.WidthInBits_64);
 		}
+
+		[TestMethod]
+		public void TestParseBlot()
+		{
+			AssertParseEqual("0x42", new XedBitsBlotSpan(0x42, 8));
+			AssertParseEqual("0b0100", new XedBitsBlotSpan(0b0100, 4));
+			// TODO: wrxb
+			AssertParseEqual("MOD[0b11]", new XedBitsBlot("MOD", 0b11, 2));
+			AssertParseEqual("MOD[mm]", new XedBitsBlot("MOD", 'm', 2));
+			// TODO: UIMM0[ssss_uuuu]
+
+			AssertParseEqual("MOD=3", predicate: false, new XedAssignmentBlot("MOD", 3));
+
+			AssertParseEqual("MOD=3", predicate: true, XedPredicateBlot.Equal("MOD", 3));
+			AssertParseEqual("MOD!=3", XedPredicateBlot.NotEqual("MOD", 3));
+
+			AssertParseEqual("MODRM()", XedBlot.Call("MODRM"));
+		}
+
+		private static void AssertParseEqual(string str, bool predicate, XedBlot blot)
+			=> Assert.AreEqual(blot, XedBlot.Parse(str, predicate));
+
+		private static void AssertParseEqual(string str, XedBlot blot)
+			=> AssertParseEqual(str, predicate: false, blot);
 	}
 }

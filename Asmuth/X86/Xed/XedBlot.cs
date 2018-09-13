@@ -22,6 +22,12 @@ namespace Asmuth.X86.Xed
 		private readonly byte valueOrLetter;
 		private readonly byte isVariableAndBitCountMinusOne; // msb = isVariable
 		
+		public XedBitsBlotSpan(byte value)
+		{
+			this.valueOrLetter = value;
+			this.isVariableAndBitCountMinusOne = 7;
+		}
+
 		public XedBitsBlotSpan(byte value, int bitCount)
 		{
 			if (bitCount < 1 || bitCount > 8) throw new ArgumentOutOfRangeException(nameof(bitCount));
@@ -61,6 +67,9 @@ namespace Asmuth.X86.Xed
 			var builder = ImmutableArray.CreateBuilder<XedBitsBlotSpan>(1);
 			throw new NotImplementedException();
 		}
+		
+		public static implicit operator XedBitsBlot(XedBitsBlotSpan span) => new XedBitsBlot(span);
+		public static implicit operator XedBlot(XedBitsBlotSpan span) => new XedBitsBlot(span);
 	}
 
 	/// <summary>
@@ -76,34 +85,35 @@ namespace Asmuth.X86.Xed
 		// UIMM0[i/32]
 
 		public string Field { get; }
-		private readonly ImmutableArray<XedBitsBlotSpan> spans;
-
+		public ImmutableArray<XedBitsBlotSpan> Spans { get; }
+		
 		public XedBitsBlot(string field, ImmutableArray<XedBitsBlotSpan> spans)
 		{
 			this.Field = field;
-			this.spans = spans.Length > 0 ? spans : throw new ArgumentException();
+			this.Spans = spans.Length > 0 ? spans : throw new ArgumentException();
 		}
 
+		public XedBitsBlot(string field, params XedBitsBlotSpan[] spans)
+			: this(field, ImmutableArray.Create(spans)) { }
 		public XedBitsBlot(string field, XedBitsBlotSpan span)
-		{
-			this.Field = field;
-			this.spans = ImmutableArray.Create(span);
-		}
-
-		public XedBitsBlot(byte value)
-		{
-			this.Field = null;
-			this.spans = ImmutableArray.Create(new XedBitsBlotSpan(value, 8));
-		}
-
-		public ImmutableArray<XedBitsBlotSpan> Spans => spans;
+			: this(field, ImmutableArray.Create(span)) { }
+		public XedBitsBlot(string field, byte value, int bitCount)
+			: this(field, new XedBitsBlotSpan(value, bitCount)) { }
+		public XedBitsBlot(string field, char letter, int bitCount)
+			: this(field, new XedBitsBlotSpan(letter, bitCount)) { }
+		public XedBitsBlot(params XedBitsBlotSpan[] spans) : this(null, spans) { }
+		public XedBitsBlot(ImmutableArray<XedBitsBlotSpan> spans) : this(null, spans) { }
+		public XedBitsBlot(XedBitsBlotSpan span) : this(null, span) { }
+		public XedBitsBlot(byte value, int bitCount) : this(null, value, bitCount) { }
+		public XedBitsBlot(char letter, int bitCount) : this(null, letter, bitCount) { }
+		public XedBitsBlot(byte value) : this(null, new XedBitsBlotSpan(value)) { }
 
 		public int TotalBitCount
 		{
 			get
 			{
 				int count = 0;
-				foreach (var span in spans)
+				foreach (var span in Spans)
 					count += span.BitCount;
 				return count;
 			}
@@ -123,25 +133,31 @@ namespace Asmuth.X86.Xed
 	public readonly struct XedPredicateBlot : IEquatable<XedPredicateBlot>
 	{
 		public string Field { get; }
-		public bool NotEqual { get; }
+		public bool IsNotEqual { get; }
 		public byte Value { get; }
 
 		public XedPredicateBlot(string field, bool equal, byte value)
 		{
 			this.Field = field ?? throw new ArgumentNullException(nameof(field));
-			this.NotEqual = !equal;
+			this.IsNotEqual = !equal;
 			this.Value = value;
 		}
 
-		public bool Equal => NotEqual;
+		public bool IsEqual => IsNotEqual;
 
 		public bool Equals(XedPredicateBlot other) => Field == other.Field
-			&& NotEqual == other.NotEqual && Value == other.Value;
+			&& IsNotEqual == other.IsNotEqual && Value == other.Value;
 		public override bool Equals(object obj) => obj is XedPredicateBlot && Equals((XedPredicateBlot)obj);
 		public override int GetHashCode() => Field.GetHashCode() ^ Value;
 		public static bool Equals(XedPredicateBlot lhs, XedPredicateBlot rhs) => lhs.Equals(rhs);
 		public static bool operator ==(XedPredicateBlot lhs, XedPredicateBlot rhs) => Equals(lhs, rhs);
 		public static bool operator !=(XedPredicateBlot lhs, XedPredicateBlot rhs) => !Equals(lhs, rhs);
+
+		public static XedPredicateBlot Equal(string field, byte value)
+			=> new XedPredicateBlot(field, equal: true, value);
+
+		public static XedPredicateBlot NotEqual(string field, byte value)
+			=> new XedPredicateBlot(field, equal: false, value);
 	}
 
 	/// <summary>
@@ -211,7 +227,7 @@ namespace Asmuth.X86.Xed
 			this.union = new Union
 			{
 				type = XedBlotType.Predicate,
-				predicate_notEqual = predicate.NotEqual,
+				predicate_notEqual = predicate.IsNotEqual,
 				predicate_value = predicate.Value
 			};
 		}
@@ -279,7 +295,7 @@ namespace Asmuth.X86.Xed
 		public static bool operator ==(XedBlot lhs, XedBlot rhs) => Equals(lhs, rhs);
 		public static bool operator !=(XedBlot lhs, XedBlot rhs) => !Equals(lhs, rhs);
 
-		public static XedBlot MakeCall(string callee) => new XedBlot(callee);
+		public static XedBlot Call(string callee) => new XedBlot(callee);
 
 		private static readonly Regex parseRegex = new Regex(
 			@"^\s*(
