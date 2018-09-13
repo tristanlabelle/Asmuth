@@ -5,31 +5,33 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Nasm
+namespace Asmuth
 {
-	[AttributeUsage(AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
-	internal sealed class NasmNameAttribute : Attribute
+	[AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
+	internal abstract class AlternateEnumNameAttribute : Attribute
 	{
 		public string Name { get; }
 
-		public NasmNameAttribute(string name)
+		public AlternateEnumNameAttribute(string name)
 		{
 			this.Name = name ?? throw new ArgumentNullException(nameof(name));
 		}
 	}
 
-	internal static class NasmEnum<TEnum> where TEnum : struct
+	internal static class AlternateEnumNames<TEnum, TAttribute>
+		where TEnum : struct
+		where TAttribute : AlternateEnumNameAttribute
 	{
 		private static readonly Dictionary<string, TEnum> namesToEnumerants;
 		private static readonly Dictionary<TEnum, string> enumerantToNames;
 
-		static NasmEnum()
+		static AlternateEnumNames()
 		{
 			namesToEnumerants = new Dictionary<string, TEnum>();
 			enumerantToNames = new Dictionary<TEnum, string>();
 			foreach (var field in typeof(TEnum).GetTypeInfo().DeclaredFields)
 			{
-				var nasmNameAttribute = field.GetCustomAttribute<NasmNameAttribute>();
+				var nasmNameAttribute = field.GetCustomAttribute<TAttribute>();
 				if (nasmNameAttribute != null)
 				{
 					var enumerant = (TEnum)field.GetValue(null);
@@ -42,7 +44,7 @@ namespace Asmuth.X86.Nasm
 		public static TEnum GetEnumerantOrDefault(string name)
 		{
 			if (name == null) throw new ArgumentNullException(nameof(name));
-			
+
 			namesToEnumerants.TryGetValue(name, out TEnum enumerant);
 			return enumerant;
 		}
@@ -51,7 +53,8 @@ namespace Asmuth.X86.Nasm
 		{
 			if (name == null) throw new ArgumentNullException(nameof(name));
 
-			return namesToEnumerants.TryGetValue(name, out TEnum enumerant) ? enumerant : (TEnum?)null;
+			return namesToEnumerants.TryGetValue(name, out TEnum enumerant)
+				? enumerant : (TEnum?)null;
 		}
 
 		public static string GetNameOrNull(TEnum enumerant)

@@ -76,121 +76,121 @@ namespace Asmuth.X86.Nasm
 
 		Vex = Category_Vex, // value unused, vex data stored as a VexOpcodeEncoding value
 
-		[NasmName("a16")]
+		[NasmEnumName("a16")]
 		AddressSize_16 = Category_AddressSize,
-		[NasmName("a32")]
+		[NasmEnumName("a32")]
 		AddressSize_32,
-		[NasmName("a64")]
+		[NasmEnumName("a64")]
 		AddressSize_64,
-		[NasmName("adf")]
+		[NasmEnumName("adf")]
 		AddressSize_NoOverride,
 
-		[NasmName("o16")]
+		[NasmEnumName("o16")]
 		OperandSize_16 = Category_OperandSize,
-		[NasmName("o32")]
+		[NasmEnumName("o32")]
 		OperandSize_32,
-		[NasmName("o64")]
+		[NasmEnumName("o64")]
 		OperandSize_64,
-		[NasmName("o64nw")]
+		[NasmEnumName("o64nw")]
 		OperandSize_64WithoutW,
-		[NasmName("odf")]
+		[NasmEnumName("odf")]
 		OperandSize_NoOverride,
 
-		[NasmName("np")]
+		[NasmEnumName("np")]
 		LegacyPrefix_NoSimd = Category_LegacyPrefix,
-		[NasmName("f2i")]
+		[NasmEnumName("f2i")]
 		LegacyPrefix_F2,
-		[NasmName("f3i")]
+		[NasmEnumName("f3i")]
 		LegacyPrefix_F3,
-		[NasmName("nof3")]
+		[NasmEnumName("nof3")]
 		LegacyPrefix_NoF3,
-		[NasmName("hle")]
+		[NasmEnumName("hle")]
 		LegacyPrefix_HleWithLock,
-		[NasmName("hlenl")]
+		[NasmEnumName("hlenl")]
 		LegacyPrefix_HleAlways,
-		[NasmName("hlexr")]
+		[NasmEnumName("hlexr")]
 		LegacyPrefix_XReleaseAlways,
-		[NasmName("mustrep")]
+		[NasmEnumName("mustrep")]
 		LegacyPrefix_MustRep,
-		[NasmName("repe")]
+		[NasmEnumName("repe")]
 		LegacyPrefix_DisassembleRepAsRepE,
-		[NasmName("norep")]
+		[NasmEnumName("norep")]
 		LegacyPrefix_NoRep,
 
-		[NasmName("norexb")]
+		[NasmEnumName("norexb")]
 		Rex_NoB = Category_Rex,
-		[NasmName("norexx")]
+		[NasmEnumName("norexx")]
 		Rex_NoX,
-		[NasmName("norexr")]
+		[NasmEnumName("norexr")]
 		Rex_NoR,
-		[NasmName("norexw")]
+		[NasmEnumName("norexw")]
 		Rex_NoW,
-		[NasmName("rex.l")]
+		[NasmEnumName("rex.l")]
 		Rex_LockAsRexR, // See AMD APM, MOV CRn
 
 		Byte = Category_Byte, // "42", value is the byte itself
 		Byte_PlusRegister, // "40+r", value is the base byte (0b11111000)
 		Byte_PlusConditionCode, // "40+c", value is the base byte (0b11110000)
 
-		[NasmName("/r")]
+		[NasmEnumName("/r")]
 		ModRM = Category_ModRM,
 		ModRM_FixedReg, // "/4", value is the digit that follows the slash (value of the reg field)
 
-		[NasmName("jmp8")]
+		[NasmEnumName("jmp8")]
 		Jump_8 = Category_Jump,
-		[NasmName("jcc8")]
+		[NasmEnumName("jcc8")]
 		Jump_Conditional8,
-		[NasmName("jlen")]
+		[NasmEnumName("jlen")]
 		Jump_Length,
 
-		[NasmName("ib")]
+		[NasmEnumName("ib")]
 		Immediate_Byte = Category_Immediate,
-		[NasmName("ib,s")]
+		[NasmEnumName("ib,s")]
 		Immediate_Byte_Signed,
-		[NasmName("ib,u")]
+		[NasmEnumName("ib,u")]
 		Immediate_Byte_Unsigned,
-		[NasmName("iw")]
+		[NasmEnumName("iw")]
 		Immediate_Word,
-		[NasmName("id")]
+		[NasmEnumName("id")]
 		Immediate_Dword,
-		[NasmName("id,s")]
+		[NasmEnumName("id,s")]
 		Immediate_Dword_Signed,
-		[NasmName("iq")]
+		[NasmEnumName("iq")]
 		Immediate_Qword,
-		[NasmName("iwd")]
+		[NasmEnumName("iwd")]
 		Immediate_WordOrDword,
-		[NasmName("iwdq")]
+		[NasmEnumName("iwdq")]
 		Immediate_WordOrDwordOrQword,
-		[NasmName("/is4")]
+		[NasmEnumName("/is4")]
 		Immediate_Is4,
-		[NasmName("seg")]
+		[NasmEnumName("seg")]
 		Immediate_Segment,
-		[NasmName("rel")]
+		[NasmEnumName("rel")]
 		Immediate_RelativeOffset,
-		[NasmName("rel8")]
+		[NasmEnumName("rel8")]
 		Immediate_RelativeOffset8,
 
-		[NasmName("vm32x")]
+		[NasmEnumName("vm32x")]
 		VectorSib_XmmDwordIndices = Category_VectorSib,
-		[NasmName("vm64x")]
+		[NasmEnumName("vm64x")]
 		VectorSib_XmmQwordIndices,
-		[NasmName("vm32y")]
+		[NasmEnumName("vm32y")]
 		VectorSib_YmmDwordIndices,
-		[NasmName("vm64y")]
+		[NasmEnumName("vm64y")]
 		VectorSib_YmmQwordIndices,
 
-		[NasmName("vsibx")]
+		[NasmEnumName("vsibx")]
 		VectorSib_Xmm,
-		[NasmName("vsiby")]
+		[NasmEnumName("vsiby")]
 		VectorSib_Ymm,
-		[NasmName("vsibz")]
+		[NasmEnumName("vsibz")]
 		VectorSib_Zmm,
 
-		[NasmName("wait")]
+		[NasmEnumName("wait")]
 		Misc_WaitPrefix = Category_Misc,
-		[NasmName("nohi")]
+		[NasmEnumName("nohi")]
 		Misc_NoHigh8Register,
-		[NasmName("resb")]
+		[NasmEnumName("resb")]
 		Misc_Resb // The RESB pseudo-instruction
 	}
 }

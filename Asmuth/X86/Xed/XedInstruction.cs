@@ -14,7 +14,7 @@ namespace Asmuth.X86.Xed
 		public byte PrivilegeLevel { get; private set; }
 		public string Category { get; private set; }
 		public string Extension { get; private set; }
-		//??? Flags
+		public IReadOnlyList<XedFlagsRecord> FlagsRecords { get; private set; }
 		public string IsaSet { get; private set; }
 	}
 }

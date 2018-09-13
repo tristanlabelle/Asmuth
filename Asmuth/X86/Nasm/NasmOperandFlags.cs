@@ -11,25 +11,25 @@ namespace Asmuth.X86.Nasm
 	{
 		None = 0,
 
-		[NasmName("short")]
+		[NasmEnumName("short")]
 		Short = 1 << 0,
-		[NasmName("near")]
+		[NasmEnumName("near")]
 		NearPointer = 1 << 1,
-		[NasmName("far")]
+		[NasmEnumName("far")]
 		FarPointer = 1 << 2,
-		[NasmName("to")]
+		[NasmEnumName("to")]
 		To = 1 << 3,
-		[NasmName("mask")]
+		[NasmEnumName("mask")]
 		MaskingSupported = 1 << 4,
-		[NasmName("z")]
+		[NasmEnumName("z")]
 		Z = 1 << 5,
-		[NasmName("b32")]
+		[NasmEnumName("b32")]
 		Broadcast32x16 = 1 << 6,
-		[NasmName("b64")]
+		[NasmEnumName("b64")]
 		Broadcast64x8 = 1 << 7,
-		[NasmName("er")]
+		[NasmEnumName("er")]
 		EmbeddedRounding = 1 << 8,
-		[NasmName("sae")]
+		[NasmEnumName("sae")]
 		SuppressAllExceptions = 1 << 9,
 
 		Relaxed = 1 << 10, // xmmreg*
