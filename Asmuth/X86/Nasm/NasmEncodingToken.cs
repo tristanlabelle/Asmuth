@@ -33,7 +33,7 @@ namespace Asmuth.X86.Nasm
 				case NasmEncodingTokenType.Byte_PlusRegister: return Byte.ToString("X2", CultureInfo.InvariantCulture) + "+r";
 				case NasmEncodingTokenType.Byte_PlusConditionCode: return Byte.ToString("X2", CultureInfo.InvariantCulture) + "+cc";
 				case NasmEncodingTokenType.ModRM_FixedReg: return "/" + (char)('0' + Byte);
-				default: return NasmEnum<NasmEncodingTokenType>.GetNameOrNull(Type) ?? Type.ToString();
+				default: return NasmEnumNameAttribute.GetNameOrNull(Type) ?? Type.ToString();
 			}
 		}
 
@@ -44,7 +44,7 @@ namespace Asmuth.X86.Nasm
 		public static NasmEncodingTokenType TryParseType(string name)
 		{
 			if (name == null) throw new ArgumentNullException(nameof(name));
-			return NasmEnum<NasmEncodingTokenType>.GetEnumerantOrDefault(name);
+			return NasmEnumNameAttribute.GetEnumerantOrNull<NasmEncodingTokenType>(name).Value;
 		}
 
 		public static implicit operator NasmEncodingToken(NasmEncodingTokenType type)

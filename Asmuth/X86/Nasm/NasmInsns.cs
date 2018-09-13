@@ -223,7 +223,7 @@ namespace Asmuth.X86.Nasm
 				for (int j = 1; j < operandParts.Length; ++j)
 				{
 					var flagStr = operandParts[j];
-					var flag = NasmEnum<NasmOperandFlags>.GetEnumerantOrNull(flagStr);
+					var flag = NasmEnumNameAttribute.GetEnumerantOrNull<NasmOperandFlags>(flagStr);
 					if (!flag.HasValue) throw new FormatException($"Unsupported operand flag: {flagStr}.");
 					flags |= flag.Value;
 				}
