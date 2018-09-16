@@ -65,9 +65,21 @@ namespace Asmuth.X86.Xed
 		public static bool Equals(XedBitsBlotSpan lhs, XedBitsBlotSpan rhs) => lhs.Equals(rhs);
 		public static bool operator ==(XedBitsBlotSpan lhs, XedBitsBlotSpan rhs) => Equals(lhs, rhs);
 		public static bool operator !=(XedBitsBlotSpan lhs, XedBitsBlotSpan rhs) => !Equals(lhs, rhs);
-		
+
 		public override string ToString()
-			=> BitCount < 8 ? new string(Letter, BitCount) : $"{Letter}/{BitCount}";
+		{
+			if (IsConstant)
+			{
+				var bits = new char[BitCount];
+				for (int i = 0; i < BitCount; ++i)
+					bits[i] = (char)('0' + ((valueOrLetter >> (BitCount - 1 - i)) & 1));
+				return new string(bits);
+			}
+			else
+			{
+				return BitCount < 8 ? new string(Letter, BitCount) : $"{Letter}/{BitCount}";
+			}
+		}
 
 		public static ImmutableArray<XedBitsBlotSpan> Parse(string str)
 		{
@@ -158,7 +170,7 @@ namespace Asmuth.X86.Xed
 					if (span.IsConstant)
 					{
 						int bit = (span.Value >> (span.BitCount - 1 - j)) & 1;
-						str.Append('0' + bit);
+						str.Append((char)('0' + bit));
 					}
 					else str.Append(span.Letter);
 				}
@@ -207,7 +219,8 @@ namespace Asmuth.X86.Xed
 
 	public enum XedAssignmentBlotValueType : byte
 	{
-		Constant,
+		Integer,
+		NamedConstant,
 		BitsVariable,
 		Call
 	}
@@ -218,7 +231,7 @@ namespace Asmuth.X86.Xed
 	public readonly struct XedAssignmentBlot : IEquatable<XedAssignmentBlot>
 	{
 		public string Field { get; }
-		private readonly string callee;
+		private readonly string rhsString;
 		public XedAssignmentBlotValueType ValueType { get; }
 		private readonly byte valueOrVariableLetter;
 		private readonly byte bitCount; // If BitsVariable
@@ -226,17 +239,17 @@ namespace Asmuth.X86.Xed
 		public XedAssignmentBlot(string field, int value)
 		{
 			this.Field = field ?? throw new ArgumentNullException(nameof(field));
-			this.callee = null;
-			this.ValueType = XedAssignmentBlotValueType.Constant;
+			this.rhsString = null;
+			this.ValueType = XedAssignmentBlotValueType.Integer;
 			this.valueOrVariableLetter = checked((byte)value);
 			this.bitCount = 0;
 		}
 
-		public XedAssignmentBlot(string field, string callee)
+		private XedAssignmentBlot(string field, string rhsString, bool isCall)
 		{
 			this.Field = field ?? throw new ArgumentNullException(nameof(field));
-			this.callee = callee ?? throw new ArgumentNullException(nameof(callee));
-			this.ValueType = XedAssignmentBlotValueType.Call;
+			this.rhsString = rhsString ?? throw new ArgumentNullException(nameof(rhsString));
+			this.ValueType = isCall ? XedAssignmentBlotValueType.Call : XedAssignmentBlotValueType.NamedConstant;
 			this.valueOrVariableLetter = 0;
 			this.bitCount = 0;
 		}
@@ -248,23 +261,25 @@ namespace Asmuth.X86.Xed
 				throw new ArgumentOutOfRangeException(nameof(bitsVariableLetter));
 			if (variableBitCount < 1 || variableBitCount > 32)
 				throw new ArgumentOutOfRangeException(nameof(bitsVariableLetter));
-			this.callee = null;
+			this.rhsString = null;
 			this.ValueType = XedAssignmentBlotValueType.BitsVariable;
 			this.valueOrVariableLetter = (byte)bitsVariableLetter;
 			this.bitCount = (byte)variableBitCount;
 		}
 
-		public int Value => ValueType == XedAssignmentBlotValueType.Constant
+		public int Integer => ValueType == XedAssignmentBlotValueType.Integer
 			? valueOrVariableLetter : throw new InvalidOperationException();
 		public char BitsVariableLetter => ValueType == XedAssignmentBlotValueType.BitsVariable
 			? (char)valueOrVariableLetter : throw new InvalidOperationException();
 		public int BitCount => ValueType == XedAssignmentBlotValueType.BitsVariable
 			? (char)bitCount : throw new InvalidOperationException();
 		public string Callee => ValueType == XedAssignmentBlotValueType.Call
-			? callee : throw new InvalidOperationException();
+			? rhsString : throw new InvalidOperationException();
+		public string ConstantName => ValueType == XedAssignmentBlotValueType.NamedConstant
+			? rhsString : throw new InvalidOperationException();
 
 		public bool Equals(XedAssignmentBlot other) => Field == other.Field
-			&& callee == other.callee && ValueType == other.ValueType
+			&& rhsString == other.rhsString && ValueType == other.ValueType
 			&& valueOrVariableLetter == other.valueOrVariableLetter
 			&& bitCount == other.bitCount;
 		public override bool Equals(object obj) => obj is XedAssignmentBlot && Equals((XedAssignmentBlot)obj);
@@ -280,8 +295,12 @@ namespace Asmuth.X86.Xed
 			str.Append('=');
 			switch (ValueType)
 			{
-				case XedAssignmentBlotValueType.Constant:
-					str.Append(Value);
+				case XedAssignmentBlotValueType.Integer:
+					str.Append(Integer);
+					break;
+
+				case XedAssignmentBlotValueType.NamedConstant:
+					str.Append(rhsString);
 					break;
 
 				case XedAssignmentBlotValueType.BitsVariable:
@@ -289,13 +308,22 @@ namespace Asmuth.X86.Xed
 					break;
 
 				case XedAssignmentBlotValueType.Call:
-					str.Append(callee).Append("()");
+					str.Append(rhsString).Append("()");
 					break;
 
 				default: throw new UnreachableException();
 			}
 
 			return str.ToString();
+		}
+
+		public static XedAssignmentBlot Call(string field, string callee)
+			=> new XedAssignmentBlot(field, callee, isCall: true);
+
+		public static XedAssignmentBlot NamedConstant(string field, string constantName)
+		{
+			if (!constantName.StartsWith("XED_")) throw new ArgumentException();
+			return new XedAssignmentBlot(field, constantName, isCall: false);
 		}
 	}
 
@@ -348,19 +376,23 @@ namespace Asmuth.X86.Xed
 
 			switch (assignment.ValueType)
 			{
-				case XedAssignmentBlotValueType.Constant:
+				case XedAssignmentBlotValueType.Integer:
 					this.calleeOrSpans = null;
-					this.union.assignment_value = (byte)assignment.Value;
+					this.union.assignment_value = (byte)assignment.Integer;
 					break;
 
-				case XedAssignmentBlotValueType.Call:
-					this.calleeOrSpans = assignment.Callee;
+				case XedAssignmentBlotValueType.NamedConstant:
+					this.calleeOrSpans = assignment.ConstantName;
 					break;
 
 				case XedAssignmentBlotValueType.BitsVariable:
 					this.calleeOrSpans = null;
 					this.union.assignment_bitsVariableLetter = (byte)assignment.BitsVariableLetter;
 					this.union.assignment_bitCount = (byte)assignment.BitCount;
+					break;
+					
+				case XedAssignmentBlotValueType.Call:
+					this.calleeOrSpans = assignment.Callee;
 					break;
 
 				default: throw new UnreachableException();
@@ -401,15 +433,18 @@ namespace Asmuth.X86.Xed
 				if (Type != XedBlotType.Assignment) throw new InvalidOperationException();
 				switch (union.assignment_valueType)
 				{
-					case XedAssignmentBlotValueType.Constant:
+					case XedAssignmentBlotValueType.Integer:
 						return new XedAssignmentBlot(Field, union.assignment_value);
+
+					case XedAssignmentBlotValueType.NamedConstant:
+						return XedAssignmentBlot.NamedConstant(Field, (string)calleeOrSpans);
 
 					case XedAssignmentBlotValueType.BitsVariable:
 						return new XedAssignmentBlot(Field,
 							(char)union.assignment_bitsVariableLetter, union.assignment_bitCount);
 
 					case XedAssignmentBlotValueType.Call:
-						return new XedAssignmentBlot(Field, (string)calleeOrSpans);
+						return XedAssignmentBlot.Call(Field, (string)calleeOrSpans);
 
 					default: throw new UnreachableException();
 				}

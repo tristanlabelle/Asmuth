@@ -16,5 +16,6 @@ namespace Asmuth.X86.Xed
 		public string Extension { get; private set; }
 		public IReadOnlyList<XedFlagsRecord> FlagsRecords { get; private set; }
 		public string IsaSet { get; private set; }
+		public IReadOnlyList<XedBlot> PatternBaseBlots { get; private set; }
 	}
 }

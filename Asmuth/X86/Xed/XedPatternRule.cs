@@ -9,6 +9,7 @@ namespace Asmuth.X86.Xed
 	{
 		public ImmutableArray<XedBlot> Conditions { get; }
 		public ImmutableArray<XedBlot> Actions { get; }
+		//public bool Reset { get; }
 
 		public XedPatternRuleCase(ImmutableArray<XedBlot> conditions,
 			ImmutableArray<XedBlot> actions)
