@@ -89,7 +89,7 @@ namespace Asmuth.X86.Xed
 				{ "i32", new XedXType(XedBaseType.Int, 32) },
 				{ "f64", new XedXType(XedBaseType.Double, 64) },
 			};
-			var xtypeLookup = (Func<string, XedXType>)(name => xtypeDict[name]);
+			XedXType xtypeLookup(string name) => xtypeDict[name];
 
 			AssertParseOperandWidth("i3 int 3bits", xtypeLookup, "i3", XedBaseType.Int, 3);
 			AssertParseOperandWidth("asz int 2 4 8", xtypeLookup, "asz", XedBaseType.Int, 16, 32, 64);
@@ -115,12 +115,15 @@ namespace Asmuth.X86.Xed
 		{
 			AssertParseEqual("0x42", new XedBitsBlotSpan(0x42, 8));
 			AssertParseEqual("0b0100", new XedBitsBlotSpan(0b0100, 4));
-			// TODO: wrxb
+			AssertParseEqual("wrxb", new XedBitsBlot('w', 'r', 'x', 'b'));
 			AssertParseEqual("MOD[0b11]", new XedBitsBlot("MOD", 0b11, 2));
 			AssertParseEqual("MOD[mm]", new XedBitsBlot("MOD", 'm', 2));
-			// TODO: UIMM0[ssss_uuuu]
+			AssertParseEqual("UIMM0[ssss_uuuu]", new XedBitsBlot("UIMM0",
+				new XedBitsBlotSpan('s', 4), new XedBitsBlotSpan('u', 4)));
 
 			AssertParseEqual("MOD=3", predicate: false, new XedAssignmentBlot("MOD", 3));
+			AssertParseEqual("BASE0=ArAX()", predicate: false, new XedAssignmentBlot("BASE0", "ArAX"));
+			AssertParseEqual("REXW=w", predicate: false, new XedAssignmentBlot("REXW", 'w', 1));
 
 			AssertParseEqual("MOD=3", predicate: true, XedPredicateBlot.Equal("MOD", 3));
 			AssertParseEqual("MOD!=3", XedPredicateBlot.NotEqual("MOD", 3));
