@@ -113,19 +113,18 @@ namespace Asmuth.X86.Xed
 		[TestMethod]
 		public void TestParseBlot()
 		{
-			AssertParseEqual("0x42", new XedBitsBlotSpan(0x42, 8));
-			AssertParseEqual("0b0100", new XedBitsBlotSpan(0b0100, 4));
-			AssertParseEqual("wrxb", new XedBitsBlot('w', 'r', 'x', 'b'));
-			AssertParseEqual("1_ddd", new XedBitsBlot(
-				new XedBitsBlotSpan(0b1, 1), new XedBitsBlotSpan('d', 3)));
+			AssertParseEqual("0x42", new XedBitsBlot(0x42, 8));
+			AssertParseEqual("0b0100", new XedBitsBlot(0b0100, 4));
+			AssertParseEqual("wrxb", new XedBitsBlot("wrxb"));
+			AssertParseEqual("1_ddd", new XedBitsBlot("1ddd"));
 			AssertParseEqual("MOD[0b11]", new XedBitsBlot("MOD", 0b11, 2));
-			AssertParseEqual("MOD[mm]", new XedBitsBlot("MOD", 'm', 2));
-			AssertParseEqual("UIMM0[ssss_uuuu]", new XedBitsBlot("UIMM0",
-				new XedBitsBlotSpan('s', 4), new XedBitsBlotSpan('u', 4)));
+			AssertParseEqual("MOD[mm]", new XedBitsBlot("MOD", "mm"));
+			AssertParseEqual("UIMM0[ssss_uuuu]", new XedBitsBlot("UIMM0", "ssssuuuu"));
+			AssertParseEqual("UIMM0[i/16]", new XedBitsBlot("UIMM0", new string('i', 16)));
 
 			AssertParseEqual("MOD=3", predicate: false, new XedAssignmentBlot("MOD", 3));
 			AssertParseEqual("BASE0=ArAX()", XedAssignmentBlot.Call("BASE0", "ArAX"));
-			AssertParseEqual("REXW=w", new XedAssignmentBlot("REXW", 'w', 1));
+			AssertParseEqual("REXW=w", XedAssignmentBlot.BitPattern("REXW", "w"));
 			AssertParseEqual("OUTREG=XED_REG_XMM0",
 				XedAssignmentBlot.NamedConstant("OUTREG", "XED_REG_XMM0"));
 
