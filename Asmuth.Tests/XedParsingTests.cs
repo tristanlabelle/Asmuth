@@ -59,7 +59,7 @@ namespace Asmuth.X86.Xed
 			Assert.AreEqual(null, XedDataFiles.ParseRegister("FLAGS   flags 16 RFLAGS/EFLAGS").ID);
 
 			XedDataFiles.ParseRegister("ST0   x87 80  ST0  0 - st(0)");
-			
+
 			result = XedDataFiles.ParseRegister("CR0 cr 32/64  CR0  0");
 			Assert.AreEqual(32, result.WidthInBits_IA32);
 			Assert.AreEqual(64, result.WidthInBits_X64);
@@ -139,5 +139,49 @@ namespace Asmuth.X86.Xed
 
 		private static void AssertParseEqual(string str, XedBlot blot)
 			=> AssertParseEqual(str, predicate: false, blot);
+
+		[TestMethod]
+		public void TestParsePatternRules()
+		{
+			var str = @"
+				# Hey, nice rule
+				PREFIXES()::
+				0b0100 wrxb | XED_RESET REX=1 REXW=w REXR=r REXX=x REXB=b
+				0x66 | XED_RESET PREFIX66=1
+				otherwise | nothing
+
+				xed_reg_enum_t XMM_R_64()::
+				norexr REG=0x0 | OUTREG=XED_REG_XMM0";
+
+			var rules = XedDataFiles.ParsePatternRules(new StringReader(str),
+				s => s == "norexr" ? "REXR=0" : null).ToArray();
+			Assert.AreEqual(2, rules.Length);
+
+			{
+				var prefixesRule = rules[0];
+				Assert.AreEqual("PREFIXES", prefixesRule.Name);
+				Assert.IsFalse(prefixesRule.ReturnsRegister);
+				Assert.AreEqual(3, prefixesRule.Cases.Length);
+
+				var rexCase = prefixesRule.Cases[0];
+				Assert.AreEqual(2, rexCase.Conditions.Length);
+				Assert.AreEqual(5, rexCase.Actions.Length);
+				Assert.IsTrue(rexCase.Reset);
+
+				var otherwiseCase = prefixesRule.Cases[2];
+				Assert.AreEqual(0, otherwiseCase.Conditions.Length);
+				Assert.AreEqual(0, otherwiseCase.Actions.Length);
+			}
+
+			{
+				var xmmRule = rules[1];
+				Assert.AreEqual("XMM_R_64", xmmRule.Name);
+				Assert.IsTrue(xmmRule.ReturnsRegister);
+				Assert.AreEqual(1, xmmRule.Cases.Length);
+				Assert.AreEqual(2, xmmRule.Cases[0].Conditions.Length);
+				Assert.AreEqual(1, xmmRule.Cases[0].Actions.Length);
+				Assert.AreEqual("XED_REG_XMM0", xmmRule.Cases[0].OutRegBlot.Value.ConstantName);
+			}
+		}
 	}
 }

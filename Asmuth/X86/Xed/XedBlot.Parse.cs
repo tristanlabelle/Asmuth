@@ -98,9 +98,8 @@ namespace Asmuth.X86.Xed
 			public static readonly Token CloseBracket = new Token(TokenType.CloseBracket);
 			public static readonly Token OpenCloseParen = new Token(TokenType.OpenCloseParen);
 		}
-
-
-		public static XedBlot Parse(string str, bool predicate)
+		
+		public static XedBlot Parse(string str, bool condition)
 		{
 			var tokens = Tokenize(str).ToList();
 			if (tokens.Count == 0) throw new FormatException();
@@ -123,7 +122,7 @@ namespace Asmuth.X86.Xed
 
 				if (tokens[1].Type == TokenType.Equal)
 				{
-					if (!predicate && tokens.Count == 4
+					if (!condition && tokens.Count == 4
 						&& tokens[2].Type == TokenType.Identifier
 						&& tokens[3].Type == TokenType.OpenCloseParen)
 					{
@@ -135,7 +134,7 @@ namespace Asmuth.X86.Xed
 
 					if (tokens[2].Type == TokenType.DecimalLiteral)
 					{
-						return predicate
+						return condition
 							? (XedBlot)new XedPredicateBlot(field, equal: true, tokens[2].Value)
 							: (XedBlot)new XedAssignmentBlot(field, tokens[2].Value);
 					}
@@ -234,7 +233,7 @@ namespace Asmuth.X86.Xed
 					char secondChar = AtOrNull(str, startIndex + 1);
 					if (startChar == '0' && secondChar == 'x')
 					{
-						// Hex byte (0xFF)
+						// Hex literal (0xFF)
 						length = 4;
 						if (startIndex + length > str.Length) throw new FormatException();
 

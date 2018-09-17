@@ -193,37 +193,69 @@ namespace Asmuth.X86.Xed
 		#region PatternRules
 		private static readonly Regex patternRuleNameLineRegex = new Regex(
 			@"^\s*(?:(?<reg>xed_reg_enum_t)\s+)?(?<name>\w+)\(\)::\s*$");
-		private static readonly Regex patternRuleCaseLineRegex = new Regex(@"^\s*(.*?)\s*\|\s*(.*?)\s*$");
+		private static readonly Regex patternRuleCaseLineRegex = new Regex(
+			@"^\s*(.*?)\s*\|\s*(.*?)\s*$");
 
 		public static IEnumerable<XedPatternRule> ParsePatternRules(
-			TextReader reader, Func<string, ImmutableArray<XedBlot>> stateMacroResolver)
+			TextReader reader, Func<string, string> stateMacroResolver)
 		{
 			string ruleName = null;
 			bool returnsRegister = false;
 			var conditionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
-			var actionssBuilder = ImmutableArray.CreateBuilder<XedBlot>();
+			var actionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
+			var caseBuilder = ImmutableArray.CreateBuilder<XedPatternRuleCase>();
 
 			while (true)
 			{
 				var line = reader.ReadLine();
-				if (line == null) yield break;
+				if (line == null) break;
 
 				line = commentRegex.Replace(line, string.Empty);
 				if (line.Length == 0) continue;
 
+				// Match rules
 				var newRuleMatch = patternRuleNameLineRegex.Match(line);
 				if (newRuleMatch.Success)
 				{
-					if (ruleName != null) throw new NotImplementedException();
+					if (ruleName != null)
+					{
+						yield return new XedPatternRule(ruleName, returnsRegister,
+							caseBuilder.ToImmutable());
+					}
+
 					ruleName = newRuleMatch.Groups["name"].Value;
 					returnsRegister = newRuleMatch.Groups["reg"].Success;
 					continue;
 				}
 
+				// Expand macros
+				line = Regex.Replace(line, @"\w+", m => stateMacroResolver(m.Value) ?? m.Value);
+
 				var ruleCaseMatch = patternRuleCaseLineRegex.Match(line);
 				if (!ruleCaseMatch.Success) throw new FormatException();
 
-				throw new NotImplementedException();
+				if (ruleCaseMatch.Groups[1].Value != "otherwise")
+					foreach (var blotStr in Regex.Split(ruleCaseMatch.Groups[1].Value, @"\s+"))
+						conditionsBuilder.Add(XedBlot.Parse(blotStr, condition: true));
+
+				bool reset = false;
+				if (ruleCaseMatch.Groups[2].Value != "nothing")
+				{
+					foreach (var blotStr in Regex.Split(ruleCaseMatch.Groups[2].Value, @"\s+"))
+					{
+						if (blotStr == "XED_RESET") reset = true;
+						else actionsBuilder.Add(XedBlot.Parse(blotStr, condition: false));
+					}
+				}
+
+				caseBuilder.Add(new XedPatternRuleCase(conditionsBuilder.ToImmutable(),
+					actionsBuilder.ToImmutable(), reset));
+			}
+
+			if (ruleName != null)
+			{
+				yield return new XedPatternRule(ruleName, returnsRegister,
+					caseBuilder.ToImmutable());
 			}
 		}
 		#endregion
