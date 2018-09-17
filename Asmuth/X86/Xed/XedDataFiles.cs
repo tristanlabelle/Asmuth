@@ -221,6 +221,7 @@ namespace Asmuth.X86.Xed
 					{
 						yield return new XedPatternRule(ruleName, returnsRegister,
 							caseBuilder.ToImmutable());
+						caseBuilder.Clear();
 					}
 
 					ruleName = newRuleMatch.Groups["name"].Value;
@@ -250,6 +251,8 @@ namespace Asmuth.X86.Xed
 
 				caseBuilder.Add(new XedPatternRuleCase(conditionsBuilder.ToImmutable(),
 					actionsBuilder.ToImmutable(), reset));
+				conditionsBuilder.Clear();
+				actionsBuilder.Clear();
 			}
 
 			if (ruleName != null)

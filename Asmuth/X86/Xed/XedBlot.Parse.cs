@@ -11,8 +11,7 @@ namespace Asmuth.X86.Xed
 		private enum TokenType : byte
 		{
 			DecimalLiteral,
-			BinaryLiteral,
-			HexByteLiteral,
+			BinaryOrHexLiteral,
 			BitsPattern, // Includes bit patterns like 'mm', 'rxbw', 'ssss_uuuu' and '1_ddd'
 			Identifier,
 			Equal,
@@ -23,8 +22,7 @@ namespace Asmuth.X86.Xed
 		}
 
 		private static bool IsIntegerLiteral(TokenType type)
-			=> type == TokenType.BinaryLiteral || type == TokenType.DecimalLiteral
-			|| type == TokenType.HexByteLiteral;
+			=> type == TokenType.BinaryOrHexLiteral || type == TokenType.DecimalLiteral;
 
 		private readonly struct Token : IEquatable<Token>
 		{
@@ -49,23 +47,23 @@ namespace Asmuth.X86.Xed
 				this.bitCount = 0;
 			}
 
-			private Token(byte value, byte bitCount)
+			private Token(byte value, int bitCount)
 			{
 				if (bitCount == 0 || bitCount > 8)
 					throw new ArgumentOutOfRangeException(nameof(bitCount));
 
 				this.str = null;
-				this.Type = TokenType.BinaryLiteral;
+				this.Type = TokenType.BinaryOrHexLiteral;
 				this.valueOrLetter = value;
-				this.bitCount = bitCount;
+				this.bitCount = (byte)bitCount;
 			}
 
-			private Token(byte value, bool isHex)
+			private Token(byte value)
 			{
 				this.str = null;
-				this.Type = isHex ? TokenType.HexByteLiteral : TokenType.DecimalLiteral;
+				this.Type = TokenType.DecimalLiteral;
 				this.valueOrLetter = value;
-				this.bitCount = isHex ? (byte)8 : (byte)0;
+				this.bitCount = 0;
 			}
 
 			public string Identifier => Type == TokenType.Identifier
@@ -74,7 +72,7 @@ namespace Asmuth.X86.Xed
 				? str : throw new InvalidOperationException();
 			public byte Value => IsIntegerLiteral(Type)
 				? valueOrLetter : throw new InvalidOperationException();
-			public byte BitCount => Type == TokenType.BinaryLiteral
+			public byte BitCount => Type == TokenType.BinaryOrHexLiteral
 				? bitCount : throw new InvalidOperationException();
 
 			public bool Equals(Token other) => Type == other.Type
@@ -88,9 +86,8 @@ namespace Asmuth.X86.Xed
 
 			public static Token MakeIdentifier(string name) => new Token(name, TokenType.Identifier);
 			public static Token MakeBitsPattern(string str) => new Token(str, TokenType.BitsPattern);
-			public static Token BinaryLiteral(byte value, byte bitCount) => new Token(value, bitCount);
-			public static Token DecimalLiteral(byte value) => new Token(value, isHex: false);
-			public static Token HexByteLiteral(byte value) => new Token(value, isHex: true);
+			public static Token BinaryOrHexLiteral(byte value, int bitCount) => new Token(value, bitCount);
+			public static Token DecimalLiteral(byte value) => new Token(value);
 
 			public static readonly Token Equal = new Token(TokenType.Equal);
 			public static readonly Token NotEqual = new Token(TokenType.NotEqual);
@@ -132,7 +129,7 @@ namespace Asmuth.X86.Xed
 
 					if (tokens.Count != 3) throw new FormatException();
 
-					if (tokens[2].Type == TokenType.DecimalLiteral)
+					if (IsIntegerLiteral(tokens[2].Type))
 					{
 						return condition
 							? (XedBlot)new XedPredicateBlot(field, equal: true, tokens[2].Value)
@@ -160,7 +157,7 @@ namespace Asmuth.X86.Xed
 					var bitsToken = tokens[2];
 					if (bitsToken.Type == TokenType.BitsPattern)
 						return new XedBitsBlot(field, bitsToken.BitsPattern);
-					if (bitsToken.Type == TokenType.BinaryLiteral)
+					if (bitsToken.Type == TokenType.BinaryOrHexLiteral)
 						return new XedBitsBlot(field, bitsToken.Value, bitsToken.BitCount);
 
 					throw new FormatException();
@@ -168,15 +165,10 @@ namespace Asmuth.X86.Xed
 
 				throw new FormatException();
 			}
-			else if (tokens[0].Type == TokenType.BinaryLiteral)
+			else if (tokens[0].Type == TokenType.BinaryOrHexLiteral)
 			{
 				if (tokens.Count > 1) throw new FormatException();
 				return new XedBitsBlot(tokens[0].Value, tokens[0].BitCount);
-			}
-			else if (tokens[0].Type == TokenType.HexByteLiteral)
-			{
-				if (tokens.Count > 1) throw new FormatException();
-				return new XedBitsBlot(tokens[0].Value, 8);
 			}
 			else if (tokens[0].Type == TokenType.BitsPattern)
 			{
@@ -233,12 +225,25 @@ namespace Asmuth.X86.Xed
 					char secondChar = AtOrNull(str, startIndex + 1);
 					if (startChar == '0' && secondChar == 'x')
 					{
-						// Hex literal (0xFF)
-						length = 4;
-						if (startIndex + length > str.Length) throw new FormatException();
+						// Hex literal
+						length = 2;
+						byte value = 0;
+						while (true)
+						{
+							char c = AtOrNull(str, startIndex + length);
+							byte digit;
+							if (c >= '0' && c <= '9') digit = (byte)(c - '0');
+							else if (c >= 'a' && c <= 'f') digit = (byte)(c - 'a' + 10);
+							else if (c >= 'A' && c <= 'F') digit = (byte)(c - 'A' + 10);
+							else if (char.IsLetter(c) || c == '_')
+								throw new FormatException();
+							else break;
 
-						byte value = (byte)((ParseHexDigit(str[2]) << 4) | ParseHexDigit(str[3]));
-						yield return Token.HexByteLiteral(value);
+							value = (byte)((value << 4) | digit);
+							length++;
+						}
+						
+						yield return Token.BinaryOrHexLiteral(value, (length - 2) * 4);
 					}
 					else if (startChar == '0' && secondChar == 'b')
 					{
@@ -259,7 +264,7 @@ namespace Asmuth.X86.Xed
 							length++;
 						}
 
-						yield return Token.BinaryLiteral(value, (byte)(length - 2));
+						yield return Token.BinaryOrHexLiteral(value, (byte)(length - 2));
 					}
 					else
 					{
