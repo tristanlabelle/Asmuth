@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -260,6 +262,74 @@ namespace Asmuth.X86.Xed
 				yield return new XedPatternRule(ruleName, returnsRegister,
 					caseBuilder.ToImmutable());
 			}
+		}
+		#endregion
+
+		#region Instructions
+		private static readonly Regex declarationLineRegex = new Regex(
+			@"^\s*([\w_]+)\s*\(\)::\s*$");
+
+		private static readonly Regex instructionFieldLineRegex = new Regex(
+			@"^\s*([\w_]+)\s*\:\s*(.*?)\s*$");
+
+		public static IEnumerable<KeyValuePair<string, XedInstruction>> ParseInstructions(
+			TextReader reader,
+			Func<string, string> stateMacroReplacer,
+			Func<string, XedOperandWidth> operandWidthResolver)
+		{
+			string patternName = null;
+			var builder = new XedInstruction.Builder();
+			bool isWithinInstruction = false;
+			while (true)
+			{
+				var line = reader.ReadLine();
+				if (line == null) break;
+
+				line = commentRegex.Replace(line, string.Empty);
+				if (line.Length == 0) continue;
+
+				var declarationLineMatch = declarationLineRegex.Match(line);
+				if (declarationLineMatch.Success)
+				{
+					if (isWithinInstruction) throw new FormatException();
+					patternName = declarationLineMatch.Groups[1].Value;
+					continue;
+				}
+
+				if (patternName == null) throw new FormatException();
+
+				line = line.Trim();
+
+				if (!isWithinInstruction)
+				{
+					if (line != "{") throw new FormatException();
+					isWithinInstruction = true;
+					continue;
+				}
+
+				if (line == "}")
+				{
+					yield return new KeyValuePair<string, XedInstruction>(
+						patternName, builder.Build(reuse: true));
+					isWithinInstruction = false;
+					continue;
+				}
+
+				var fieldLineMatch = instructionFieldLineRegex.Match(line);
+				if (!fieldLineMatch.Success) throw new FormatException();
+
+				string fieldName = fieldLineMatch.Groups[1].Value;
+				string fieldValue = fieldLineMatch.Groups[2].Value;
+
+				var property = builder.GetType().GetTypeInfo().GetProperty(fieldName);
+				var propertyType = property?.PropertyType;
+				if (propertyType == typeof(string))
+					property.SetValue(builder, fieldValue);
+				else
+					throw new NotImplementedException();
+			}
+
+			if (isWithinInstruction) throw new FormatException();
 		}
 		#endregion
 

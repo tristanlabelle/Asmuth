@@ -183,5 +183,26 @@ namespace Asmuth.X86.Xed
 				Assert.AreEqual("XED_REG_XMM0", xmmRule.Cases[0].OutRegBlot.Value.ConstantName);
 			}
 		}
+
+		[TestMethod]
+		public void TestParseInstructions()
+		{
+			var str = @"
+				INSTRUCTIONS()::
+				{
+					ICLASS    : INC
+					CPL       : 3
+					CATEGORY  : BINARY
+					EXTENSION : BASE
+					ISA_SET   : I86
+					ATTRIBUTES : BYTEOP
+					FLAGS     : MUST [ of-mod sf-mod zf-mod af-mod pf-mod ]
+					PATTERN   : 0xFE MOD[0b11] MOD=3 REG[0b000] RM[nnn]
+					OPERANDS  : REG0=GPR8_B():rw
+				}";
+			var entry = XedDataFiles.ParseInstructions(new StringReader(str),
+				s => null, s => default).Single();
+			Assert.AreEqual("INSTRUCTIONS", entry.Key);
+		}
 	}
 }
