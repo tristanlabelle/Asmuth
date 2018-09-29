@@ -62,5 +62,12 @@ namespace Asmuth.X86.Xed
 		public XedFlagsRecordQualifier? Qualifier { get; }
 		public XedFlagsRecordSemantic Semantic { get; }
 		public IReadOnlyDictionary<XedFlag, XedFlagAction> Flags { get; }
+
+		public static XedFlagsRecord Parse(string str)
+		{
+			// IMMx MUST [ of-u sf-mod zf-mod af-u pf-mod cf-mod ]
+			if (str == null) throw new ArgumentNullException(nameof(str));
+			throw new NotImplementedException();
+		}
 	}
 }

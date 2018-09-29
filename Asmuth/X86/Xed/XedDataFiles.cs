@@ -276,12 +276,22 @@ namespace Asmuth.X86.Xed
 			= new Dictionary<string, PropertyInfo>()
 			{
 				{ "ICLASS", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Builder.Class)) },
-				{ "CPL", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.PrivilegeLevel)) },
-				{ "CATEGORY", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Category)) },
-				{ "EXTENSION", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Extension)) },
-				{ "ISA_SET", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.IsaSet)) },
-				{ "ATTRIBUTES", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Attributes)) },
+				{ "CPL", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Builder.PrivilegeLevel)) },
+				{ "CATEGORY", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Builder.Category)) },
+				{ "EXTENSION", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Builder.Extension)) },
+				{ "ISA_SET", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Builder.IsaSet)) },
+				{ "ATTRIBUTES", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Builder.Attributes)) },
+				{ "FLAGS", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Builder.FlagsRecords)) },
 			};
+
+		private enum InstructionParseState : byte
+		{
+			TopLevel,
+			HeaderFields,
+			ExpectOperandsField,
+			PostOperandsField,
+			PostFormNameField,
+		}
 
 		public static IEnumerable<KeyValuePair<string, XedInstruction>> ParseInstructions(
 			TextReader reader,
@@ -290,7 +300,10 @@ namespace Asmuth.X86.Xed
 		{
 			string patternName = null;
 			var builder = new XedInstruction.Builder();
-			bool isWithinInstruction = false;
+			var state = InstructionParseState.TopLevel;
+			var patternBuilder = ImmutableArray.CreateBuilder<XedBlot>();
+			var operandsBuilder = ImmutableArray.CreateBuilder<XedOperand>();
+			string formName = null;
 			while (true)
 			{
 				var line = reader.ReadLine();
@@ -299,30 +312,39 @@ namespace Asmuth.X86.Xed
 				line = commentRegex.Replace(line, string.Empty);
 				if (line.Length == 0) continue;
 
-				var declarationLineMatch = declarationLineRegex.Match(line);
-				if (declarationLineMatch.Success)
-				{
-					if (isWithinInstruction) throw new FormatException();
-					patternName = declarationLineMatch.Groups[1].Value;
-					continue;
-				}
-
-				if (patternName == null) throw new FormatException();
-
 				line = line.Trim();
 
-				if (!isWithinInstruction)
+				if (state == InstructionParseState.TopLevel)
 				{
-					if (line != "{") throw new FormatException();
-					isWithinInstruction = true;
+					if (line == "{")
+					{
+						if (patternName == null) throw new FormatException();
+						state = InstructionParseState.HeaderFields;
+						continue;
+					}
+
+					var declarationLineMatch = declarationLineRegex.Match(line);
+					if (!declarationLineMatch.Success) throw new FormatException();
+					
+					patternName = declarationLineMatch.Groups[1].Value;
 					continue;
 				}
 
 				if (line == "}")
 				{
+					if (state != InstructionParseState.PostOperandsField
+						&& state != InstructionParseState.PostFormNameField)
+						throw new FormatException();
+
+					builder.Forms.Add(new XedInstructionForm(patternBuilder.ToImmutable(),
+						operandsBuilder.ToImmutable(), formName));
+					patternBuilder.Clear();
+					operandsBuilder.Clear();
+					formName = null;
+
 					yield return new KeyValuePair<string, XedInstruction>(
 						patternName, builder.Build(reuse: true));
-					isWithinInstruction = false;
+					state = InstructionParseState.TopLevel;
 					continue;
 				}
 
@@ -332,6 +354,59 @@ namespace Asmuth.X86.Xed
 				string fieldName = fieldLineMatch.Groups[1].Value;
 				string fieldValue = fieldLineMatch.Groups[2].Value;
 
+				// OPERANDS, PATTERN[, IFORM] come in pairs/triplets after header fields
+				if (fieldName == "OPERANDS")
+				{
+					if (state != InstructionParseState.ExpectOperandsField)
+						throw new FormatException();
+
+					var operandsStrings = Regex.Split(fieldValue, @"\s+");
+					for (int i = 0; i < operandsStrings.Length; ++i)
+					{
+						var indexAndOperand = XedOperand.Parse(operandsStrings[i], operandWidthResolver);
+						if (indexAndOperand.Key != i) throw new FormatException();
+						operandsBuilder.Add(indexAndOperand.Value);
+					}
+
+					state = InstructionParseState.PostOperandsField;
+					continue;
+				}
+
+				if (state == InstructionParseState.ExpectOperandsField)
+					throw new FormatException();
+
+				if (fieldName == "PATTERN")
+				{
+					if (state != InstructionParseState.HeaderFields)
+					{
+						builder.Forms.Add(new XedInstructionForm(patternBuilder.ToImmutable(),
+							operandsBuilder.ToImmutable(), formName));
+						patternBuilder.Clear();
+						operandsBuilder.Clear();
+						formName = null;
+					}
+
+					foreach (var blotString in Regex.Split(fieldValue, @"\s+"))
+						patternBuilder.Add(XedBlot.Parse(blotString, condition: true));
+
+					state = InstructionParseState.ExpectOperandsField;
+					continue;
+				}
+
+				if (fieldName == "IFORM")
+				{
+					if (state != InstructionParseState.PostOperandsField)
+						throw new FormatException();
+
+					formName = fieldValue;
+
+					state = InstructionParseState.PostFormNameField;
+					continue;
+				}
+
+				if (state != InstructionParseState.HeaderFields)
+					throw new FormatException();
+				
 				if (!instructionFieldToProperty.TryGetValue(fieldName, out PropertyInfo property))
 					throw new NotImplementedException();
 
@@ -340,11 +415,27 @@ namespace Asmuth.X86.Xed
 
 				if (property.PropertyType == typeof(string))
 					property.SetValue(builder, fieldValue);
+				else if (property.PropertyType == typeof(int))
+					property.SetValue(builder, int.Parse(fieldValue, CultureInfo.InvariantCulture));
+				else if (typeof(ICollection<string>).IsAssignableFrom(property.PropertyType))
+				{
+					var collection = ((ICollection<string>)property.GetValue(builder));
+					if (collection.Count != 0) throw new FormatException();
+					foreach (var str in Regex.Split(fieldValue, @"\s+"))
+						collection.Add(str);
+				}
+				else if (typeof(ICollection<XedFlagsRecord>).IsAssignableFrom(property.PropertyType))
+				{
+					var collection = ((ICollection<XedFlagsRecord>)property.GetValue(builder));
+					if (collection.Count != 0) throw new FormatException();
+					foreach (var str in Regex.Split(fieldValue, @"\s+"))
+						collection.Add(XedFlagsRecord.Parse(str));
+				}
 				else
 					throw new NotImplementedException();
 			}
 
-			if (isWithinInstruction) throw new FormatException();
+			if (state != InstructionParseState.TopLevel) throw new FormatException();
 		}
 		#endregion
 

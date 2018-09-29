@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Asmuth.X86.Xed
 {
@@ -10,6 +11,18 @@ namespace Asmuth.X86.Xed
 		public sealed class Builder
 		{
 			private XedInstruction instruction = new XedInstruction();
+
+			public string Category
+			{
+				get => instruction.Category;
+				set => instruction.Category = value;
+			}
+
+			public string Comment
+			{
+				get => instruction.Comment;
+				set => instruction.Comment = value;
+			}
 
 			public string Class
 			{
@@ -22,6 +35,33 @@ namespace Asmuth.X86.Xed
 				get => instruction.Disasm;
 				set => instruction.Disasm = value;
 			}
+
+			public string Exceptions
+			{
+				get => instruction.Exceptions;
+				set => instruction.Exceptions = value;
+			}
+
+			public string Extension
+			{
+				get => instruction.Extension;
+				set => instruction.Extension = value;
+			}
+
+			public string IsaSet
+			{
+				get => instruction.IsaSet;
+				set => instruction.IsaSet = value;
+			}
+
+			public int PrivilegeLevel
+			{
+				get => instruction.privilegeLevel;
+				set => instruction.privilegeLevel = value >= 0 && value <= 3 ? (byte)value
+					: throw new ArgumentOutOfRangeException(nameof(PrivilegeLevel));
+			}
+
+			public ICollection<string> Attributes => (List<string>)instruction.Attributes;
 
 			public IList<XedFlagsRecord> FlagsRecords => (List<XedFlagsRecord>)instruction.FlagsRecords;
 
@@ -36,16 +76,19 @@ namespace Asmuth.X86.Xed
 		}
 
 		public string Class { get; private set; }
+		public string Comment { get; private set; }
 		public string Disasm { get; private set; }
 		public string DisasmIntel { get; private set; }
 		public string DisasmAttSV { get; private set; }
-		public IReadOnlyCollection<string> Attributes { get; private set; }
-		public byte PrivilegeLevel { get; private set; }
+		public IReadOnlyCollection<string> Attributes { get; } = new List<string>();
+		private byte privilegeLevel;
+		public int PrivilegeLevel => privilegeLevel;
 		public string Category { get; private set; }
+		public string Exceptions { get; private set; }
 		public string Extension { get; private set; }
 		public string IsaSet { get; private set; }
-		public IReadOnlyList<XedFlagsRecord> FlagsRecords { get; private set; }
-		public IReadOnlyList<XedInstructionForm> Forms { get; private set; } = new List<XedInstructionForm>();
+		public IReadOnlyList<XedFlagsRecord> FlagsRecords { get; } = new List<XedFlagsRecord>();
+		public IReadOnlyList<XedInstructionForm> Forms { get; } = new List<XedInstructionForm>();
 	}
 
 	public sealed class XedInstructionForm
@@ -106,5 +149,57 @@ namespace Asmuth.X86.Xed
 			=> new XedOperand(XedOperandType.Memory, null, access, width);
 		public static XedOperand MakeImmediate(XedOperandWidth width)
 			=> new XedOperand(XedOperandType.Immediate, null, AccessType.Read, width);
+
+		private static readonly Regex typeRegex = new Regex(
+			@"^( (?<t>REG)(?<i>\d)=(?<v>\w+)(?<e>\(\))? | (?<t>(MEM|IMM))(?<i>\d))$",
+			RegexOptions.ExplicitCapture | RegexOptions.IgnorePatternWhitespace);
+
+		private static readonly Dictionary<string, AccessType> accessTypes = new Dictionary<string, AccessType>
+		{
+			{ "r", AccessType.Read },
+			{ "rw", AccessType.ReadWrite },
+			{ "w", AccessType.Write },
+		};
+
+		public static KeyValuePair<int, XedOperand> Parse(string str, Func<string, XedOperandWidth> widthResolver)
+		{
+			var components = str.Split(':');
+			if (components.Length < 3) throw new FormatException();
+
+			var typeMatch = typeRegex.Match(components[0]);
+			if (!typeMatch.Success) throw new FormatException();
+
+			int index = typeMatch.Groups["i"].Value[0] - '0';
+			var accessType = accessTypes[components[1]];
+			var width = widthResolver(components[2]);
+
+			var typeName = typeMatch.Groups["t"].Value;
+			XedOperand operand;
+			if (typeName == "REG")
+			{
+				if (components.Length > 3) throw new NotImplementedException();
+				var valueStr = typeMatch.Groups["v"].Value;
+				if (typeMatch.Groups["e"].Success)
+				{
+					operand = MakeExplicitRegister(valueStr, accessType, width);
+				}
+				else
+				{
+					operand = MakeImplicitRegister(valueStr, accessType, width);
+				}
+			}
+			else if (typeName == "MEM")
+			{
+				operand = MakeMemory(accessType, width);
+			}
+			else if (typeName == "IMM")
+			{
+				if (accessType != AccessType.Read) throw new FormatException();
+				operand = MakeImmediate(width);
+			}
+			else throw new UnreachableException();
+
+			return new KeyValuePair<int, XedOperand>(index, operand);
+		}
 	}
 }
