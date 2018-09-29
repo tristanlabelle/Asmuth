@@ -95,6 +95,7 @@ namespace Asmuth.X86.Xed
 			AssertParseOperandWidth("asz int 2 4 8", xtypeLookup, "asz", XedBaseType.Int, 16, 32, 64);
 			AssertParseOperandWidth("pd f64 16", xtypeLookup, "pd", XedBaseType.Double, 128);
 		}
+
 		private void AssertParseOperandWidth(string str, Func<string, XedXType> xtypeLookup,
 			string name, XedBaseType type, int widthInBits)
 			=> AssertParseOperandWidth(str, xtypeLookup, name, type, widthInBits, widthInBits, widthInBits);

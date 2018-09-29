@@ -272,6 +272,17 @@ namespace Asmuth.X86.Xed
 		private static readonly Regex instructionFieldLineRegex = new Regex(
 			@"^\s*([\w_]+)\s*\:\s*(.*?)\s*$");
 
+		private static readonly Dictionary<string, PropertyInfo> instructionFieldToProperty
+			= new Dictionary<string, PropertyInfo>()
+			{
+				{ "ICLASS", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Builder.Class)) },
+				{ "CPL", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.PrivilegeLevel)) },
+				{ "CATEGORY", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Category)) },
+				{ "EXTENSION", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Extension)) },
+				{ "ISA_SET", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.IsaSet)) },
+				{ "ATTRIBUTES", typeof(XedInstruction.Builder).GetProperty(nameof(XedInstruction.Attributes)) },
+			};
+
 		public static IEnumerable<KeyValuePair<string, XedInstruction>> ParseInstructions(
 			TextReader reader,
 			Func<string, string> stateMacroReplacer,
@@ -321,9 +332,13 @@ namespace Asmuth.X86.Xed
 				string fieldName = fieldLineMatch.Groups[1].Value;
 				string fieldValue = fieldLineMatch.Groups[2].Value;
 
-				var property = builder.GetType().GetTypeInfo().GetProperty(fieldName);
-				var propertyType = property?.PropertyType;
-				if (propertyType == typeof(string))
+				if (!instructionFieldToProperty.TryGetValue(fieldName, out PropertyInfo property))
+					throw new NotImplementedException();
+
+				if (property.CanWrite && !property.PropertyType.IsValueType && property.GetValue(builder) != null)
+					throw new FormatException("Duplicate instruction field.");
+
+				if (property.PropertyType == typeof(string))
 					property.SetValue(builder, fieldValue);
 				else
 					throw new NotImplementedException();
