@@ -128,9 +128,9 @@ namespace Asmuth.X86.Xed
 		public string ExplicitRegisterPatternName => Type == XedOperandType.ExplicitRegister
 			? registerString : throw new InvalidOperationException();
 		public AccessType Access { get; }
-		public XedOperandWidth Width { get; }
+		public XedOperandWidth? Width { get; }
 
-		private XedOperand(XedOperandType type, string registerString, AccessType access, XedOperandWidth width)
+		private XedOperand(XedOperandType type, string registerString, AccessType access, XedOperandWidth? width)
 		{
 			this.Type = type;
 			this.registerString = registerString;
@@ -141,11 +141,11 @@ namespace Asmuth.X86.Xed
 		public bool IsMemory => Type == XedOperandType.Memory;
 		public bool IsRegister => Type != XedOperandType.Memory;
 
-		public static XedOperand MakeImplicitRegister(string name, AccessType access, XedOperandWidth width)
+		public static XedOperand MakeImplicitRegister(string name, AccessType access, XedOperandWidth? width)
 			=> new XedOperand(XedOperandType.ImplicitRegister, name, access, width);
-		public static XedOperand MakeExplicitRegister(string patternName, AccessType access, XedOperandWidth width)
+		public static XedOperand MakeExplicitRegister(string patternName, AccessType access, XedOperandWidth? width)
 			=> new XedOperand(XedOperandType.ExplicitRegister, patternName, access, width);
-		public static XedOperand MakeMemory(AccessType access, XedOperandWidth width)
+		public static XedOperand MakeMemory(AccessType access, XedOperandWidth? width)
 			=> new XedOperand(XedOperandType.Memory, null, access, width);
 		public static XedOperand MakeImmediate(XedOperandWidth width)
 			=> new XedOperand(XedOperandType.Immediate, null, AccessType.Read, width);
@@ -164,14 +164,14 @@ namespace Asmuth.X86.Xed
 		public static KeyValuePair<int, XedOperand> Parse(string str, Func<string, XedOperandWidth> widthResolver)
 		{
 			var components = str.Split(':');
-			if (components.Length < 3) throw new FormatException();
+			if (components.Length < 2) throw new FormatException();
 
 			var typeMatch = typeRegex.Match(components[0]);
 			if (!typeMatch.Success) throw new FormatException();
 
 			int index = typeMatch.Groups["i"].Value[0] - '0';
 			var accessType = accessTypes[components[1]];
-			var width = widthResolver(components[2]);
+			var width = components.Length >= 3 ? widthResolver(components[2]) : (XedOperandWidth?)null;
 
 			var typeName = typeMatch.Groups["t"].Value;
 			XedOperand operand;
@@ -195,7 +195,8 @@ namespace Asmuth.X86.Xed
 			else if (typeName == "IMM")
 			{
 				if (accessType != AccessType.Read) throw new FormatException();
-				operand = MakeImmediate(width);
+				if (!width.HasValue) throw new FormatException();
+				operand = MakeImmediate(width.Value);
 			}
 			else throw new UnreachableException();
 

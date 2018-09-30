@@ -428,7 +428,7 @@ namespace Asmuth.X86.Xed
 				{
 					var collection = ((ICollection<XedFlagsRecord>)property.GetValue(builder));
 					if (collection.Count != 0) throw new FormatException();
-					foreach (var str in Regex.Split(fieldValue, @"\s+"))
+					foreach (var str in Regex.Split(fieldValue, @"\s*,\s*"))
 						collection.Add(XedFlagsRecord.Parse(str));
 				}
 				else

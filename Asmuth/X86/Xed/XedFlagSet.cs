@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Asmuth.X86.Xed
 {
@@ -61,13 +62,50 @@ namespace Asmuth.X86.Xed
 	{
 		public XedFlagsRecordQualifier? Qualifier { get; }
 		public XedFlagsRecordSemantic Semantic { get; }
-		public IReadOnlyDictionary<XedFlag, XedFlagAction> Flags { get; }
+		public IReadOnlyDictionary<XedFlag, XedFlagAction> FlagActions { get; }
+		
+		internal XedFlagsRecord(XedFlagsRecordQualifier? qualifier, XedFlagsRecordSemantic semantic,
+			IReadOnlyDictionary<XedFlag, XedFlagAction> flagActions)
+		{
+			this.Qualifier = qualifier;
+			this.Semantic = semantic;
+			this.FlagActions = flagActions;
+		}
+
+		private static readonly Regex parseRegex = new Regex(
+			@"^\s* ((?<q>\w+)\s+)? (?<s>\w+) \s* \[ \s* ((?<f>\w+)-(?<a>\w+)\s*)* \] \s*$",
+			RegexOptions.ExplicitCapture | RegexOptions.IgnorePatternWhitespace);
 
 		public static XedFlagsRecord Parse(string str)
 		{
 			// IMMx MUST [ of-u sf-mod zf-mod af-u pf-mod cf-mod ]
 			if (str == null) throw new ArgumentNullException(nameof(str));
-			throw new NotImplementedException();
+
+			var match = parseRegex.Match(str);
+			if (match == null) throw new FormatException();
+
+			XedFlagsRecordQualifier? qualifier = null;
+			if (match.Groups["q"].Success)
+			{
+				if (!Enum.TryParse(match.Groups["q"].Value, ignoreCase: true, out XedFlagsRecordQualifier parsedQualifier))
+					throw new FormatException();
+				qualifier = parsedQualifier;
+			}
+
+			if (!Enum.TryParse(match.Groups["s"].Value, ignoreCase: true, out XedFlagsRecordSemantic semantic))
+				throw new FormatException();
+
+			var flagCaptures = match.Groups["f"].Captures;
+			var actionCaptures = match.Groups["a"].Captures;
+			var flagActions = new Dictionary<XedFlag, XedFlagAction>(flagCaptures.Count);
+			for (int i = 0; i < flagCaptures.Count; ++i)
+			{
+				var flag = XedEnumNameAttribute.GetEnumerantOrNull<XedFlag>(flagCaptures[i].Value).Value;
+				var action = XedEnumNameAttribute.GetEnumerantOrNull<XedFlagAction>(actionCaptures[i].Value).Value;
+				flagActions.Add(flag, action);
+			}
+
+			return new XedFlagsRecord(qualifier, semantic, flagActions);
 		}
 	}
 }

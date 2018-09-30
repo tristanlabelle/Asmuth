@@ -203,7 +203,22 @@ namespace Asmuth.X86.Xed
 				}";
 			var entry = XedDataFiles.ParseInstructions(new StringReader(str),
 				s => null, s => default).Single();
+			var instruction = entry.Value;
 			Assert.AreEqual("INSTRUCTIONS", entry.Key);
+			Assert.AreEqual("INC", instruction.Class);
+			Assert.AreEqual(3, instruction.PrivilegeLevel);
+			Assert.AreEqual("BINARY", instruction.Category);
+			Assert.AreEqual("BASE", instruction.Extension);
+			Assert.AreEqual("I86", instruction.IsaSet);
+			Assert.AreEqual("BYTEOP", instruction.Attributes.Single());
+
+			Assert.AreEqual(1, instruction.FlagsRecords.Count);
+			Assert.AreEqual(5, instruction.FlagsRecords[0].FlagActions.Count);
+
+			Assert.AreEqual(1, instruction.Forms.Count);
+			var form = instruction.Forms[0];
+			Assert.AreEqual(5, form.Pattern.Length);
+			Assert.AreEqual(1, form.Operands.Length);
 		}
 	}
 }
