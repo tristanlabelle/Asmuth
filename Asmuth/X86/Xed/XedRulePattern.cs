@@ -5,13 +5,13 @@ using System.Text;
 
 namespace Asmuth.X86.Xed
 {
-	public readonly struct XedPatternRuleCase
+	public readonly struct XedRulePatternCase
 	{
 		public ImmutableArray<XedBlot> Conditions { get; }
 		public ImmutableArray<XedBlot> Actions { get; }
 		public bool Reset { get; }
 
-		public XedPatternRuleCase(ImmutableArray<XedBlot> conditions,
+		public XedRulePatternCase(ImmutableArray<XedBlot> conditions,
 			ImmutableArray<XedBlot> actions, bool reset)
 		{
 			this.Conditions = conditions;
@@ -35,16 +35,14 @@ namespace Asmuth.X86.Xed
 		}
 	}
 
-	public sealed class XedPatternRule
+	public sealed class XedRulePattern : XedPattern
 	{
-		public string Name { get; }
 		public bool ReturnsRegister { get; }
-		public ImmutableArray<XedPatternRuleCase> Cases { get; }
+		public ImmutableArray<XedRulePatternCase> Cases { get; }
 
-		public XedPatternRule(string name, bool returnsRegister,
-			ImmutableArray<XedPatternRuleCase> cases)
+		public XedRulePattern(string name, bool returnsRegister,
+			ImmutableArray<XedRulePatternCase> cases) : base(name)
 		{
-			this.Name = name;
 			this.ReturnsRegister = returnsRegister;
 			this.Cases = cases;
 

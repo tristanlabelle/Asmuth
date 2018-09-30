@@ -198,14 +198,14 @@ namespace Asmuth.X86.Xed
 		private static readonly Regex patternRuleCaseLineRegex = new Regex(
 			@"^\s*(.*?)\s*\|\s*(.*?)\s*$");
 
-		public static IEnumerable<XedPatternRule> ParsePatternRules(
+		public static IEnumerable<XedRulePattern> ParsePatternRules(
 			TextReader reader, Func<string, string> stateMacroResolver)
 		{
 			string ruleName = null;
 			bool returnsRegister = false;
 			var conditionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
 			var actionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
-			var caseBuilder = ImmutableArray.CreateBuilder<XedPatternRuleCase>();
+			var caseBuilder = ImmutableArray.CreateBuilder<XedRulePatternCase>();
 
 			while (true)
 			{
@@ -221,7 +221,7 @@ namespace Asmuth.X86.Xed
 				{
 					if (ruleName != null)
 					{
-						yield return new XedPatternRule(ruleName, returnsRegister,
+						yield return new XedRulePattern(ruleName, returnsRegister,
 							caseBuilder.ToImmutable());
 						caseBuilder.Clear();
 					}
@@ -251,7 +251,7 @@ namespace Asmuth.X86.Xed
 					}
 				}
 
-				caseBuilder.Add(new XedPatternRuleCase(conditionsBuilder.ToImmutable(),
+				caseBuilder.Add(new XedRulePatternCase(conditionsBuilder.ToImmutable(),
 					actionsBuilder.ToImmutable(), reset));
 				conditionsBuilder.Clear();
 				actionsBuilder.Clear();
@@ -259,7 +259,7 @@ namespace Asmuth.X86.Xed
 
 			if (ruleName != null)
 			{
-				yield return new XedPatternRule(ruleName, returnsRegister,
+				yield return new XedRulePattern(ruleName, returnsRegister,
 					caseBuilder.ToImmutable());
 			}
 		}
