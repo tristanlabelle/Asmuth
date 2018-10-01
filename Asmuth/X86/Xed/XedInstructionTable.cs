@@ -4,10 +4,10 @@ using System.Text;
 
 namespace Asmuth.X86.Xed
 {
-	public sealed class XedInstructionsPattern : XedPattern
+	public sealed class XedInstructionTable : XedSymbol
 	{
 		public IList<XedInstruction> Instructions { get; } = new List<XedInstruction>();
 
-		public XedInstructionsPattern(string name) : base(name) { }
+		public XedInstructionTable(string name) : base(name) { }
 	}
 }

@@ -155,34 +155,34 @@ namespace Asmuth.X86.Xed
 				xed_reg_enum_t XMM_R_64()::
 				norexr REG=0x0 | OUTREG=XED_REG_XMM0";
 
-			var rules = XedDataFiles.ParsePatternRules(new StringReader(str),
+			var symbols = XedDataFiles.ParsePatternsFile(new StringReader(str),
 				s => s == "norexr" ? "REXR=0" : null).ToArray();
-			Assert.AreEqual(2, rules.Length);
+			Assert.AreEqual(2, symbols.Length);
 
 			{
-				var prefixesRule = rules[0];
-				Assert.AreEqual("PREFIXES", prefixesRule.Name);
-				Assert.IsFalse(prefixesRule.ReturnsRegister);
-				Assert.AreEqual(3, prefixesRule.Cases.Length);
+				var prefixesPattern = (XedPattern)symbols[0];
+				Assert.AreEqual("PREFIXES", prefixesPattern.Name);
+				Assert.IsFalse(prefixesPattern.ReturnsRegister);
+				Assert.AreEqual(3, prefixesPattern.Cases.Length);
 
-				var rexCase = prefixesRule.Cases[0];
+				var rexCase = prefixesPattern.Cases[0];
 				Assert.AreEqual(2, rexCase.Conditions.Length);
 				Assert.AreEqual(5, rexCase.Actions.Length);
 				Assert.IsTrue(rexCase.Reset);
 
-				var otherwiseCase = prefixesRule.Cases[2];
+				var otherwiseCase = prefixesPattern.Cases[2];
 				Assert.AreEqual(0, otherwiseCase.Conditions.Length);
 				Assert.AreEqual(0, otherwiseCase.Actions.Length);
 			}
 
 			{
-				var xmmRule = rules[1];
-				Assert.AreEqual("XMM_R_64", xmmRule.Name);
-				Assert.IsTrue(xmmRule.ReturnsRegister);
-				Assert.AreEqual(1, xmmRule.Cases.Length);
-				Assert.AreEqual(2, xmmRule.Cases[0].Conditions.Length);
-				Assert.AreEqual(1, xmmRule.Cases[0].Actions.Length);
-				Assert.AreEqual("XED_REG_XMM0", xmmRule.Cases[0].OutRegBlot.Value.ConstantName);
+				var xmmPattern = (XedPattern)symbols[1];
+				Assert.AreEqual("XMM_R_64", xmmPattern.Name);
+				Assert.IsTrue(xmmPattern.ReturnsRegister);
+				Assert.AreEqual(1, xmmPattern.Cases.Length);
+				Assert.AreEqual(2, xmmPattern.Cases[0].Conditions.Length);
+				Assert.AreEqual(1, xmmPattern.Cases[0].Actions.Length);
+				Assert.AreEqual("XED_REG_XMM0", xmmPattern.Cases[0].OutRegBlot.Value.ConstantName);
 			}
 		}
 

@@ -193,74 +193,116 @@ namespace Asmuth.X86.Xed
 		#endregion
 
 		#region PatternRules
-		private static readonly Regex patternRuleNameLineRegex = new Regex(
+		private static readonly Regex sequenceDeclarationLineRegex = new Regex(
+			@"^\s*SEQUENCE\s+(?<name>\w+)\s*$");
+		private static readonly Regex sequenceEntryLineRegex = new Regex(
+			@"^\s*(?<name>\w+)(?<parens>\s*\(\s*\))\s*$");
+		private static readonly Regex patternDeclarationLineRegex = new Regex(
 			@"^\s*(?:(?<reg>xed_reg_enum_t)\s+)?(?<name>\w+)\(\)::\s*$");
-		private static readonly Regex patternRuleCaseLineRegex = new Regex(
+		private static readonly Regex patternRuleLineRegex = new Regex(
 			@"^\s*(.*?)\s*\|\s*(.*?)\s*$");
 
-		public static IEnumerable<XedRulePattern> ParsePatternRules(
+		public static IEnumerable<XedSymbol> ParsePatternsFile(
 			TextReader reader, Func<string, string> stateMacroResolver)
 		{
-			string ruleName = null;
+			string sequenceName = null;
+			string patternName = null;
 			bool returnsRegister = false;
 			var conditionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
 			var actionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
-			var caseBuilder = ImmutableArray.CreateBuilder<XedRulePatternCase>();
+			var ruleBuilder = ImmutableArray.CreateBuilder<XedPatternCase>();
+			var sequenceEntryBuilder = ImmutableArray.CreateBuilder<XedSequenceEntry>();
 
 			while (true)
 			{
 				var line = reader.ReadLine();
-				if (line == null) break;
-
-				line = commentRegex.Replace(line, string.Empty);
-				if (line.Length == 0) continue;
-
-				// Match rules
-				var newRuleMatch = patternRuleNameLineRegex.Match(line);
-				if (newRuleMatch.Success)
+				bool flush = false;
+				Match newPatternMatch = null;
+				Match newSequenceMatch = null;
+				if (line == null)
 				{
-					if (ruleName != null)
+					flush = true;
+				}
+				else
+				{
+					line = commentRegex.Replace(line, string.Empty);
+					if (line.Length == 0) continue;
+
+					// Match declarations
+					newPatternMatch = patternDeclarationLineRegex.Match(line);
+					newSequenceMatch = sequenceDeclarationLineRegex.Match(line);
+					flush = newPatternMatch.Success || newSequenceMatch.Success;
+				}
+
+				if (flush)
+				{
+					if (patternName != null)
 					{
-						yield return new XedRulePattern(ruleName, returnsRegister,
-							caseBuilder.ToImmutable());
-						caseBuilder.Clear();
+						yield return new XedPattern(patternName, returnsRegister, ruleBuilder.ToImmutable());
+						ruleBuilder.Clear();
+						patternName = null;
+					}
+					else if (sequenceName != null)
+					{
+						yield return new XedSequence(sequenceName, sequenceEntryBuilder.ToImmutable());
+						sequenceEntryBuilder.Clear();
+						sequenceName = null;
 					}
 
-					ruleName = newRuleMatch.Groups["name"].Value;
-					returnsRegister = newRuleMatch.Groups["reg"].Success;
+					if (line == null) break;
+				}
+
+				if (newPatternMatch.Success)
+				{
+					patternName = newPatternMatch.Groups["name"].Value;
+					returnsRegister = newPatternMatch.Groups["reg"].Success;
 					continue;
 				}
 
-				// Expand macros
-				line = Regex.Replace(line, @"\w+", m => stateMacroResolver(m.Value) ?? m.Value);
-
-				var ruleCaseMatch = patternRuleCaseLineRegex.Match(line);
-				if (!ruleCaseMatch.Success) throw new FormatException();
-
-				if (ruleCaseMatch.Groups[1].Value != "otherwise")
-					foreach (var blotStr in Regex.Split(ruleCaseMatch.Groups[1].Value, @"\s+"))
-						conditionsBuilder.Add(XedBlot.Parse(blotStr, condition: true));
-
-				bool reset = false;
-				if (ruleCaseMatch.Groups[2].Value != "nothing")
+				if (newSequenceMatch.Success)
 				{
-					foreach (var blotStr in Regex.Split(ruleCaseMatch.Groups[2].Value, @"\s+"))
-					{
-						if (blotStr == "XED_RESET") reset = true;
-						else actionsBuilder.Add(XedBlot.Parse(blotStr, condition: false));
-					}
+					sequenceName = newSequenceMatch.Groups["name"].Value;
+					continue;
 				}
 
-				caseBuilder.Add(new XedRulePatternCase(conditionsBuilder.ToImmutable(),
-					actionsBuilder.ToImmutable(), reset));
-				conditionsBuilder.Clear();
-				actionsBuilder.Clear();
-			}
+				if (patternName != null)
+				{
+					// Expand macros
+					line = Regex.Replace(line, @"\w+", m => stateMacroResolver(m.Value) ?? m.Value);
 
-			if (ruleName != null)
-			{
-				yield return new XedRulePattern(ruleName, returnsRegister,
-					caseBuilder.ToImmutable());
+					var patternRuleMatch = patternRuleLineRegex.Match(line);
+					if (!patternRuleMatch.Success) throw new FormatException();
+
+					if (patternRuleMatch.Groups[1].Value != "otherwise")
+						foreach (var blotStr in Regex.Split(patternRuleMatch.Groups[1].Value, @"\s+"))
+							conditionsBuilder.Add(XedBlot.Parse(blotStr, condition: true));
+
+					bool reset = false;
+					if (patternRuleMatch.Groups[2].Value != "nothing")
+					{
+						foreach (var blotStr in Regex.Split(patternRuleMatch.Groups[2].Value, @"\s+"))
+						{
+							if (blotStr == "XED_RESET") reset = true;
+							else actionsBuilder.Add(XedBlot.Parse(blotStr, condition: false));
+						}
+					}
+
+					ruleBuilder.Add(new XedPatternCase(conditionsBuilder.ToImmutable(),
+						actionsBuilder.ToImmutable(), reset));
+					conditionsBuilder.Clear();
+					actionsBuilder.Clear();
+				}
+				else if (sequenceName != null)
+				{
+					var sequenceEntryMatch = sequenceEntryLineRegex.Match(line);
+					if (!sequenceEntryMatch.Success) throw new FormatException();
+
+					var targetName = sequenceEntryMatch.Groups["name"].Value;
+					var type = sequenceEntryMatch.Groups["parens"].Success
+						? XedSequenceEntryType.Pattern : XedSequenceEntryType.Sequence;
+					sequenceEntryBuilder.Add(new XedSequenceEntry(targetName, type));
+				}
+				else throw new NotImplementedException();
 			}
 		}
 		#endregion
