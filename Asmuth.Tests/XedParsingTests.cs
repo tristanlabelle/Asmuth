@@ -122,7 +122,7 @@ namespace Asmuth.X86.Xed
 			AssertParseEqual("MOD[mm]", new XedBitsBlot("MOD", "mm"));
 			AssertParseEqual("UIMM0[ssss_uuuu]", new XedBitsBlot("UIMM0", "ssssuuuu"));
 			AssertParseEqual("UIMM0[i/16]", new XedBitsBlot("UIMM0", new string('i', 16)));
-			// TODO: "REXW[w]=1"
+			// TODO: "REXW[w]=1", "BASE0=@", "SIBBASE[bbb]=*"
 
 			AssertParseEqual("MOD=3", predicate: false, new XedAssignmentBlot("MOD", 3));
 			AssertParseEqual("BASE0=ArAX()", XedAssignmentBlot.Call("BASE0", "ArAX"));

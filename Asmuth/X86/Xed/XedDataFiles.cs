@@ -405,9 +405,8 @@ namespace Asmuth.X86.Xed
 					var operandsStrings = Regex.Split(fieldValue, @"\s+");
 					for (int i = 0; i < operandsStrings.Length; ++i)
 					{
-						var indexAndOperand = XedOperand.Parse(operandsStrings[i], operandWidthResolver);
-						if (indexAndOperand.Key != i) throw new FormatException();
-						operandsBuilder.Add(indexAndOperand.Value);
+						var operandString = operandsStrings[i];
+						throw new NotImplementedException();
 					}
 
 					state = InstructionParseState.PostOperandsField;

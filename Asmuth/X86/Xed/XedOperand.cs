@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Asmuth.X86.Xed
 {
@@ -11,113 +12,65 @@ namespace Asmuth.X86.Xed
 		[XedEnumName("IMPL")]
 		Implicit, // Represented in assembly but not in an encoding field
 		[XedEnumName("SUPP")]
-		Suppressed // Not represented in encoding nor assembly
+		Suppressed, // Not represented in encoding nor assembly
+		[XedEnumName("ECOND")]
+		ECond // ??
 	}
 
-	public enum XedOperandType : byte
+	public enum XedOperandAccessMode : byte
 	{
-		ImplicitRegister,
-		ExplicitRegister,
-		Memory,
-		Immediate
+		Never,
+		Conditional,
+		Always
 	}
 
-	public sealed class XedOperand
+	public readonly struct XedOperandAccess
 	{
-		// REG0=XED_REG_DX:r:SUPP
-		// REG0=XED_REG_ST0:r:SUPP:f80
-		// REG0=XED_REG_ST0:r:IMPL:f80
-		// REG1=XMM_N():r:dq:i32
-		// REG1=MASK1():r:mskw:TXT=ZEROSTR
-		// MEM0:w:d
-		// MEM0:cw:SUPP:b BASE0=ArDI():rcw:SUPP SEG0=FINAL_ESEG():r:SUPP
-		// IMM0:r:b
-		// IMM0:r:b:i8
+		private readonly byte readModeAndWriteMode;
 
-		public XedOperandType Type { get; }
-		private string registerString;
-		public string ImplicitRegisterName => Type == XedOperandType.ImplicitRegister
-			? registerString : throw new InvalidOperationException();
-		public string ExplicitRegisterPatternName => Type == XedOperandType.ExplicitRegister
-			? registerString : throw new InvalidOperationException();
-		public AccessType Access { get; }
-		public XedOperandWidth? Width { get; }
-		public XedOperandVisibility Visibility { get; }
+		public XedOperandAccess(XedOperandAccessMode readMode, XedOperandAccessMode writeMode)
+			=> this.readModeAndWriteMode = (byte)(((byte)readMode << 4) | (byte)writeMode);
 
-		private XedOperand(XedOperandType type, string registerString, AccessType access, XedOperandWidth? width,
-			XedOperandVisibility visilibity)
+		public XedOperandAccessMode ReadMode => (XedOperandAccessMode)(readModeAndWriteMode >> 4);
+		public XedOperandAccessMode WriteMode => (XedOperandAccessMode)(readModeAndWriteMode & 0xF);
+
+		public override string ToString()
 		{
-			this.Type = type;
-			this.registerString = registerString;
-			this.Access = access;
-			this.Width = width;
-			this.Visibility = visilibity;
+			string str = string.Empty;
+			if (ReadMode == XedOperandAccessMode.Conditional) str += "c";
+			if (ReadMode != XedOperandAccessMode.Never) str += "r";
+			if (WriteMode == XedOperandAccessMode.Conditional) str += "c";
+			if (WriteMode != XedOperandAccessMode.Never) str += "w";
+			return str;
 		}
 
-		public bool IsMemory => Type == XedOperandType.Memory;
-		public bool IsRegister => Type != XedOperandType.Memory;
+		public static readonly XedOperandAccess None = new XedOperandAccess();
+		public static readonly XedOperandAccess Read = new XedOperandAccess(XedOperandAccessMode.Always, XedOperandAccessMode.Never);
+		public static readonly XedOperandAccess ReadConditional = new XedOperandAccess(XedOperandAccessMode.Conditional, XedOperandAccessMode.Never);
+		public static readonly XedOperandAccess Write = new XedOperandAccess(XedOperandAccessMode.Never, XedOperandAccessMode.Always);
+		public static readonly XedOperandAccess WriteConditional = new XedOperandAccess(XedOperandAccessMode.Never, XedOperandAccessMode.Conditional);
+		public static readonly XedOperandAccess ReadWrite = new XedOperandAccess(XedOperandAccessMode.Always, XedOperandAccessMode.Always);
+		public static readonly XedOperandAccess ReadConditionalWriteAlways = new XedOperandAccess(XedOperandAccessMode.Conditional, XedOperandAccessMode.Always);
+		public static readonly XedOperandAccess ReadAlwaysWriteConditional = new XedOperandAccess(XedOperandAccessMode.Always, XedOperandAccessMode.Conditional);
+		public static readonly XedOperandAccess ReadWriteConditional = new XedOperandAccess(XedOperandAccessMode.Conditional, XedOperandAccessMode.Conditional);
 
-		public static XedOperand MakeImplicitRegister(string name, AccessType access, XedOperandWidth? width, bool visible)
-			=> new XedOperand(XedOperandType.ImplicitRegister, name, access, width,
-				visible ? XedOperandVisibility.Implicit : XedOperandVisibility.Suppressed);
-		public static XedOperand MakeExplicitRegister(string patternName, AccessType access, XedOperandWidth? width)
-			=> new XedOperand(XedOperandType.ExplicitRegister, patternName, access, width, XedOperandVisibility.Explicit);
-		public static XedOperand MakeMemory(AccessType access, XedOperandWidth? width)
-			=> new XedOperand(XedOperandType.Memory, null, access, width);
-		public static XedOperand MakeImmediate(XedOperandWidth width, XedOperandVisibility visibility = XedOperandVisibility.Explicit)
-			=> new XedOperand(XedOperandType.Immediate, null, AccessType.Read, width, visibility);
-
-		private static readonly Regex typeRegex = new Regex(
-			@"^( (?<t>REG)(?<i>\d)=(?<v>\w+)(?<e>\(\))? | (?<t>(MEM|IMM))(?<i>\d))$",
-			RegexOptions.ExplicitCapture | RegexOptions.IgnorePatternWhitespace);
-
-		private static readonly Dictionary<string, AccessType> accessTypes = new Dictionary<string, AccessType>
+		public static XedOperandAccess Parse(string str)
 		{
-			{ "r", AccessType.Read },
-			{ "rw", AccessType.ReadWrite },
-			{ "w", AccessType.Write },
-		};
-
-		public static KeyValuePair<int, XedOperand> Parse(string str, Func<string, XedOperandWidth> widthResolver)
-		{
-			var components = str.Split(':');
-			if (components.Length < 2) throw new FormatException();
-
-			var typeMatch = typeRegex.Match(components[0]);
-			if (!typeMatch.Success) throw new FormatException();
-
-			int index = typeMatch.Groups["i"].Value[0] - '0';
-			var accessType = accessTypes[components[1]];
-			var width = components.Length >= 3 ? widthResolver(components[2]) : (XedOperandWidth?)null;
-
-			var typeName = typeMatch.Groups["t"].Value;
-			XedOperand operand;
-			if (typeName == "REG")
-			{
-				if (components.Length > 3) throw new NotImplementedException();
-				var valueStr = typeMatch.Groups["v"].Value;
-				if (typeMatch.Groups["e"].Success)
-				{
-					operand = MakeExplicitRegister(valueStr, accessType, width);
-				}
-				else
-				{
-					operand = MakeImplicitRegister(valueStr, accessType, width);
-				}
-			}
-			else if (typeName == "MEM")
-			{
-				operand = MakeMemory(accessType, width);
-			}
-			else if (typeName == "IMM")
-			{
-				if (accessType != AccessType.Read) throw new FormatException();
-				if (!width.HasValue) throw new FormatException();
-				operand = MakeImmediate(width.Value);
-			}
-			else throw new UnreachableException();
-
-			return new KeyValuePair<int, XedOperand>(index, operand);
+			throw new NotImplementedException();
 		}
 	}
+
+	public abstract class XedOperand
+	{
+		public abstract XedOperandAccess Access { get; }
+		public abstract XedOperandWidth? Width { get; }
+		public abstract XedOperandVisibility Visibility { get; }
+	}
+
+	// TODO:
+	public abstract class XedMemoryOperand : XedOperand {}
+	public abstract class XedRegisterOperand : XedOperand { }
+	public abstract class XedSuppressedMemoryOperand : XedMemoryOperand { }
+	public abstract class XedExplicitMemoryOperand : XedMemoryOperand { }
+	public abstract class XedImmediateOperand : XedOperand { } // IMM, PTR and RELBR?
 }
