@@ -4,17 +4,6 @@ using System.Text;
 
 namespace Asmuth.X86.Xed
 {
-	public enum XedFieldType : byte
-	{
-		Int,
-		UInt,
-		[XedEnumName("xed_bits_t")] Bits,
-		[XedEnumName("xed_chip_enum_t")] ChipEnumerant,
-		[XedEnumName("xed_reg_enum_t")] RegisterEnumerant,
-		[XedEnumName("xed_error_enum_t")] ErrorEnumerant,
-		[XedEnumName("xed_iclass_enum_t")] InstructionClassEnumerant
-	}
-
 	public enum XedFieldFlags : byte
 	{
 		None = 0,
@@ -33,7 +22,6 @@ namespace Asmuth.X86.Xed
 
 	public sealed class XedField
 	{
-		// MOD            SCALAR     xed_bits_t 2             SUPPRESSED  NOPRINT INTERNAL DO EO
 		public string Name { get; }
 		public XedFieldType Type { get; }
 		private readonly byte sizeInBits;
@@ -43,7 +31,9 @@ namespace Asmuth.X86.Xed
 		public XedField(string name, XedFieldType type, int sizeInBits, XedFieldFlags flags)
 		{
 			this.Name = name ?? throw new ArgumentNullException(nameof(name));
-			this.Type = type;
+			this.Type = type ?? throw new ArgumentNullException(nameof(type));
+			if (type.SizeInBits.GetValueOrDefault(sizeInBits) != sizeInBits)
+				throw new ArgumentOutOfRangeException(nameof(sizeInBits));
 			this.sizeInBits = (byte)sizeInBits;
 			this.Flags = flags;
 		}

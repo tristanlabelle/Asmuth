@@ -200,12 +200,11 @@ namespace Asmuth.X86.Xed
 		private static XedField ParseField(Match lineMatch)
 		{
 			var name = lineMatch.Groups["name"].Value;
-			var type = XedEnumNameAttribute.GetEnumerantOrNull<XedFieldType>(lineMatch.Groups["type"].Value).Value;
 			int sizeInBits = byte.Parse(lineMatch.Groups["bits"].Value, CultureInfo.InvariantCulture);
 			XedFieldFlags flags = XedFieldFlags.None;
 			foreach (Capture flagCapture in lineMatch.Groups["flag"].Captures)
 				flags |= XedEnumNameAttribute.GetEnumerantOrNull<XedFieldFlags>(flagCapture.Value).Value;
-			return new XedField(name, type, sizeInBits, flags);
+			throw new NotImplementedException();
 		}
 
 		public static XedField ParseField(string line, bool allowComments = true)
