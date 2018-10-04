@@ -112,6 +112,17 @@ namespace Asmuth.X86.Xed
 		}
 
 		[TestMethod]
+		public void TestParseField()
+		{
+			var field = XedDataFiles.ParseField("MOD            SCALAR     xed_bits_t 2             SUPPRESSED  NOPRINT INTERNAL DO EO");
+			Assert.AreEqual("MOD", field.Name);
+			Assert.AreEqual(XedFieldType.Bits, field.Type);
+			Assert.AreEqual(2, field.SizeInBits);
+			Assert.AreEqual(XedFieldFlags.SuppressedVisibility | XedFieldFlags.NoPrint | XedFieldFlags.Internal
+				| XedFieldFlags.DecoderOutput | XedFieldFlags.EncoderOutput, field.Flags);
+		}
+
+		[TestMethod]
 		public void TestParseBlot()
 		{
 			AssertParseEqual("0x42", new XedBitsBlot(0x42, 8));

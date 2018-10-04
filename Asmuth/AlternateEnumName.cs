@@ -11,10 +11,12 @@ namespace Asmuth
 	internal abstract class AlternateEnumNameAttribute : Attribute
 	{
 		public string Name { get; }
+		public bool ManyToOne { get; }
 
-		public AlternateEnumNameAttribute(string name)
+		public AlternateEnumNameAttribute(string name, bool manyToOne = false)
 		{
 			this.Name = name ?? throw new ArgumentNullException(nameof(name));
+			this.ManyToOne = manyToOne;
 		}
 	}
 
@@ -36,7 +38,8 @@ namespace Asmuth
 				{
 					var enumerant = (TEnum)field.GetValue(null);
 					namesToEnumerants.Add(nasmNameAttribute.Name, enumerant);
-					enumerantToNames.Add(enumerant, nasmNameAttribute.Name);
+					if (!nasmNameAttribute.ManyToOne)
+						enumerantToNames.Add(enumerant, nasmNameAttribute.Name);
 				}
 			}
 		}

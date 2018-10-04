@@ -192,7 +192,30 @@ namespace Asmuth.X86.Xed
 		}
 		#endregion
 
-		#region PatternRules
+		#region Fields
+		private static readonly Regex fieldLineRegex = new Regex(
+			@"^\s* (?<name>\w+) \s+ SCALAR \s+ (?<type>\w+) \s+ (?<bits>\d+) (\s+(?<flag>\w+))* \s*$",
+			RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture);
+
+		private static XedField ParseField(Match lineMatch)
+		{
+			var name = lineMatch.Groups["name"].Value;
+			var type = XedEnumNameAttribute.GetEnumerantOrNull<XedFieldType>(lineMatch.Groups["type"].Value).Value;
+			int sizeInBits = byte.Parse(lineMatch.Groups["bits"].Value, CultureInfo.InvariantCulture);
+			XedFieldFlags flags = XedFieldFlags.None;
+			foreach (Capture flagCapture in lineMatch.Groups["flag"].Captures)
+				flags |= XedEnumNameAttribute.GetEnumerantOrNull<XedFieldFlags>(flagCapture.Value).Value;
+			return new XedField(name, type, sizeInBits, flags);
+		}
+
+		public static XedField ParseField(string line, bool allowComments = true)
+			=> ParseField(MatchLine(line, fieldLineRegex, allowComments));
+
+		public static IEnumerable<XedField> ParseFields(TextReader reader)
+			=> ParseLineBased(reader, fieldLineRegex, ParseField);
+		#endregion
+
+		#region Patterns
 		private static readonly Regex sequenceDeclarationLineRegex = new Regex(
 			@"^\s*SEQUENCE\s+(?<name>\w+)\s*$");
 		private static readonly Regex sequenceEntryLineRegex = new Regex(

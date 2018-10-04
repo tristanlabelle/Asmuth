@@ -47,7 +47,9 @@ namespace Asmuth.X86.Xed
 			@"^(?<t>[A-Z]+) (?<i>\d)? (= (?<v>\w+) (?<vc>\(\))? )?$",
 			RegexOptions.ExplicitCapture | RegexOptions.IgnorePatternWhitespace);
 
-		public static XedOperandComponent Parse(string str, Func<string, XedOperandWidth> widthResolver)
+		public static XedOperandComponent Parse(string str,
+			Func<string, XedOperandWidth> widthResolver,
+			Func<string, XedXType> xtypeResolver)
 		{
 			var components = str.Split(':');
 			if (components.Length < 2) throw new FormatException();
