@@ -24,19 +24,16 @@ namespace Asmuth.X86.Xed
 	{
 		public string Name { get; }
 		public XedFieldType Type { get; }
-		private readonly byte sizeInBits;
-		public int SizeInBits => sizeInBits;
 		public XedFieldFlags Flags { get; }
 
-		public XedField(string name, XedFieldType type, int sizeInBits, XedFieldFlags flags)
+		public XedField(string name, XedFieldType type, XedFieldFlags flags)
 		{
 			this.Name = name ?? throw new ArgumentNullException(nameof(name));
 			this.Type = type ?? throw new ArgumentNullException(nameof(type));
-			if (type.SizeInBits.GetValueOrDefault(sizeInBits) != sizeInBits)
-				throw new ArgumentOutOfRangeException(nameof(sizeInBits));
-			this.sizeInBits = (byte)sizeInBits;
 			this.Flags = flags;
 		}
+
+		public int SizeInBits => Type.SizeInBits;
 
 		public override string ToString() => Name;
 	}
