@@ -19,16 +19,14 @@ namespace Asmuth.X86.Xed
 			this.Reset = reset;
 		}
 
-		public XedAssignmentBlot? OutRegBlot
+		public XedBlot? OutRegBlot
 		{
 			get
 			{
 				foreach (var blot in Actions)
 				{
-					if (blot.Type != XedBlotType.Assignment) continue;
-					var assignment = blot.Assignment;
-					if (assignment.Field != "OUTREG") continue;
-					return assignment;
+					if (blot.Type != XedBlotType.Equality || blot.Field.Name != "OUTREG") continue;
+					return blot;
 				}
 				return null;
 			}
@@ -36,7 +34,7 @@ namespace Asmuth.X86.Xed
 	}
 
 	// XED patterns aka rules
-	public sealed class XedPattern : XedSymbol
+	public sealed class XedPattern : XedCallable
 	{
 		public bool ReturnsRegister { get; }
 		public ImmutableArray<XedPatternCase> Cases { get; }

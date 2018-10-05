@@ -224,8 +224,9 @@ namespace Asmuth.X86.Xed
 		private static readonly Regex patternRuleLineRegex = new Regex(
 			@"^\s*(.*?)\s*\|\s*(.*?)\s*$");
 
-		public static IEnumerable<XedSymbol> ParsePatternsFile(
-			TextReader reader, Func<string, string> stateMacroResolver)
+		public static IEnumerable<XedCallable> ParsePatternsFile(
+			TextReader reader, Func<string, string> stateMacroResolver,
+			Func<string, XedField> fieldResolver)
 		{
 			string sequenceName = null;
 			string patternName = null;
@@ -297,7 +298,7 @@ namespace Asmuth.X86.Xed
 
 					if (patternRuleMatch.Groups[1].Value != "otherwise")
 						foreach (var blotStr in Regex.Split(patternRuleMatch.Groups[1].Value, @"\s+"))
-							conditionsBuilder.Add(XedBlot.Parse(blotStr, condition: true));
+							AddBlots(conditionsBuilder, blotStr, fieldResolver);
 
 					bool reset = false;
 					if (patternRuleMatch.Groups[2].Value != "nothing")
@@ -305,7 +306,7 @@ namespace Asmuth.X86.Xed
 						foreach (var blotStr in Regex.Split(patternRuleMatch.Groups[2].Value, @"\s+"))
 						{
 							if (blotStr == "XED_RESET") reset = true;
-							else actionsBuilder.Add(XedBlot.Parse(blotStr, condition: false));
+							else AddBlots(actionsBuilder, blotStr, fieldResolver);
 						}
 					}
 
@@ -326,6 +327,14 @@ namespace Asmuth.X86.Xed
 				}
 				else throw new NotImplementedException();
 			}
+		}
+
+		private static void AddBlots(ImmutableArray<XedBlot>.Builder builder, string str,
+			Func<string, XedField> fieldResolver)
+		{
+			var blots = XedBlot.Parse(str, fieldResolver);
+			builder.Add(blots.Item1);
+			if (blots.Item2.HasValue) builder.Add(blots.Item2.Value);
 		}
 		#endregion
 
@@ -360,6 +369,7 @@ namespace Asmuth.X86.Xed
 		public static IEnumerable<KeyValuePair<string, XedInstruction>> ParseInstructions(
 			TextReader reader,
 			Func<string, string> stateMacroReplacer,
+			Func<string, XedField> fieldResolver,
 			Func<string, XedOperandWidth> operandWidthResolver)
 		{
 			string patternName = null;
@@ -450,7 +460,7 @@ namespace Asmuth.X86.Xed
 					}
 
 					foreach (var blotString in Regex.Split(fieldValue, @"\s+"))
-						patternBuilder.Add(XedBlot.Parse(blotString, condition: true));
+						AddBlots(patternBuilder, blotString, fieldResolver);
 
 					state = InstructionParseState.ExpectOperandsField;
 					continue;

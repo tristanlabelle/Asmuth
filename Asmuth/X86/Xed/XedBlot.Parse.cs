@@ -1,370 +1,132 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
+using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Asmuth.X86.Xed
 {
 	partial struct XedBlot
 	{
-		private enum TokenType : byte
+		private static readonly Regex highLevelRegex = new Regex(
+			@"^(
+				(?<field>[A-Z][A-Z0-9_]*)
+				(\[ (?<bits>[^\]]+) \])?
+				(
+					(?<op>\!?=)
+					(
+						(?<val10>[0-9]+)
+						| (?<val2>0b[01]+)
+						| (?<val16>0x[0-9a-fA-F]+)
+						| (?<vale>XED_[A-Z0-9_]+|@)
+						| (?<valb>[a-z01_]+)
+						| (?<valc>[\w_]+)\(\)
+					)
+				)?
+				| (?<callee>[\w_]+)\(\)
+				| (?<bits>.*)
+			)$", RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture);
+
+		private static readonly Regex bitsRegex = new Regex(
+			@"^(
+				0b(?<base2>[01]+)
+				| 0x(?<base16>[0-9a-fA-F]+)
+				| (?<letter>[a-z])/(?<length>\d+)
+				| (?<pattern>[01a-z_]+)
+			)$", RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture);
+
+		public static (XedBlot, XedBlot?) Parse(string str, Func<string, XedField> fieldResolver)
 		{
-			DecimalLiteral,
-			BinaryOrHexLiteral,
-			BitsPattern, // Includes bit patterns like 'mm', 'rxbw', 'ssss_uuuu' and '1_ddd'
-			Identifier,
-			Equal,
-			NotEqual,
-			OpenBracket,
-			CloseBracket,
-			OpenCloseParen,
-		}
+			var highLevelMatch = highLevelRegex.Match(str);
+			if (!highLevelMatch.Success) throw new FormatException();
 
-		private static bool IsIntegerLiteral(TokenType type)
-			=> type == TokenType.BinaryOrHexLiteral || type == TokenType.DecimalLiteral;
-
-		private readonly struct Token : IEquatable<Token>
-		{
-			private readonly string str;
-			public TokenType Type { get; }
-			private readonly byte valueOrLetter;
-			private readonly byte bitCount;
-
-			private Token(string str, TokenType type)
+			XedBlot blot;
+			XedBlot? secondBlot = null;
+			if (highLevelMatch.Groups["field"].Success)
 			{
-				this.str = str;
-				this.Type = type;
-				this.valueOrLetter = 0;
-				this.bitCount = 0;
-			}
+				var field = fieldResolver(highLevelMatch.Groups["field"].Value);
 
-			private Token(TokenType type)
-			{
-				this.str = null;
-				this.Type = type;
-				this.valueOrLetter = 0;
-				this.bitCount = 0;
-			}
-
-			private Token(byte value, int bitCount)
-			{
-				if (bitCount == 0 || bitCount > 8)
-					throw new ArgumentOutOfRangeException(nameof(bitCount));
-
-				this.str = null;
-				this.Type = TokenType.BinaryOrHexLiteral;
-				this.valueOrLetter = value;
-				this.bitCount = (byte)bitCount;
-			}
-
-			private Token(byte value)
-			{
-				this.str = null;
-				this.Type = TokenType.DecimalLiteral;
-				this.valueOrLetter = value;
-				this.bitCount = 0;
-			}
-
-			public string Identifier => Type == TokenType.Identifier
-				? str : throw new InvalidOperationException();
-			public string BitsPattern => Type == TokenType.BitsPattern
-				? str : throw new InvalidOperationException();
-			public byte Value => IsIntegerLiteral(Type)
-				? valueOrLetter : throw new InvalidOperationException();
-			public byte BitCount => Type == TokenType.BinaryOrHexLiteral
-				? bitCount : throw new InvalidOperationException();
-
-			public bool Equals(Token other) => Type == other.Type
-				&& str == other.str
-				&& valueOrLetter == other.valueOrLetter && bitCount == other.bitCount;
-			public override bool Equals(object obj) => obj is Token && Equals((Token)obj);
-			public override int GetHashCode() => (int)Type;
-			public static bool Equals(Token lhs, Token rhs) => lhs.Equals(rhs);
-			public static bool operator ==(Token lhs, Token rhs) => Equals(lhs, rhs);
-			public static bool operator !=(Token lhs, Token rhs) => !Equals(lhs, rhs);
-
-			public static Token MakeIdentifier(string name) => new Token(name, TokenType.Identifier);
-			public static Token MakeBitsPattern(string str) => new Token(str, TokenType.BitsPattern);
-			public static Token BinaryOrHexLiteral(byte value, int bitCount) => new Token(value, bitCount);
-			public static Token DecimalLiteral(byte value) => new Token(value);
-
-			public static readonly Token Equal = new Token(TokenType.Equal);
-			public static readonly Token NotEqual = new Token(TokenType.NotEqual);
-			public static readonly Token OpenBracket = new Token(TokenType.OpenBracket);
-			public static readonly Token CloseBracket = new Token(TokenType.CloseBracket);
-			public static readonly Token OpenCloseParen = new Token(TokenType.OpenCloseParen);
-		}
-		
-		public static XedBlot Parse(string str, bool condition)
-		{
-			var tokens = Tokenize(str).ToList();
-			if (tokens.Count == 0) throw new FormatException();
-
-			if (tokens[0].Type == TokenType.Identifier)
-			{
-				if (tokens[1].Type == TokenType.OpenCloseParen)
+				XedBlot? bitsBlot = null;
+				if (highLevelMatch.Groups["bits"].Success)
 				{
-					if (tokens.Count > 2) throw new FormatException();
-					return Call(tokens[0].Identifier);
+					var bitPattern = XedBitPattern.Normalize(highLevelMatch.Groups["bits"].Value);
+					bitsBlot = MakeBits(field, bitPattern);
 				}
 
-				string field = tokens[0].Identifier;
-				if (tokens[1].Type == TokenType.NotEqual)
+				XedBlot? predicateBlot = null;
+				if (highLevelMatch.Groups["op"].Success)
 				{
-					if (tokens.Count != 3 || !IsIntegerLiteral(tokens[2].Type))
-						throw new FormatException();
-					return new XedPredicateBlot(field, false, tokens[2].Value);
-				}
-
-				if (tokens[1].Type == TokenType.Equal)
-				{
-					if (!condition && tokens.Count == 4
-						&& tokens[2].Type == TokenType.Identifier
-						&& tokens[3].Type == TokenType.OpenCloseParen)
+					XedBlotValue value;
+					if (highLevelMatch.Groups["val10"].Success)
+						value = XedBlotValue.MakeConstant(Convert.ToByte(
+							highLevelMatch.Groups["val10"].Value, 10));
+					else if (highLevelMatch.Groups["val2"].Success)
+						value = XedBlotValue.MakeConstant(Convert.ToByte(
+							highLevelMatch.Groups["val2"].Value, 2));
+					else if (highLevelMatch.Groups["val16"].Success)
+						value = XedBlotValue.MakeConstant(Convert.ToByte(
+							highLevelMatch.Groups["val16"].Value, 16));
+					else if (highLevelMatch.Groups["vale"].Success)
 					{
-						// "BASE0=ArAX()" case
-						return XedAssignmentBlot.Call(field, tokens[2].Identifier);
+						var enumType = (XedEnumerationFieldType)field.Type;
+						int enumerant = enumType.GetValue(highLevelMatch.Groups["vale"].Value);
+						value = XedBlotValue.MakeConstant(checked((byte)enumerant));
 					}
-
-					if (tokens.Count != 3) throw new FormatException();
-
-					if (IsIntegerLiteral(tokens[2].Type))
-					{
-						return condition
-							? (XedBlot)new XedPredicateBlot(field, equal: true, tokens[2].Value)
-							: (XedBlot)new XedAssignmentBlot(field, tokens[2].Value);
-					}
-					else if (tokens[2].Type == TokenType.Identifier)
-					{
-						// "OUTREG=XED_REG_XMM0" case
-						var constantName = tokens[2].Identifier;
-						return XedAssignmentBlot.NamedConstant(field, constantName);
-					}
-					else if (tokens[2].Type == TokenType.BitsPattern)
-					{
-						// "REXW=w" case
-						return XedAssignmentBlot.BitPattern(field, tokens[2].BitsPattern);
-					}
-					else throw new FormatException();
-				}
-
-				if (tokens[1].Type == TokenType.OpenBracket)
-				{
-					if (tokens.Count != 4 || tokens[3].Type != TokenType.CloseBracket)
-						throw new FormatException();
-
-					var bitsToken = tokens[2];
-					if (bitsToken.Type == TokenType.BitsPattern)
-						return new XedBitsBlot(field, bitsToken.BitsPattern);
-					if (bitsToken.Type == TokenType.BinaryOrHexLiteral)
-						return new XedBitsBlot(field, bitsToken.Value, bitsToken.BitCount);
-
-					throw new FormatException();
-				}
-
-				throw new FormatException();
-			}
-			else if (tokens[0].Type == TokenType.BinaryOrHexLiteral)
-			{
-				if (tokens.Count > 1) throw new FormatException();
-				return new XedBitsBlot(tokens[0].Value, tokens[0].BitCount);
-			}
-			else if (tokens[0].Type == TokenType.BitsPattern)
-			{
-				if (tokens.Count > 1) throw new FormatException();
-				return new XedBitsBlot(tokens[0].BitsPattern);
-			}
-			else throw new FormatException();
-
-			throw new UnreachableException();
-		}
-
-		private static char AtOrNull(string str, int index)
-			=> index < str.Length ? str[index] : '\0';
-
-		private static byte ParseHexDigit(char c)
-		{
-			if (c >= '0' && c <= '9') return (byte)(c - '0');
-			if (c >= 'a' && c <= 'f') return (byte)(c - 'a' + 10);
-			if (c >= 'A' && c <= 'F') return (byte)(c - 'A' + 10);
-			throw new FormatException();
-		}
-
-		private static IEnumerable<Token> Tokenize(string str)
-		{
-			int startIndex = 0;
-			while (startIndex != str.Length)
-			{
-				// Skip whitespace
-				if (char.IsWhiteSpace(str[startIndex]))
-				{
-					startIndex++;
-					continue;
-				}
-
-				int length = 1;
-				char startChar = str[startIndex];
-				if (startChar == '=') yield return Token.Equal;
-				else if (startChar == '[') yield return Token.OpenBracket;
-				else if (startChar == ']') yield return Token.CloseBracket;
-				else if (startChar == '(')
-				{
-					if (AtOrNull(str, startIndex + 1) != ')') throw new FormatException();
-					length = 2;
-					yield return Token.OpenCloseParen;
-				}
-				else if (startChar == '!')
-				{
-					if (AtOrNull(str, startIndex + 1) != '=') throw new FormatException();
-					length = 2;
-					yield return Token.NotEqual;
-				}
-				else if (startChar >= '0' && startChar <= '9')
-				{
-					char secondChar = AtOrNull(str, startIndex + 1);
-					if (startChar == '0' && secondChar == 'x')
-					{
-						// Hex literal
-						length = 2;
-						byte value = 0;
-						while (true)
-						{
-							char c = AtOrNull(str, startIndex + length);
-							byte digit;
-							if (c >= '0' && c <= '9') digit = (byte)(c - '0');
-							else if (c >= 'a' && c <= 'f') digit = (byte)(c - 'a' + 10);
-							else if (c >= 'A' && c <= 'F') digit = (byte)(c - 'A' + 10);
-							else if (char.IsLetter(c) || c == '_')
-								throw new FormatException();
-							else break;
-
-							value = (byte)((value << 4) | digit);
-							length++;
-						}
-						
-						yield return Token.BinaryOrHexLiteral(value, (length - 2) * 4);
-					}
-					else if (startChar == '0' && secondChar == 'b')
-					{
-						// Binary
-						length = 2;
-						byte value = 0;
-						while (true)
-						{
-							char c = AtOrNull(str, startIndex + length);
-							if (c != '0' && c != '1')
-							{
-								if (char.IsLetterOrDigit(c))
-									throw new FormatException();
-								break;
-							}
-
-							value = (byte)((value << 1) | (c - '0'));
-							length++;
-						}
-
-						yield return Token.BinaryOrHexLiteral(value, (byte)(length - 2));
-					}
+					else if (highLevelMatch.Groups["valb"].Success)
+						value = XedBlotValue.MakeBits(highLevelMatch.Groups["valb"].Value);
+					else if (highLevelMatch.Groups["valc"].Success)
+						value = XedBlotValue.MakeCallResult(highLevelMatch.Groups["valc"].Value);
 					else
-					{
-						// Dec or bit pattern starting with 0-9
-						length = 0;
-						byte value = 0;
-						bool potentialBitPattern = true;
-						while (true)
-						{
-							char c = AtOrNull(str, startIndex + length);
-							if (c < '0' || c > '9')
-							{
-								if (char.IsLetter(c) || c == '_')
-								{
-									if (!potentialBitPattern) throw new FormatException();
-								}
-								else
-								{
-									// Everything was digits, not a bit pattern
-									potentialBitPattern = false;
-								}
-									
-								break;
-							}
-							if (c >= '2' && c <= '9') potentialBitPattern = false;
+						throw new UnreachableException();
 
-							if (value > 25) throw new FormatException();
-							value = (byte)(value * 10 + (c - '0'));
-							length++;
-						}
-
-						if (potentialBitPattern)
-						{
-							// Bit pattern starting with 0/1
-							length = 0;
-							while (true)
-							{
-								char c = AtOrNull(str, startIndex + length);
-								if ((c >= 'a' && c <= 'z') || c == '0' || c == '1' || c == '_')
-								{
-									length++;
-								}
-								else if (char.IsLetterOrDigit(c))
-									throw new FormatException();
-								else
-									break;
-							}
-
-							yield return Token.MakeBitsPattern(str.Substring(startIndex, length));
-						}
-						else
-						{
-							yield return Token.DecimalLiteral(value);
-						}
-					}
+					predicateBlot = highLevelMatch.Groups["op"].Value[0] == '!'
+						? MakeInequality(field, value) : MakeEquality(field, value);
 				}
-				else if (char.IsLetter(startChar))
+
+				if (bitsBlot.HasValue && predicateBlot.HasValue)
 				{
-					if (AtOrNull(str, startIndex + 1) == '/')
-					{
-						// long bits variable
-						length = 2;
-						int bitCount = 0;
-						while (true)
-						{
-							char c = AtOrNull(str, startIndex + length);
-							if (c < '0' || c > '9') break;
-							bitCount = bitCount * 10 + (c - '0');
-							length++;
-						}
-
-						if (length == 2) throw new FormatException();
-						yield return Token.MakeBitsPattern(new string(startChar, bitCount));
-					}
-					else
-					{
-						// Identifier or bits pattern
-						length = 0;
-						bool bitsPattern = true;
-						while (true)
-						{
-							char c = AtOrNull(str, startIndex + length);
-							if (c >= 'a' && c <= 'z') { }
-							else if (c == '0' || c == '1' || c == '_') { }
-							else if (c >= '2' && c <= '9') bitsPattern = false;
-							else if (c >= 'A' && c <= 'Z') bitsPattern = false;
-							else break;
-							++length;
-						}
-
-						var substr = str.Substring(startIndex, length);
-						yield return bitsPattern
-							? Token.MakeBitsPattern(substr)
-							: Token.MakeIdentifier(substr);
-					}
+					blot = bitsBlot.Value;
+					secondBlot = predicateBlot;
 				}
+				else if (bitsBlot.HasValue) blot = bitsBlot.Value;
+				else if (predicateBlot.HasValue) blot = predicateBlot.Value;
 				else throw new FormatException();
-
-				startIndex += length;
 			}
+			else if (highLevelMatch.Groups["callee"].Success)
+			{
+				blot = MakeCall(highLevelMatch.Groups["callee"].Value);
+			}
+			else if (highLevelMatch.Groups["bits"].Success)
+			{
+				blot = MakeBits(field: null, ParseBits(highLevelMatch.Groups["bits"].Value));
+			}
+			else throw new UnreachableException();
+			
+			return (blot, secondBlot);
+		}
+
+		private static string ParseBits(string str)
+		{
+			var match = bitsRegex.Match(str);
+			if (!match.Success) throw new FormatException();
+
+			if (match.Groups["base2"].Success)
+				return match.Groups["base2"].Value;
+
+			if (match.Groups["base16"].Success)
+			{
+				var hexDigits = match.Groups["base16"].Value;
+				return Convert.ToString(Convert.ToInt64(hexDigits, 16), 2)
+					.PadLeft(hexDigits.Length * 4, '0');
+			}
+
+			if (match.Groups["letter"].Success)
+			{
+				int length = int.Parse(match.Groups["length"].Value, CultureInfo.InvariantCulture);
+				return new string(match.Groups["letter"].Value[0], length);
+			}
+
+			return XedBitPattern.Normalize(match.Groups["pattern"].Value);
 		}
 	}
 }

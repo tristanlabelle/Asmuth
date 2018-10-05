@@ -116,42 +116,10 @@ namespace Asmuth.X86.Xed
 		{
 			var field = XedDataFiles.ParseField("MOD            SCALAR     xed_bits_t 2             SUPPRESSED  NOPRINT INTERNAL DO EO");
 			Assert.AreEqual("MOD", field.Name);
-			Assert.AreEqual(XedFieldType.Bits, field.Type);
-			Assert.AreEqual(2, field.SizeInBits);
+			Assert.AreEqual(XedBitsFieldType._2, field.Type);
 			Assert.AreEqual(XedFieldFlags.SuppressedVisibility | XedFieldFlags.NoPrint | XedFieldFlags.Internal
 				| XedFieldFlags.DecoderOutput | XedFieldFlags.EncoderOutput, field.Flags);
 		}
-
-		[TestMethod]
-		public void TestParseBlot()
-		{
-			AssertParseEqual("0x42", new XedBitsBlot(0x42, 8));
-			AssertParseEqual("0b0100", new XedBitsBlot(0b0100, 4));
-			AssertParseEqual("wrxb", new XedBitsBlot("wrxb"));
-			AssertParseEqual("1_ddd", new XedBitsBlot("1ddd"));
-			AssertParseEqual("MOD[0b11]", new XedBitsBlot("MOD", 0b11, 2));
-			AssertParseEqual("MOD[mm]", new XedBitsBlot("MOD", "mm"));
-			AssertParseEqual("UIMM0[ssss_uuuu]", new XedBitsBlot("UIMM0", "ssssuuuu"));
-			AssertParseEqual("UIMM0[i/16]", new XedBitsBlot("UIMM0", new string('i', 16)));
-			// TODO: "REXW[w]=1", "BASE0=@", "SIBBASE[bbb]=*"
-
-			AssertParseEqual("MOD=3", predicate: false, new XedAssignmentBlot("MOD", 3));
-			AssertParseEqual("BASE0=ArAX()", XedAssignmentBlot.Call("BASE0", "ArAX"));
-			AssertParseEqual("REXW=w", XedAssignmentBlot.BitPattern("REXW", "w"));
-			AssertParseEqual("OUTREG=XED_REG_XMM0",
-				XedAssignmentBlot.NamedConstant("OUTREG", "XED_REG_XMM0"));
-
-			AssertParseEqual("MOD=3", predicate: true, XedPredicateBlot.Equal("MOD", 3));
-			AssertParseEqual("MOD!=3", XedPredicateBlot.NotEqual("MOD", 3));
-
-			AssertParseEqual("MODRM()", XedBlot.Call("MODRM"));
-		}
-
-		private static void AssertParseEqual(string str, bool predicate, XedBlot blot)
-			=> Assert.AreEqual(blot, XedBlot.Parse(str, predicate));
-
-		private static void AssertParseEqual(string str, XedBlot blot)
-			=> AssertParseEqual(str, predicate: false, blot);
 
 		[TestMethod]
 		public void TestParsePatternRules()
@@ -167,7 +135,7 @@ namespace Asmuth.X86.Xed
 				norexr REG=0x0 | OUTREG=XED_REG_XMM0";
 
 			var symbols = XedDataFiles.ParsePatternsFile(new StringReader(str),
-				s => s == "norexr" ? "REXR=0" : null).ToArray();
+				s => s == "norexr" ? "REXR=0" : null, XedTestData.ResolveField).ToArray();
 			Assert.AreEqual(2, symbols.Length);
 
 			{
@@ -193,7 +161,7 @@ namespace Asmuth.X86.Xed
 				Assert.AreEqual(1, xmmPattern.Cases.Length);
 				Assert.AreEqual(2, xmmPattern.Cases[0].Conditions.Length);
 				Assert.AreEqual(1, xmmPattern.Cases[0].Actions.Length);
-				Assert.AreEqual("XED_REG_XMM0", xmmPattern.Cases[0].OutRegBlot.Value.ConstantName);
+				Assert.AreEqual(1, xmmPattern.Cases[0].OutRegBlot.Value.Value.Constant);
 			}
 		}
 
@@ -214,7 +182,7 @@ namespace Asmuth.X86.Xed
 					OPERANDS  : REG0=GPR8_B():rw
 				}";
 			var entry = XedDataFiles.ParseInstructions(new StringReader(str),
-				s => null, s => default).Single();
+				s => null, XedTestData.ResolveField, s => default).Single();
 			var instruction = entry.Value;
 			Assert.AreEqual("INSTRUCTIONS", entry.Key);
 			Assert.AreEqual("INC", instruction.Class);
