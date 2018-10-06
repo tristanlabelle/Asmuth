@@ -15,8 +15,8 @@ namespace Asmuth.X86.Xed
 		private object maxEnclosingRegOrName_IA32; // String lazy-resolved to XedRegister
 		private object maxEnclosingRegOrName_X64; // String lazy-resolved to XedRegister
 		private readonly ushort indexInTable;
-		private readonly ushort widthInBits_IA32;
-		private readonly ushort widthInBits_X64;
+		private ushort widthInBits_IA32;
+		private ushort widthInBits_X64;
 		private readonly byte indexInClassPlusOne;
 		public bool IsHighByte { get; }
 
@@ -47,6 +47,12 @@ namespace Asmuth.X86.Xed
 		{
 			maxEnclosingRegOrName_IA32 = ia32;
 			maxEnclosingRegOrName_X64 = x64;
+		}
+		
+		internal void UpdateWidthInBits(int ia32, int x64)
+		{
+			widthInBits_IA32 = checked((ushort)ia32);
+			widthInBits_X64 = checked((ushort)x64);
 		}
 
 		private XedRegister ResolveMaxEnclosingReg(ref object value)
@@ -86,12 +92,15 @@ namespace Asmuth.X86.Xed
 				// ...
 				// XMM0  xmm  128 ZMM0  0
 				if (dataFileEntry.Class != reg.Class
-					|| dataFileEntry.WidthInBits_IA32 != reg.WidthInBits_IA32
-					|| dataFileEntry.WidthInBits_X64 != reg.WidthInBits_X64
+					|| dataFileEntry.WidthInBits_IA32 < reg.WidthInBits_IA32
+					|| dataFileEntry.WidthInBits_X64 < reg.WidthInBits_X64
 					|| dataFileEntry.ID != reg.IndexInClass
 					|| dataFileEntry.IsHighByte != reg.IsHighByte)
 					throw new InvalidOperationException();
 
+				reg.UpdateWidthInBits(
+					dataFileEntry.WidthInBits_IA32,
+					dataFileEntry.WidthInBits_X64);
 				reg.UpdateMaxEnclosingRegs(
 					dataFileEntry.MaxEnclosingRegName_IA32,
 					dataFileEntry.MaxEnclosingRegName_X64);

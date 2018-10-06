@@ -16,15 +16,15 @@ namespace Asmuth.X86.Xed
 					(?<op>\!?=)
 					(
 						(?<val10>[0-9]+)
-						| (?<val2>0b[01]+)
-						| (?<val16>0x[0-9a-fA-F]+)
+						| 0b(?<val2>[01]+)
+						| 0x(?<val16>[0-9a-fA-F]+)
 						| (?<vale>XED_[A-Z0-9_]+|@)
 						| (?<valb>[a-z01_]+)
 						| (?<valc>[\w_]+)\(\)
 					)
 				)?
 				| (?<callee>[\w_]+)\(\)
-				| (?<bits>.*)
+				| (?<bits>.+)
 			)$", RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture);
 
 		private static readonly Regex bitsRegex = new Regex(
@@ -49,7 +49,7 @@ namespace Asmuth.X86.Xed
 				XedBlot? bitsBlot = null;
 				if (highLevelMatch.Groups["bits"].Success)
 				{
-					var bitPattern = XedBitPattern.Normalize(highLevelMatch.Groups["bits"].Value);
+					var bitPattern = ParseBits(highLevelMatch.Groups["bits"].Value);
 					bitsBlot = MakeBits(field, bitPattern);
 				}
 
@@ -58,7 +58,7 @@ namespace Asmuth.X86.Xed
 				{
 					XedBlotValue value;
 					if (highLevelMatch.Groups["val10"].Success)
-						value = XedBlotValue.MakeConstant(Convert.ToByte(
+						value = XedBlotValue.MakeConstant(Convert.ToUInt16(
 							highLevelMatch.Groups["val10"].Value, 10));
 					else if (highLevelMatch.Groups["val2"].Success)
 						value = XedBlotValue.MakeConstant(Convert.ToByte(
@@ -68,9 +68,9 @@ namespace Asmuth.X86.Xed
 							highLevelMatch.Groups["val16"].Value, 16));
 					else if (highLevelMatch.Groups["vale"].Success)
 					{
-						var enumType = (XedEnumerationFieldType)field.Type;
+						var enumType = (XedEnumFieldType)field.Type;
 						int enumerant = enumType.GetValue(highLevelMatch.Groups["vale"].Value);
-						value = XedBlotValue.MakeConstant(checked((byte)enumerant));
+						value = XedBlotValue.MakeConstant(checked((ushort)enumerant));
 					}
 					else if (highLevelMatch.Groups["valb"].Success)
 						value = XedBlotValue.MakeBits(highLevelMatch.Groups["valb"].Value);

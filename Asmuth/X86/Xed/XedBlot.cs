@@ -24,17 +24,17 @@ namespace Asmuth.X86.Xed
 	public readonly struct XedBlotValue : IEquatable<XedBlotValue>
 	{
 		private readonly string str; // Encoding bits, value bits or callee
-		private readonly byte constant;
+		private readonly ushort constant;
 		public XedBlotValueKind Kind { get; }
 
-		private XedBlotValue(XedBlotValueKind kind, string str, byte constant = 0)
+		private XedBlotValue(XedBlotValueKind kind, string str, ushort constant = 0)
 		{
 			this.Kind = kind;
 			this.str = str;
 			this.constant = constant;
 		}
 
-		public byte Constant => Kind == XedBlotValueKind.Constant
+		public ushort Constant => Kind == XedBlotValueKind.Constant
 			? constant : throw new InvalidOperationException();
 		public string BitPattern => Kind == XedBlotValueKind.Bits
 			? str : throw new InvalidOperationException();
@@ -64,7 +64,7 @@ namespace Asmuth.X86.Xed
 		public static XedBlotValue MakeCallResult(string callee)
 			=> new XedBlotValue(XedBlotValueKind.CallResult, callee ?? throw new ArgumentNullException(nameof(callee)));
 
-		public static XedBlotValue MakeConstant(byte value)
+		public static XedBlotValue MakeConstant(ushort value)
 			=> new XedBlotValue(XedBlotValueKind.Constant, null, value);
 	}
 
@@ -72,8 +72,8 @@ namespace Asmuth.X86.Xed
 	{
 		public XedField Field { get; }
 		private readonly string str; // bitPattern or callee
+		private readonly ushort constantOrIsCallResult;
 		public XedBlotType Type { get; }
-		private readonly byte constantOrIsCallResult;
 
 		private XedBlot(XedBlotType type, XedField field, string bitPattern, XedBlotValue value = default)
 		{
@@ -145,14 +145,14 @@ namespace Asmuth.X86.Xed
 			=> new XedBlot(XedBlotType.Equality, field ?? throw new ArgumentNullException(nameof(field)),
 				bitPattern: null, value);
 
-		public static XedBlot MakeEquality(XedField field, byte value)
+		public static XedBlot MakeEquality(XedField field, ushort value)
 			=> MakeEquality(field, XedBlotValue.MakeConstant(value));
 
 		public static XedBlot MakeInequality(XedField field, XedBlotValue value)
 			=> new XedBlot(XedBlotType.Inequality, field ?? throw new ArgumentNullException(nameof(field)),
 				bitPattern: null, value);
 
-		public static XedBlot MakeInequality(XedField field, byte value)
+		public static XedBlot MakeInequality(XedField field, ushort value)
 			=> MakeInequality(field, XedBlotValue.MakeConstant(value));
 
 		public static XedBlot MakeCall(string callee)

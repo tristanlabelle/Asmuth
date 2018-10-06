@@ -7,9 +7,9 @@ namespace Asmuth.X86.Xed
 	public sealed class XedEngine
 	{
 		public XedRegisterTable RegisterTable { get; }
-		public Func<string, XedCallable> SymbolResolver { get; }
+		public Func<string, XedPattern> SymbolResolver { get; }
 
-		public XedEngine(XedRegisterTable registerTable, Func<string, XedCallable> symbolResolver)
+		public XedEngine(XedRegisterTable registerTable, Func<string, XedPattern> symbolResolver)
 		{
 			this.RegisterTable = registerTable ?? throw new ArgumentNullException(nameof(registerTable));
 			this.SymbolResolver = symbolResolver ?? throw new ArgumentNullException(nameof(symbolResolver));

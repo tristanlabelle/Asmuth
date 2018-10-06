@@ -114,7 +114,8 @@ namespace Asmuth.X86.Xed
 		[TestMethod]
 		public void TestParseField()
 		{
-			var field = XedDataFiles.ParseField("MOD            SCALAR     xed_bits_t 2             SUPPRESSED  NOPRINT INTERNAL DO EO");
+			var field = XedDataFiles.ParseField("MOD SCALAR xed_bits_t 2 SUPPRESSED NOPRINT INTERNAL DO EO",
+				shortEnumName => throw new KeyNotFoundException());
 			Assert.AreEqual("MOD", field.Name);
 			Assert.AreEqual(XedBitsFieldType._2, field.Type);
 			Assert.AreEqual(XedFieldFlags.SuppressedVisibility | XedFieldFlags.NoPrint | XedFieldFlags.Internal
@@ -134,15 +135,15 @@ namespace Asmuth.X86.Xed
 				xed_reg_enum_t XMM_R_64()::
 				norexr REG=0x0 | OUTREG=XED_REG_XMM0";
 
-			var symbols = XedDataFiles.ParsePatternsFile(new StringReader(str),
+			var symbols = XedDataFiles.ParsePatterns(new StringReader(str),
 				s => s == "norexr" ? "REXR=0" : null, XedTestData.ResolveField).ToArray();
 			Assert.AreEqual(2, symbols.Length);
 
 			{
-				var prefixesPattern = (XedPattern)symbols[0];
+				var prefixesPattern = (XedRulePattern)symbols[0];
 				Assert.AreEqual("PREFIXES", prefixesPattern.Name);
 				Assert.IsFalse(prefixesPattern.ReturnsRegister);
-				Assert.AreEqual(3, prefixesPattern.Cases.Length);
+				Assert.AreEqual(3, prefixesPattern.Cases.Count);
 
 				var rexCase = prefixesPattern.Cases[0];
 				Assert.AreEqual(2, rexCase.Conditions.Length);
@@ -155,10 +156,10 @@ namespace Asmuth.X86.Xed
 			}
 
 			{
-				var xmmPattern = (XedPattern)symbols[1];
+				var xmmPattern = (XedRulePattern)symbols[1];
 				Assert.AreEqual("XMM_R_64", xmmPattern.Name);
 				Assert.IsTrue(xmmPattern.ReturnsRegister);
-				Assert.AreEqual(1, xmmPattern.Cases.Length);
+				Assert.AreEqual(1, xmmPattern.Cases.Count);
 				Assert.AreEqual(2, xmmPattern.Cases[0].Conditions.Length);
 				Assert.AreEqual(1, xmmPattern.Cases[0].Actions.Length);
 				Assert.AreEqual(1, xmmPattern.Cases[0].OutRegBlot.Value.Value.Constant);

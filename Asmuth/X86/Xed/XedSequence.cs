@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Asmuth.X86.Xed
 {
-	public sealed class XedSequence : XedCallable
+	public sealed class XedSequence : XedPattern
 	{
 		public ImmutableArray<XedSequenceEntry> Entries { get; }
 

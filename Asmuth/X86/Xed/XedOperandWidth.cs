@@ -18,6 +18,8 @@ namespace Asmuth.X86.Xed
 		{
 			if (widthInBits >= 8 && widthInBits % 8 != 0)
 				throw new ArgumentOutOfRangeException(nameof(widthInBits));
+			if (xtype.IsUnsized) xtype = new XedXType(xtype.BaseType, widthInBits);
+			
 			this.XType = xtype;
 			widthInBits_16 = widthInBits_32 = widthInBits_64 = (ushort)widthInBits;
 		}

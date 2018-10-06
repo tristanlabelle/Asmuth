@@ -36,7 +36,7 @@ namespace Asmuth.X86.Xed
 
 		#region OperandWidths
 		private static readonly Regex widthsLineRegex = new Regex(
-			@"^\s*(\w+)\s+(\w+)\s+
+			@"^\s* (?<name>\w+) \s+ (?<xtype>\w+) \s+
 			(?<size16>\d+)(?<bits16>bits)?
 			(
 				\s+(?<size32>\d+)(?<bits32>bits)?
@@ -47,7 +47,8 @@ namespace Asmuth.X86.Xed
 		public static KeyValuePair<string, XedOperandWidth> ParseOperandWidth(
 			Match lineMatch, Func<string, XedXType> xtypeLookup)
 		{
-			var xtype = xtypeLookup(lineMatch.Groups[2].Value);
+			var xtypeStr = lineMatch.Groups["xtype"].Value;
+			var xtype = xtypeStr == "INVALID" ? new XedXType(XedBaseType.Struct, 0) : xtypeLookup(xtypeStr);
 
 			if (!ushort.TryParse(lineMatch.Groups["size16"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var width16))
 				throw new FormatException();
@@ -71,7 +72,7 @@ namespace Asmuth.X86.Xed
 				width = new XedOperandWidth(xtype, width16);
 			}
 
-			var key = lineMatch.Groups[1].Value;
+			var key = lineMatch.Groups["name"].Value;
 			return new KeyValuePair<string, XedOperandWidth>(key, width);
 		}
 
@@ -197,21 +198,23 @@ namespace Asmuth.X86.Xed
 			@"^\s* (?<name>\w+) \s+ SCALAR \s+ (?<type>\w+) \s+ (?<bits>\d+) (\s+(?<flag>\w+))* \s*$",
 			RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture);
 
-		private static XedField ParseField(Match lineMatch)
+		private static XedField ParseField(Match lineMatch, Func<string, XedEnumFieldType> enumLookup)
 		{
 			var name = lineMatch.Groups["name"].Value;
+			var typeName = lineMatch.Groups["type"].Value;
 			int sizeInBits = byte.Parse(lineMatch.Groups["bits"].Value, CultureInfo.InvariantCulture);
+			var type = XedFieldType.FromNameInCodeAndSizeInBits(typeName, sizeInBits, enumLookup);
 			XedFieldFlags flags = XedFieldFlags.None;
 			foreach (Capture flagCapture in lineMatch.Groups["flag"].Captures)
 				flags |= XedEnumNameAttribute.GetEnumerantOrNull<XedFieldFlags>(flagCapture.Value).Value;
-			throw new NotImplementedException();
+			return new XedField(name, type, flags);
 		}
 
-		public static XedField ParseField(string line, bool allowComments = true)
-			=> ParseField(MatchLine(line, fieldLineRegex, allowComments));
+		public static XedField ParseField(string line, Func<string, XedEnumFieldType> enumLookup, bool allowComments = true)
+			=> ParseField(MatchLine(line, fieldLineRegex, allowComments), enumLookup);
 
-		public static IEnumerable<XedField> ParseFields(TextReader reader)
-			=> ParseLineBased(reader, fieldLineRegex, ParseField);
+		public static IEnumerable<XedField> ParseFields(TextReader reader, Func<string, XedEnumFieldType> enumLookup)
+			=> ParseLineBased(reader, fieldLineRegex, m => ParseField(m, enumLookup));
 		#endregion
 
 		#region Patterns
@@ -219,28 +222,29 @@ namespace Asmuth.X86.Xed
 			@"^\s*SEQUENCE\s+(?<name>\w+)\s*$");
 		private static readonly Regex sequenceEntryLineRegex = new Regex(
 			@"^\s*(?<name>\w+)(?<parens>\s*\(\s*\))\s*$");
-		private static readonly Regex patternDeclarationLineRegex = new Regex(
+		private static readonly Regex rulePatternDeclarationLineRegex = new Regex(
 			@"^\s*(?:(?<reg>xed_reg_enum_t)\s+)?(?<name>\w+)\(\)::\s*$");
-		private static readonly Regex patternRuleLineRegex = new Regex(
-			@"^\s*(.*?)\s*\|\s*(.*?)\s*$");
+		// Workaround bad format "mode16 | OUTREG=YMM_R_32():"
+		private static readonly Regex rulePatternCaseLineRegex = new Regex(
+			@"^\s*(\S.*?)\s*\|\s*(\S.*?)?\s*:?\s*$");
 
-		public static IEnumerable<XedCallable> ParsePatternsFile(
+		public static IEnumerable<XedPattern> ParsePatterns(
 			TextReader reader, Func<string, string> stateMacroResolver,
 			Func<string, XedField> fieldResolver)
 		{
 			string sequenceName = null;
-			string patternName = null;
+			string rulePatternName = null;
 			bool returnsRegister = false;
 			var conditionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
 			var actionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
-			var ruleBuilder = ImmutableArray.CreateBuilder<XedPatternCase>();
+			var ruleBuilder = ImmutableArray.CreateBuilder<XedRulePatternCase>();
 			var sequenceEntryBuilder = ImmutableArray.CreateBuilder<XedSequenceEntry>();
 
 			while (true)
 			{
 				var line = reader.ReadLine();
 				bool flush = false;
-				Match newPatternMatch = null;
+				Match newRulePatternMatch = null;
 				Match newSequenceMatch = null;
 				if (line == null)
 				{
@@ -252,18 +256,18 @@ namespace Asmuth.X86.Xed
 					if (line.Length == 0) continue;
 
 					// Match declarations
-					newPatternMatch = patternDeclarationLineRegex.Match(line);
+					newRulePatternMatch = rulePatternDeclarationLineRegex.Match(line);
 					newSequenceMatch = sequenceDeclarationLineRegex.Match(line);
-					flush = newPatternMatch.Success || newSequenceMatch.Success;
+					flush = newRulePatternMatch.Success || newSequenceMatch.Success;
 				}
 
 				if (flush)
 				{
-					if (patternName != null)
+					if (rulePatternName != null)
 					{
-						yield return new XedPattern(patternName, returnsRegister, ruleBuilder.ToImmutable());
+						yield return new XedRulePattern(rulePatternName, returnsRegister, ruleBuilder.ToImmutable());
 						ruleBuilder.Clear();
-						patternName = null;
+						rulePatternName = null;
 					}
 					else if (sequenceName != null)
 					{
@@ -275,10 +279,10 @@ namespace Asmuth.X86.Xed
 					if (line == null) break;
 				}
 
-				if (newPatternMatch.Success)
+				if (newRulePatternMatch.Success)
 				{
-					patternName = newPatternMatch.Groups["name"].Value;
-					returnsRegister = newPatternMatch.Groups["reg"].Success;
+					rulePatternName = newRulePatternMatch.Groups["name"].Value;
+					returnsRegister = newRulePatternMatch.Groups["reg"].Success;
 					continue;
 				}
 
@@ -288,29 +292,30 @@ namespace Asmuth.X86.Xed
 					continue;
 				}
 
-				if (patternName != null)
+				if (rulePatternName != null)
 				{
 					// Expand macros
 					line = Regex.Replace(line, @"\w+", m => stateMacroResolver(m.Value) ?? m.Value);
 
-					var patternRuleMatch = patternRuleLineRegex.Match(line);
-					if (!patternRuleMatch.Success) throw new FormatException();
+					var rulePatternCaseMatch = rulePatternCaseLineRegex.Match(line);
+					if (!rulePatternCaseMatch.Success) throw new FormatException();
 
-					if (patternRuleMatch.Groups[1].Value != "otherwise")
-						foreach (var blotStr in Regex.Split(patternRuleMatch.Groups[1].Value, @"\s+"))
+					if (rulePatternCaseMatch.Groups[1].Value != "otherwise")
+						foreach (var blotStr in Regex.Split(rulePatternCaseMatch.Groups[1].Value, @"\s+"))
 							AddBlots(conditionsBuilder, blotStr, fieldResolver);
 
 					bool reset = false;
-					if (patternRuleMatch.Groups[2].Value != "nothing")
+					var lhsGroup = rulePatternCaseMatch.Groups[2];
+					if (lhsGroup.Success && lhsGroup.Value != "nothing")
 					{
-						foreach (var blotStr in Regex.Split(patternRuleMatch.Groups[2].Value, @"\s+"))
+						foreach (var blotStr in Regex.Split(lhsGroup.Value, @"\s+"))
 						{
 							if (blotStr == "XED_RESET") reset = true;
 							else AddBlots(actionsBuilder, blotStr, fieldResolver);
 						}
 					}
 
-					ruleBuilder.Add(new XedPatternCase(conditionsBuilder.ToImmutable(),
+					ruleBuilder.Add(new XedRulePatternCase(conditionsBuilder.ToImmutable(),
 						actionsBuilder.ToImmutable(), reset));
 					conditionsBuilder.Clear();
 					actionsBuilder.Clear();

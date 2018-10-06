@@ -30,7 +30,7 @@ namespace Asmuth.X86.Xed
 			)_t", RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture);
 
 		public static XedFieldType FromNameInCodeAndSizeInBits(string nameInCode, int sizeInBits,
-			Func<string, XedEnumerationFieldType> enumerationShortNameResolver)
+			Func<string, XedEnumFieldType> enumerationShortNameResolver)
 		{
 			var match = nameInCodeRegex.Match(nameInCode);
 			if (!match.Success) throw new FormatException();
@@ -142,9 +142,9 @@ namespace Asmuth.X86.Xed
 	}
 
 	// xed_(chip|reg|error|iclass)_enum_t
-	public abstract class XedEnumerationFieldType : XedFieldType
+	public abstract class XedEnumFieldType : XedFieldType
 	{
-		private sealed class ErrorEnumerationType : XedEnumerationFieldType
+		private sealed class ErrorEnumType : XedEnumFieldType
 		{
 			public override string ShortName => "error";
 			public override int SizeInBits => 8;
@@ -155,14 +155,14 @@ namespace Asmuth.X86.Xed
 				=> (int)XedEnumNameAttribute.GetEnumerantOrNull<XedError>(enumerant).Value;
 		}
 
-		private sealed class DummyEnumerationType : XedEnumerationFieldType
+		private sealed class DummyEnumType : XedEnumFieldType
 		{
 			private readonly string shortName;
 			private readonly byte sizeInBits;
 			public override string ShortName => shortName;
 			public override int SizeInBits => sizeInBits;
 
-			public DummyEnumerationType(string shortName, byte sizeInBits)
+			public DummyEnumType(string shortName, byte sizeInBits)
 			{
 				this.shortName = shortName ?? throw new ArgumentNullException(nameof(shortName));
 				this.sizeInBits = sizeInBits;
@@ -178,7 +178,16 @@ namespace Asmuth.X86.Xed
 
 		public override sealed string NameInCode => $"xed_{ShortName}_enum_t";
 
-		public int GetValue(string enumerant) => enumerant == "@" ? 0 : GetValue_NotNull(enumerant) + 1;
+		public int GetValue(string enumerant)
+		{
+			if (enumerant == "@") return 0;
+			string prefix = "XED_" + ShortName.ToUpperInvariant() + "_";
+			if (!enumerant.StartsWith(prefix)) throw new FormatException();
+			string shortName = enumerant.Substring(prefix.Length);
+			if (shortName == "INVALID") return 0;
+			return GetValue_NotNull(shortName);
+		}
+
 		public string GetEnumerant(int value) => value == 0 ? "@" : GetEnumerant(value - 1);
 
 		public override sealed string FormatValue(ulong value)
@@ -190,12 +199,12 @@ namespace Asmuth.X86.Xed
 		protected abstract int GetValue_NotNull(string enumerant);
 		protected abstract string GetEnumerant_NotNull(int value);
 
-		public static XedEnumerationFieldType Error { get; } = new ErrorEnumerationType();
-		public static XedEnumerationFieldType DummyChip { get; } = new DummyEnumerationType("chip", 16);
-		public static XedEnumerationFieldType DummyIClass { get; } = new DummyEnumerationType("iclass", 16);
+		public static XedEnumFieldType Error { get; } = new ErrorEnumType();
+		public static XedEnumFieldType DummyChip { get; } = new DummyEnumType("chip", 16);
+		public static XedEnumFieldType DummyIClass { get; } = new DummyEnumType("iclass", 16);
 	}
 
-	public sealed class XedRegisterFieldType : XedEnumerationFieldType
+	public sealed class XedRegisterFieldType : XedEnumFieldType
 	{
 		public XedRegisterTable RegisterTable { get; }
 		public override int SizeInBits => 16;

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Asmuth.X86.Xed
 {
-	public sealed class XedInstructionTable : XedCallable
+	public sealed class XedInstructionTable : XedPattern
 	{
 		public IList<XedInstruction> Instructions { get; } = new List<XedInstruction>();
 
