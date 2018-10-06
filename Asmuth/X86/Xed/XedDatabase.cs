@@ -60,12 +60,13 @@ namespace Asmuth.X86.Xed
 			using (var reader = new StreamReader(Path.Combine(path, "all-element-types.txt")))
 				foreach (var entry in XedDataFiles.ParseXTypes(reader))
 					xtypes.Add(entry.Key, entry.Value);
+			Func<string, XedXType> xtypeResolver = s => xtypes[s];
 
 			// Load widths
 			var widths = new Dictionary<string, XedOperandWidth>();
 			using (var reader = new StreamReader(Path.Combine(path, "all-widths.txt")))
 			{
-				foreach (var entry in XedDataFiles.ParseOperandWidths(reader, s => xtypes[s]))
+				foreach (var entry in XedDataFiles.ParseOperandWidths(reader, xtypeResolver))
 				{
 					// Ignore if redundant
 					if (widths.TryGetValue(entry.Key, out var value))
@@ -77,7 +78,7 @@ namespace Asmuth.X86.Xed
 					widths.Add(entry.Key, entry.Value);
 				}
 			}
-			Func<string, XedOperandWidth> widthResolver = s => widths[s];
+			Func<string, XedOperandWidth> operandWidthResolver = s => widths[s];
 
 			// Load decode patterns
 			using (var reader = new StreamReader(Path.Combine(path, "all-dec-patterns.txt")))
@@ -104,7 +105,14 @@ namespace Asmuth.X86.Xed
 
 			using (var reader = new StreamReader(Path.Combine(path, "all-enc-instructions.txt")))
 			{
-				foreach (var entry in XedDataFiles.ParseInstructions(reader, stateResolver, fieldResolver, widthResolver))
+				var resolver = new XedInstructionStringResolvers
+				{
+					State = stateResolver,
+					Field = fieldResolver,
+					OperandWidth = operandWidthResolver,
+					XType = xtypeResolver
+				};
+				foreach (var entry in XedDataFiles.ParseInstructions(reader, resolver))
 				{
 					XedInstructionTable table;
 					if (database.Patterns.TryFind(entry.Key, out var callable))

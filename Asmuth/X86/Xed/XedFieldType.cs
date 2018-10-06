@@ -149,10 +149,10 @@ namespace Asmuth.X86.Xed
 			public override string ShortName => "error";
 			public override int SizeInBits => 8;
 
-			protected override string GetEnumerant_NotNull(int value)
+			protected override string GetEnumerant_NotNull(ushort value)
 				=> XedEnumNameAttribute.GetNameOrNull((XedError)value);
-			protected override int GetValue_NotNull(string enumerant)
-				=> (int)XedEnumNameAttribute.GetEnumerantOrNull<XedError>(enumerant).Value;
+			protected override ushort GetValue_NotNull(string enumerant)
+				=> (ushort)XedEnumNameAttribute.GetEnumerantOrNull<XedError>(enumerant).Value;
 		}
 
 		private sealed class DummyEnumType : XedEnumFieldType
@@ -168,9 +168,9 @@ namespace Asmuth.X86.Xed
 				this.sizeInBits = sizeInBits;
 			}
 
-			protected override string GetEnumerant_NotNull(int value)
+			protected override string GetEnumerant_NotNull(ushort value)
 				=> throw new NotSupportedException();
-			protected override int GetValue_NotNull(string enumerant)
+			protected override ushort GetValue_NotNull(string enumerant)
 				=> throw new NotSupportedException();
 		}
 
@@ -178,7 +178,7 @@ namespace Asmuth.X86.Xed
 
 		public override sealed string NameInCode => $"xed_{ShortName}_enum_t";
 
-		public int GetValue(string enumerant)
+		public ushort GetValue(string enumerant)
 		{
 			if (enumerant == "@") return 0;
 			string prefix = "XED_" + ShortName.ToUpperInvariant() + "_";
@@ -188,16 +188,16 @@ namespace Asmuth.X86.Xed
 			return GetValue_NotNull(shortName);
 		}
 
-		public string GetEnumerant(int value) => value == 0 ? "@" : GetEnumerant(value - 1);
+		public string GetEnumerant(ushort value) => value == 0 ? "@" : GetEnumerant((ushort)(value - 1));
 
 		public override sealed string FormatValue(ulong value)
-			=> "XED_" + ShortName.ToUpperInvariant() + "_" + GetEnumerant((int)value);
+			=> "XED_" + ShortName.ToUpperInvariant() + "_" + GetEnumerant((ushort)value);
 
 		public override sealed bool Equals(XedFieldType other) => ReferenceEquals(this, other);
 		public override sealed int GetHashCode() => GetType().GetHashCode();
 
-		protected abstract int GetValue_NotNull(string enumerant);
-		protected abstract string GetEnumerant_NotNull(int value);
+		protected abstract ushort GetValue_NotNull(string enumerant);
+		protected abstract string GetEnumerant_NotNull(ushort value);
 
 		public static XedEnumFieldType Error { get; } = new ErrorEnumType();
 		public static XedEnumFieldType DummyChip { get; } = new DummyEnumType("chip", 16);
@@ -215,7 +215,7 @@ namespace Asmuth.X86.Xed
 			this.RegisterTable = registerTable ?? throw new ArgumentNullException(nameof(registerTable));
 		}
 
-		protected override int GetValue_NotNull(string enumerant) => RegisterTable.ByName[enumerant].IndexInTable;
-		protected override string GetEnumerant_NotNull(int value) => RegisterTable.ByIndex[value].Name;
+		protected override ushort GetValue_NotNull(string enumerant) => (ushort)RegisterTable.ByName[enumerant].IndexInTable;
+		protected override string GetEnumerant_NotNull(ushort value) => RegisterTable.ByIndex[value].Name;
 	}
 }

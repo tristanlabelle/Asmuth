@@ -6,11 +6,11 @@ using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 using System.Text;
 
 namespace Asmuth.Disassembler
 {
-	using System.Diagnostics;
 	using static WinNT;
 
 	class Program

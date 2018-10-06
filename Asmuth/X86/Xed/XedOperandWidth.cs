@@ -65,6 +65,9 @@ namespace Asmuth.X86.Xed
 			? widthInBits_16 : (int?)null;
 		public bool IsVector => BitsPerElement > 0 && WidthInBits_16 > BitsPerElement;
 
+		public XedOperandWidth WithXType(XedXType xtype)
+			=> new XedOperandWidth(xtype, widthInBits_16, widthInBits_32, widthInBits_64);
+
 		public bool Equals(XedOperandWidth other) => XType == other.XType
 			&& widthInBits_16 == other.widthInBits_16
 			&& widthInBits_32 == other.widthInBits_32

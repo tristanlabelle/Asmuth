@@ -62,10 +62,10 @@ namespace Asmuth.X86.Xed
 	{
 		public XedFlagsRecordQualifier? Qualifier { get; }
 		public XedFlagsRecordSemantic Semantic { get; }
-		public IReadOnlyDictionary<XedFlag, XedFlagAction> FlagActions { get; }
+		public ImmutableArray<KeyValuePair<XedFlag, XedFlagAction>> FlagActions { get; }
 		
 		internal XedFlagsRecord(XedFlagsRecordQualifier? qualifier, XedFlagsRecordSemantic semantic,
-			IReadOnlyDictionary<XedFlag, XedFlagAction> flagActions)
+			ImmutableArray<KeyValuePair<XedFlag, XedFlagAction>> flagActions)
 		{
 			this.Qualifier = qualifier;
 			this.Semantic = semantic;
@@ -97,15 +97,15 @@ namespace Asmuth.X86.Xed
 
 			var flagCaptures = match.Groups["f"].Captures;
 			var actionCaptures = match.Groups["a"].Captures;
-			var flagActions = new Dictionary<XedFlag, XedFlagAction>(flagCaptures.Count);
+			var flagActionsBuilder = ImmutableArray.CreateBuilder<KeyValuePair<XedFlag, XedFlagAction>>(flagCaptures.Count);
 			for (int i = 0; i < flagCaptures.Count; ++i)
 			{
 				var flag = XedEnumNameAttribute.GetEnumerantOrNull<XedFlag>(flagCaptures[i].Value).Value;
 				var action = XedEnumNameAttribute.GetEnumerantOrNull<XedFlagAction>(actionCaptures[i].Value).Value;
-				flagActions.Add(flag, action);
+				flagActionsBuilder.Add(new KeyValuePair<XedFlag, XedFlagAction>(flag, action));
 			}
 
-			return new XedFlagsRecord(qualifier, semantic, flagActions);
+			return new XedFlagsRecord(qualifier, semantic, flagActionsBuilder.MoveToImmutable());
 		}
 	}
 }

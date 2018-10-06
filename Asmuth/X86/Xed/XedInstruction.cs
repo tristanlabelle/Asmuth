@@ -6,98 +6,56 @@ using System.Text.RegularExpressions;
 
 namespace Asmuth.X86.Xed
 {
-	public sealed class XedInstruction
+	public struct XedInstructionStringResolvers
 	{
-		public sealed class Builder
-		{
-			private XedInstruction instruction = new XedInstruction();
-
-			public string Category
-			{
-				get => instruction.Category;
-				set => instruction.Category = value;
-			}
-
-			public string Comment
-			{
-				get => instruction.Comment;
-				set => instruction.Comment = value;
-			}
-
-			public string Class
-			{
-				get => instruction.Class;
-				set => instruction.Class = value;
-			}
-
-			public string Disasm
-			{
-				get => instruction.Disasm;
-				set => instruction.Disasm = value;
-			}
-
-			public string Exceptions
-			{
-				get => instruction.Exceptions;
-				set => instruction.Exceptions = value;
-			}
-
-			public string Extension
-			{
-				get => instruction.Extension;
-				set => instruction.Extension = value;
-			}
-
-			public string IsaSet
-			{
-				get => instruction.IsaSet;
-				set => instruction.IsaSet = value;
-			}
-
-			public int PrivilegeLevel
-			{
-				get => instruction.privilegeLevel;
-				set => instruction.privilegeLevel = value >= 0 && value <= 3 ? (byte)value
-					: throw new ArgumentOutOfRangeException(nameof(PrivilegeLevel));
-			}
-
-			public ICollection<string> Attributes => (List<string>)instruction.Attributes;
-
-			public IList<XedFlagsRecord> FlagsRecords => (List<XedFlagsRecord>)instruction.FlagsRecords;
-
-			public IList<XedInstructionForm> Forms => (List<XedInstructionForm>)instruction.Forms;
-
-			public XedInstruction Build(bool reuse)
-			{
-				var result = instruction;
-				instruction = reuse ? new XedInstruction() : null;
-				return result;
-			}
-		}
-
-		public string Class { get; private set; }
-		public string Comment { get; private set; }
-		public string Disasm { get; private set; }
-		public string DisasmIntel { get; private set; }
-		public string DisasmAttSV { get; private set; }
-		public IReadOnlyCollection<string> Attributes { get; } = new List<string>();
-		private byte privilegeLevel;
-		public int PrivilegeLevel => privilegeLevel;
-		public string Category { get; private set; }
-		public string Exceptions { get; private set; }
-		public string Extension { get; private set; }
-		public string IsaSet { get; private set; }
-		public IReadOnlyList<XedFlagsRecord> FlagsRecords { get; } = new List<XedFlagsRecord>();
-		public IReadOnlyList<XedInstructionForm> Forms { get; } = new List<XedInstructionForm>();
+		public Func<string, string> State;
+		public Func<string, XedField> Field;
+		public Func<string, XedOperandWidth> OperandWidth;
+		public Func<string, XedXType> XType;
 	}
 
-	public sealed class XedInstructionForm
+	public sealed partial class XedInstruction
 	{
+		private readonly Dictionary<string, string> stringFields = new Dictionary<string, string>();
+
+		private readonly HashSet<string> attributes = new HashSet<string>();
+		public IReadOnlyCollection<string> Attributes => attributes;
+
+		private byte privilegeLevel = 3;
+		public int PrivilegeLevel => privilegeLevel;
+
+		private readonly List<XedFlagsRecord> flags = new List<XedFlagsRecord>();
+		public IReadOnlyList<XedFlagsRecord> Flags => flags;
+
+		private readonly List<XedInstructionForm> forms = new List<XedInstructionForm>();
+		public IReadOnlyList<XedInstructionForm> Forms => forms;
+
+		private XedInstruction() { }
+
+		public string Class => stringFields.GetValueOrDefault("ICLASS");
+		public string Comment => stringFields.GetValueOrDefault("COMMENT");
+		public string Category => stringFields.GetValueOrDefault("CATEGORY");
+		public string Exceptions => stringFields.GetValueOrDefault("EXCEPTIONS");
+		public string Extension => stringFields.GetValueOrDefault("EXTENSION");
+		public string IsaSet => stringFields.GetValueOrDefault("ISA_SET");
+	}
+
+	public sealed partial class XedInstructionForm
+	{
+		public struct Strings
+		{
+			public string Pattern;
+			public string Operands;
+			public string Name;
+		}
+
 		public ImmutableArray<XedBlot> Pattern { get; }
 		public ImmutableArray<XedOperand> Operands { get; }
 		public string Name { get; private set; }
 
-		public XedInstructionForm(ImmutableArray<XedBlot> pattern, ImmutableArray<XedOperand> operands, string name = null)
+		public XedInstructionForm(ImmutableArray<XedBlot> pattern,
+			ImmutableArray<XedOperand> operands,
+			string name = null)
 		{
 			this.Pattern = pattern;
 			this.Operands = operands;

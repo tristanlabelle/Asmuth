@@ -182,8 +182,14 @@ namespace Asmuth.X86.Xed
 					PATTERN   : 0xFE MOD[0b11] MOD=3 REG[0b000] RM[nnn]
 					OPERANDS  : REG0=GPR8_B():rw
 				}";
-			var entry = XedDataFiles.ParseInstructions(new StringReader(str),
-				s => null, XedTestData.ResolveField, s => default).Single();
+			var resolvers = new XedInstructionStringResolvers
+			{
+				State = s => s,
+				Field = XedTestData.ResolveField,
+				OperandWidth = s => default,
+				XType = s => default
+			};
+			var entry = XedDataFiles.ParseInstructions(new StringReader(str), resolvers).Single();
 			var instruction = entry.Value;
 			Assert.AreEqual("INSTRUCTIONS", entry.Key);
 			Assert.AreEqual("INC", instruction.Class);
@@ -193,8 +199,8 @@ namespace Asmuth.X86.Xed
 			Assert.AreEqual("I86", instruction.IsaSet);
 			Assert.AreEqual("BYTEOP", instruction.Attributes.Single());
 
-			Assert.AreEqual(1, instruction.FlagsRecords.Count);
-			Assert.AreEqual(5, instruction.FlagsRecords[0].FlagActions.Count);
+			Assert.AreEqual(1, instruction.Flags.Count);
+			Assert.AreEqual(5, instruction.Flags[0].FlagActions.Length);
 
 			Assert.AreEqual(1, instruction.Forms.Count);
 			var form = instruction.Forms[0];
