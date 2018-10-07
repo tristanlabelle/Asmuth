@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -15,7 +16,27 @@ namespace Asmuth.X86.Xed
 		[XedEnumName("SUPP")]
 		Suppressed, // Not represented in encoding nor assembly
 		[XedEnumName("ECOND")]
-		ECond // ??
+		EncoderOnlyCondition // ??
+	}
+
+	public enum XedOperandMultiRegKind : byte
+	{
+		[XedEnumName("SOURCE")] Source,
+		[XedEnumName("DEST")] Dest,
+		[XedEnumName("SOURCEDEST")] SourceDest
+	}
+
+	public readonly struct XedOperandMultiReg
+	{
+		private readonly byte kindAndIndex;
+
+		public XedOperandMultiReg(XedOperandMultiRegKind kind, byte index)
+		{
+			this.kindAndIndex = (byte)(((byte)kind << 4) | index);
+		}
+
+		public XedOperandMultiRegKind Kind => (XedOperandMultiRegKind)(kindAndIndex >> 4);
+		public byte Index => (byte)(kindAndIndex & 0xF);
 	}
 
 	public sealed class XedOperand
@@ -36,29 +57,35 @@ namespace Asmuth.X86.Xed
 		// IMM0:r:b:i8
 
 		[Flags]
-		private enum StateFlags : byte { None = 0, HasValue = 1, HasWidth = 2 }
+		private enum StateFlags : byte { None = 0, HasValue = 1, HasWidth = 2, HasMultiReg = 4 }
 
 		private readonly XedOperandWidth width;
 		private readonly XedBlotValue value;
 		public XedField Field { get; }
 		public string Text { get; }
+		private readonly XedXType xtype;
 		public XedOperandAccess Access { get; }
 		public XedOperandVisibility Visibility { get; }
 		private readonly StateFlags stateFlags;
+		private readonly XedOperandMultiReg multiReg;
 
 		public XedOperand(XedField field, XedBlotValue? value, XedOperandAccess access,
-			XedOperandVisibility visibility, XedOperandWidth? width = null, string txt = null)
+			XedOperandVisibility visibility, XedOperandWidth? width = null, XedXType? xtype = null,
+			XedOperandMultiReg? multiReg = null, string txt = null)
 		{
 			this.Field = field ?? throw new ArgumentNullException(nameof(field));
 			this.value = value.GetValueOrDefault();
 			this.Access = access;
 			this.Visibility = visibility;
 			this.width = width.GetValueOrDefault();
+			this.xtype = width.HasValue ? xtype.GetValueOrDefault(width.Value.XType) : default;
+			this.multiReg = multiReg.GetValueOrDefault();
 			this.Text = txt;
 
 			this.stateFlags = StateFlags.None;
 			if (value.HasValue) this.stateFlags |= StateFlags.HasValue;
 			if (width.HasValue) this.stateFlags |= StateFlags.HasWidth;
+			if (multiReg.HasValue) this.stateFlags |= StateFlags.HasMultiReg;
 		}
 
 		public XedBlotValue? Value => (stateFlags & StateFlags.HasValue) == 0
@@ -69,6 +96,9 @@ namespace Asmuth.X86.Xed
 		private static readonly Regex typeRegex = new Regex(
 			@"^(?<n>[A-Z]+\d?) (= (?<v>\w+) (?<vc>\(\))? )?$",
 			RegexOptions.ExplicitCapture | RegexOptions.IgnorePatternWhitespace);
+
+		private static readonly Regex multiRegRegex = new Regex(
+			@"^MULTI(?<k>SOURCE|DEST|SOURCEDEST)(?<i>[0-9])$");
 
 		public static XedOperand Parse(string str, XedInstructionStringResolvers resolvers)
 		{
@@ -100,7 +130,7 @@ namespace Asmuth.X86.Xed
 				}
 			}
 
-			// Access field
+			// Access field (optional)
 			XedOperandAccess access = default;
 			if (strParts.Count > 0)
 			{
@@ -108,12 +138,26 @@ namespace Asmuth.X86.Xed
 				strParts.RemoveAt(0);
 			}
 
-			// TXT field (optional, last)
+			// TXT field (optional, trailing)
 			string text = null;
 			if (strParts.Count > 0 && strParts[strParts.Count - 1].StartsWith("TXT="))
 			{
 				text = strParts[strParts.Count - 1].Substring("TXT=".Length);
 				strParts.RemoveAt(strParts.Count - 1);
+			}
+
+			// Multireg field (optional, trailing)
+			XedOperandMultiReg? multiReg = null;
+			if (strParts.Count > 0)
+			{
+				var multiRegMatch = multiRegRegex.Match(strParts[strParts.Count - 1]);
+				if (multiRegMatch.Success)
+				{
+					multiReg = new XedOperandMultiReg(
+						XedEnumNameAttribute.GetEnumerantOrNull<XedOperandMultiRegKind>(multiRegMatch.Groups["k"].Value).Value,
+						byte.Parse(multiRegMatch.Groups["i"].Value, CultureInfo.InvariantCulture));
+					strParts.RemoveAt(strParts.Count - 1);
+				}
 			}
 
 			// Visibility field (optional)
@@ -125,10 +169,11 @@ namespace Asmuth.X86.Xed
 					visibility = TryParseAsVisibility(strParts, strParts.Count - 1);
 			}
 
-			if (!visibility.HasValue) visibility = XedOperandVisibility.Explicit;
+			if (!visibility.HasValue) visibility = field.DefaultOperandVisibility;
 
 			// Width field (optional)
 			XedOperandWidth? width = null;
+			XedXType? xtype = null;
 			if (strParts.Count > 0)
 			{
 				width = resolvers.OperandWidth(strParts[0]);
@@ -139,16 +184,15 @@ namespace Asmuth.X86.Xed
 				{
 					try
 					{
-						var xtype = resolvers.XType(strParts[0]);
+						xtype = resolvers.XType(strParts[0]);
 						strParts.RemoveAt(0);
-						width = width.Value.WithXType(xtype);
 					}
 					catch (KeyNotFoundException) { }
 				}
 			}
 
 			if (strParts.Count > 0) throw new FormatException();
-			return new XedOperand(field, value, access, visibility.Value, width, text);
+			return new XedOperand(field, value, access, visibility.Value, width, xtype, multiReg, text);
 		}
 
 		private static XedOperandVisibility? TryParseAsVisibility(List<string> strParts, int index)

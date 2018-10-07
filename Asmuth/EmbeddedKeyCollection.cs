@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace Asmuth
@@ -11,6 +12,7 @@ namespace Asmuth
 		bool TryFind(TKey key, out T item);
 	}
 
+	[DebuggerDisplay("Count={Count}")]
 	public sealed class EmbeddedKeyCollection<T, TKey> : IEmbeddedKeyCollection<T, TKey>
 	{
 		private readonly Dictionary<TKey, T> items;

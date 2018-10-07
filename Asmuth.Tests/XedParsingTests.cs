@@ -118,8 +118,11 @@ namespace Asmuth.X86.Xed
 				shortEnumName => throw new KeyNotFoundException());
 			Assert.AreEqual("MOD", field.Name);
 			Assert.AreEqual(XedBitsFieldType._2, field.Type);
-			Assert.AreEqual(XedFieldFlags.SuppressedVisibility | XedFieldFlags.NoPrint | XedFieldFlags.Internal
-				| XedFieldFlags.DecoderOutput | XedFieldFlags.EncoderOutput, field.Flags);
+			Assert.AreEqual(XedOperandVisibility.Suppressed, field.DefaultOperandVisibility);
+			Assert.AreEqual(false, field.IsPrintable);
+			Assert.AreEqual(false, field.IsPublic);
+			Assert.AreEqual(XedFieldUsage.Output, field.DecoderUsage);
+			Assert.AreEqual(XedFieldUsage.Output, field.EncoderUsage);
 		}
 
 		[TestMethod]

@@ -204,10 +204,13 @@ namespace Asmuth.X86.Xed
 			var typeName = lineMatch.Groups["type"].Value;
 			int sizeInBits = byte.Parse(lineMatch.Groups["bits"].Value, CultureInfo.InvariantCulture);
 			var type = XedFieldType.FromNameInCodeAndSizeInBits(typeName, sizeInBits, enumLookup);
-			XedFieldFlags flags = XedFieldFlags.None;
-			foreach (Capture flagCapture in lineMatch.Groups["flag"].Captures)
-				flags |= XedEnumNameAttribute.GetEnumerantOrNull<XedFieldFlags>(flagCapture.Value).Value;
-			return new XedField(name, type, flags);
+
+			var flags = lineMatch.Groups["flag"].Captures;
+			if (flags.Count != 5) throw new FormatException();
+			
+			return new XedField(name, type, XedField.ParseDefaultOperandVisilibity(flags[0].Value),
+				isPrintable: flags[1].Value == "PRINT", isPublic: flags[2].Value == "PUBLIC",
+				XedField.ParseDecoderUsage(flags[3].Value), XedField.ParseEncoderUsage(flags[4].Value));
 		}
 
 		public static XedField ParseField(string line, Func<string, XedEnumFieldType> enumLookup, bool allowComments = true)
