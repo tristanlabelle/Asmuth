@@ -20,6 +20,7 @@ namespace Asmuth.X86.Xed
 
 	public sealed class XedOperand
 	{
+		// BCAST=10
 		// AGEN:r
 		// PTR:r:p
 		// RELBR:r:b:i8
@@ -69,76 +70,93 @@ namespace Asmuth.X86.Xed
 			@"^(?<n>[A-Z]+\d?) (= (?<v>\w+) (?<vc>\(\))? )?$",
 			RegexOptions.ExplicitCapture | RegexOptions.IgnorePatternWhitespace);
 
-		public static XedOperand Parse(string str,
-			Func<string, XedField> fieldResolver,
-			Func<string, XedOperandWidth> widthResolver,
-			Func<string, XedXType> xtypeResolver)
+		public static XedOperand Parse(string str, XedInstructionStringResolvers resolvers)
 		{
-			var strParts = new Queue<string>(str.Split(':'));
-			if (strParts.Count < 2) throw new FormatException();
+			str = Regex.Replace(str, @"[\w_]+", match => resolvers.State(match.Value) ?? match.Value);
+
+			var strParts = new List<string>(str.Split(':'));
 
 			// Type field, e.g. "REG1=XMM_N()"
-			var typeMatch = typeRegex.Match(strParts.Dequeue());
+			if (strParts.Count == 0) throw new FormatException();
+			var typeMatch = typeRegex.Match(strParts[0]);
+			strParts.RemoveAt(0);
 			if (!typeMatch.Success) throw new FormatException();
 
-			var field = fieldResolver(typeMatch.Groups["n"].Value);
+			var field = resolvers.Field(typeMatch.Groups["n"].Value);
 			XedBlotValue? value = null;
 			if (typeMatch.Groups["v"].Success)
 			{
 				var valueStr = typeMatch.Groups["v"].Value;
-				var registerType = (XedRegisterFieldType)field.Type;
-				value = typeMatch.Groups["vc"].Success
-					? XedBlotValue.MakeCallResult(valueStr)
-					: XedBlotValue.MakeConstant(registerType.GetValue(valueStr));
+				if (ushort.TryParse(typeMatch.Groups["v"].Value, out ushort intValue))
+				{
+					value = XedBlotValue.MakeConstant(intValue);
+				}
+				else
+				{
+					var registerType = (XedRegisterFieldType)field.Type;
+					value = typeMatch.Groups["vc"].Success
+						? XedBlotValue.MakeCallResult(valueStr)
+						: XedBlotValue.MakeConstant(registerType.GetValue(valueStr));
+				}
 			}
 
 			// Access field
-			var access = XedOperandAccess.Parse(strParts.Dequeue());
+			XedOperandAccess access = default;
+			if (strParts.Count > 0)
+			{
+				access = XedOperandAccess.Parse(strParts[0]);
+				strParts.RemoveAt(0);
+			}
+
+			// TXT field (optional, last)
+			string text = null;
+			if (strParts.Count > 0 && strParts[strParts.Count - 1].StartsWith("TXT="))
+			{
+				text = strParts[strParts.Count - 1].Substring("TXT=".Length);
+				strParts.RemoveAt(strParts.Count - 1);
+			}
 
 			// Visibility field (optional)
-			XedOperandVisibility? visibility = TryParseHeadAsVisibility(strParts);
+			XedOperandVisibility? visibility = null;
+			if (strParts.Count > 0)
+			{
+				visibility = TryParseAsVisibility(strParts, 0);
+				if (!visibility.HasValue && strParts.Count > 1)
+					visibility = TryParseAsVisibility(strParts, strParts.Count - 1);
+			}
+
+			if (!visibility.HasValue) visibility = XedOperandVisibility.Explicit;
 
 			// Width field (optional)
 			XedOperandWidth? width = null;
 			if (strParts.Count > 0)
 			{
-				width = widthResolver(strParts.Dequeue());
+				width = resolvers.OperandWidth(strParts[0]);
+				strParts.RemoveAt(0);
 
 				// XType override part (optional)
 				if (strParts.Count > 0)
 				{
 					try
 					{
-						var xtype = xtypeResolver(strParts.Peek());
-						strParts.Dequeue();
+						var xtype = resolvers.XType(strParts[0]);
+						strParts.RemoveAt(0);
 						width = width.Value.WithXType(xtype);
 					}
 					catch (KeyNotFoundException) { }
 				}
 			}
 
-			// Visibility field (optional, can be in two places)
-			if (!visibility.HasValue) visibility = TryParseHeadAsVisibility(strParts);
-
-			// TXT field (optional)
-			string text = null;
-			if (strParts.Count > 0 && strParts.Peek().StartsWith("TXT="))
-				text = strParts.Dequeue().Substring("TXT=".Length);
-
 			if (strParts.Count > 0) throw new FormatException();
-
-			if (!visibility.HasValue) visibility = XedOperandVisibility.Explicit;
 			return new XedOperand(field, value, access, visibility.Value, width, text);
 		}
 
-		private static XedOperandVisibility? TryParseHeadAsVisibility(Queue<string> strParts)
+		private static XedOperandVisibility? TryParseAsVisibility(List<string> strParts, int index)
 		{
-			if (strParts.Count == 0) return null;
-			
-			var visibility = XedEnumNameAttribute.GetEnumerantOrNull<XedOperandVisibility>(strParts.Peek());
+			var visibility = XedEnumNameAttribute.GetEnumerantOrNull<XedOperandVisibility>(strParts[index]);
 			if (!visibility.HasValue) return null;
 
-			strParts.Dequeue();
+			strParts.RemoveAt(index);
 			return visibility;
 		}
 	}

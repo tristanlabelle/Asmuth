@@ -73,9 +73,7 @@ namespace Asmuth.X86.Xed
 				var builder = ImmutableArray.CreateBuilder<XedOperand>(operandsStrs.Length);
 				foreach (var operandStr in operandsStrs)
 				{
-					var operand = XedOperand.Parse(operandStr,
-						resolvers.Field, resolvers.OperandWidth,
-						resolvers.XType);
+					var operand = XedOperand.Parse(operandStr, resolvers);
 					builder.Add(operand);
 				}
 

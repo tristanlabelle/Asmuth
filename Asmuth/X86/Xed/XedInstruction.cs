@@ -38,6 +38,7 @@ namespace Asmuth.X86.Xed
 		public string Exceptions => stringFields.GetValueOrDefault("EXCEPTIONS");
 		public string Extension => stringFields.GetValueOrDefault("EXTENSION");
 		public string IsaSet => stringFields.GetValueOrDefault("ISA_SET");
+		public string UniqueName => stringFields.GetValueOrDefault("UNAME");
 	}
 
 	public sealed partial class XedInstructionForm

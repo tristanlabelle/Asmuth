@@ -347,6 +347,9 @@ namespace Asmuth.X86.Xed
 		private static readonly Regex declarationLineRegex = new Regex(
 			@"^\s*([\w_]+)\s*\(\)::\s*$");
 
+		private static readonly Regex udeleteLineRegex = new Regex(
+			@"^\s*UDELETE\s*\:\s*([\w_]+)\s*$");
+
 		private static readonly Regex instructionFieldLineRegex = new Regex(
 			@"^\s*([\w_]+)\s*\:\s*(.*?)\s*$");
 	
@@ -358,7 +361,40 @@ namespace Asmuth.X86.Xed
 			PostOperandsField
 		}
 
-		public static IEnumerable<KeyValuePair<string, XedInstruction>> ParseInstructions(
+		public enum InstructionsFileEntryType : byte
+		{
+			Instruction,
+			DeleteInstruction
+		}
+
+		public readonly struct InstructionsFileEntry
+		{
+			public string PatternName { get; }
+			private readonly object value;
+			public InstructionsFileEntryType Type { get; }
+
+			private InstructionsFileEntry(string patternName, InstructionsFileEntryType type, object value)
+			{
+				this.PatternName = patternName ?? throw new ArgumentNullException(nameof(patternName));
+				this.value = value;
+				this.Type = type;
+			}
+
+			public XedInstruction Instruction => Type == InstructionsFileEntryType.Instruction
+				? (XedInstruction)value : throw new InvalidOperationException();
+			public string DeleteTarget => Type == InstructionsFileEntryType.DeleteInstruction
+				? (string)value : throw new InvalidOperationException();
+
+			public static InstructionsFileEntry MakeInstruction(string patternName, XedInstruction instruction)
+				=> new InstructionsFileEntry(patternName, InstructionsFileEntryType.Instruction,
+					instruction ?? throw new ArgumentNullException(nameof(instruction)));
+
+			public static InstructionsFileEntry MakeDeleteInstruction(string patternName, string target)
+				=> new InstructionsFileEntry(patternName, InstructionsFileEntryType.DeleteInstruction,
+					target ?? throw new ArgumentNullException(nameof(target)));
+		}
+
+		public static IEnumerable<InstructionsFileEntry> ParseInstructions(
 			TextReader reader, XedInstructionStringResolvers resolvers)
 		{
 			string patternName = null;
@@ -380,18 +416,30 @@ namespace Asmuth.X86.Xed
 
 				if (state == InstructionParseState.TopLevel)
 				{
+					var declarationLineMatch = declarationLineRegex.Match(line);
+					if (declarationLineMatch.Success)
+					{
+						patternName = declarationLineMatch.Groups[1].Value;
+						continue;
+					}
+
+					if (patternName == null) throw new FormatException();
+
 					if (line == "{")
 					{
-						if (patternName == null) throw new FormatException();
 						state = InstructionParseState.PrePatternField;
 						continue;
 					}
 
-					var declarationLineMatch = declarationLineRegex.Match(line);
-					if (!declarationLineMatch.Success) throw new FormatException();
-					
-					patternName = declarationLineMatch.Groups[1].Value;
-					continue;
+					var udeleteLineMatch = udeleteLineRegex.Match(line);
+					if (udeleteLineMatch.Success)
+					{
+						yield return InstructionsFileEntry.MakeDeleteInstruction(
+							patternName, udeleteLineMatch.Groups[1].Value);
+						continue;
+					}
+
+					throw new FormatException();
 				}
 
 				if (line == "}")
@@ -403,7 +451,7 @@ namespace Asmuth.X86.Xed
 					fields.Clear();
 					formStrings.Clear();
 
-					yield return new KeyValuePair<string, XedInstruction>(patternName, instruction);
+					yield return InstructionsFileEntry.MakeInstruction(patternName, instruction);
 					state = InstructionParseState.TopLevel;
 					continue;
 				}

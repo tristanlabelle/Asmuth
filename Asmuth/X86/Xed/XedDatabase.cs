@@ -115,14 +115,28 @@ namespace Asmuth.X86.Xed
 				foreach (var entry in XedDataFiles.ParseInstructions(reader, resolver))
 				{
 					XedInstructionTable table;
-					if (database.Patterns.TryFind(entry.Key, out var callable))
+					if (database.Patterns.TryFind(entry.PatternName, out var callable))
 						table = (XedInstructionTable)callable;
 					else
 					{
-						table = new XedInstructionTable(entry.Key);
+						table = new XedInstructionTable(entry.PatternName);
 						database.Patterns.Add(table);
 					}
-					table.Instructions.Add(entry.Value);
+
+					if (entry.Type == XedDataFiles.InstructionsFileEntryType.Instruction)
+						table.Instructions.Add(entry.Instruction);
+					else if (entry.Type == XedDataFiles.InstructionsFileEntryType.DeleteInstruction)
+					{
+						for (int i = 0; i < table.Instructions.Count; ++i)
+						{
+							if (table.Instructions[i].UniqueName == entry.DeleteTarget)
+							{
+								table.Instructions.RemoveAt(i);
+								break;
+							}
+						}
+					}
+					else throw new UnreachableException();
 				}
 			}
 

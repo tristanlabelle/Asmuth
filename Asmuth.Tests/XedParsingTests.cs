@@ -190,8 +190,8 @@ namespace Asmuth.X86.Xed
 				XType = s => default
 			};
 			var entry = XedDataFiles.ParseInstructions(new StringReader(str), resolvers).Single();
-			var instruction = entry.Value;
-			Assert.AreEqual("INSTRUCTIONS", entry.Key);
+			var instruction = entry.Instruction;
+			Assert.AreEqual("INSTRUCTIONS", entry.PatternName);
 			Assert.AreEqual("INC", instruction.Class);
 			Assert.AreEqual(3, instruction.PrivilegeLevel);
 			Assert.AreEqual("BINARY", instruction.Category);

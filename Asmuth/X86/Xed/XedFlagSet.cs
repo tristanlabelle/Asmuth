@@ -14,7 +14,7 @@ namespace Asmuth.X86.Xed
 		[XedEnumName("zf")] Zero,
 		[XedEnumName("sf")] Sign,
 		[XedEnumName("tf")] tf,
-		[XedEnumName("_if")] @if,
+		[XedEnumName("if")] @if,
 		[XedEnumName("df")] df,
 		[XedEnumName("of")] Overflow,
 		[XedEnumName("iopl")] iopl, // 2 bits
