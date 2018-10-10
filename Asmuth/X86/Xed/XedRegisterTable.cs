@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -43,6 +44,8 @@ namespace Asmuth.X86.Xed
 		public int? IndexInClass => indexInClassPlusOne == 0 ? null : (int?)(indexInClassPlusOne - 1);
 		public int IndexInTable => indexInTable;
 
+		public override string ToString() => Name;
+
 		internal void UpdateMaxEnclosingRegs(string ia32, string x64)
 		{
 			maxEnclosingRegOrName_IA32 = ia32;
@@ -73,6 +76,7 @@ namespace Asmuth.X86.Xed
 			=> value as string ?? ((XedRegister)value).Name;
 	}
 
+	[DebuggerDisplay("Count={Count}")]
 	public sealed class XedRegisterTable
 	{
 		private readonly List<XedRegister> byIndex = new List<XedRegister>();

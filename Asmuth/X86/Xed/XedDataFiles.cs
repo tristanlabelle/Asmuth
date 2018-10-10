@@ -224,12 +224,12 @@ namespace Asmuth.X86.Xed
 		private static readonly Regex sequenceDeclarationLineRegex = new Regex(
 			@"^\s*SEQUENCE\s+(?<name>\w+)\s*$");
 		private static readonly Regex sequenceEntryLineRegex = new Regex(
-			@"^\s*(?<name>\w+)(?<parens>\s*\(\s*\))\s*$");
+			@"^\s* (?<name>\w+) (?<parens>\s*\(\s*\))? \s*$", RegexOptions.IgnorePatternWhitespace);
 		private static readonly Regex rulePatternDeclarationLineRegex = new Regex(
 			@"^\s*(?:(?<reg>xed_reg_enum_t)\s+)?(?<name>\w+)\(\)::\s*$");
 		// Workaround bad format "mode16 | OUTREG=YMM_R_32():"
 		private static readonly Regex rulePatternCaseLineRegex = new Regex(
-			@"^\s*(\S.*?)\s*\|\s*(\S.*?)?\s*:?\s*$");
+			@"^\s* (?<cond>\S.*?) \s* ((?<enc>->)|\|) \s* (?<act>\S.*?)? \s* :? \s*$", RegexOptions.IgnorePatternWhitespace);
 
 		public static IEnumerable<XedPattern> ParsePatterns(
 			TextReader reader, Func<string, string> stateMacroResolver,
@@ -240,9 +240,9 @@ namespace Asmuth.X86.Xed
 			bool returnsRegister = false;
 			var conditionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
 			var actionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
-			var ruleBuilder = ImmutableArray.CreateBuilder<XedRulePatternCase>();
+			var ruleCaseBuilder = ImmutableArray.CreateBuilder<XedRulePatternCase>();
+			bool isEncodeRule = false;
 			var sequenceEntryBuilder = ImmutableArray.CreateBuilder<XedSequenceEntry>();
-
 			while (true)
 			{
 				var line = reader.ReadLine();
@@ -268,9 +268,11 @@ namespace Asmuth.X86.Xed
 				{
 					if (rulePatternName != null)
 					{
-						yield return new XedRulePattern(rulePatternName, returnsRegister, ruleBuilder.ToImmutable());
-						ruleBuilder.Clear();
+						yield return new XedRulePattern(rulePatternName, returnsRegister, isEncodeRule,
+							ruleCaseBuilder.ToImmutable());
+						ruleCaseBuilder.Clear();
 						rulePatternName = null;
+						isEncodeRule = false;
 					}
 					else if (sequenceName != null)
 					{
@@ -303,23 +305,29 @@ namespace Asmuth.X86.Xed
 					var rulePatternCaseMatch = rulePatternCaseLineRegex.Match(line);
 					if (!rulePatternCaseMatch.Success) throw new FormatException();
 
-					if (rulePatternCaseMatch.Groups[1].Value != "otherwise")
-						foreach (var blotStr in Regex.Split(rulePatternCaseMatch.Groups[1].Value, @"\s+"))
+					bool isEncodeCase = rulePatternCaseMatch.Groups["enc"].Success;
+					if (ruleCaseBuilder.Count == 0) isEncodeRule = isEncodeCase;
+					else if (isEncodeCase != isEncodeRule) throw new FormatException();
+
+					var lhsGroup = rulePatternCaseMatch.Groups["cond"];
+					var rhsGroup = rulePatternCaseMatch.Groups["act"];
+					if (lhsGroup.Value != "otherwise")
+						foreach (var blotStr in Regex.Split(rulePatternCaseMatch.Groups["cond"].Value, @"\s+"))
 							AddBlots(conditionsBuilder, blotStr, fieldResolver);
 
-					bool reset = false;
-					var lhsGroup = rulePatternCaseMatch.Groups[2];
-					if (lhsGroup.Success && lhsGroup.Value != "nothing")
+					var controlFlow = XedRulePatternControlFlow.Break;
+					if (rhsGroup.Success && rhsGroup.Value != "nothing")
 					{
-						foreach (var blotStr in Regex.Split(lhsGroup.Value, @"\s+"))
+						foreach (var blotStr in Regex.Split(rhsGroup.Value, @"\s+"))
 						{
-							if (blotStr == "XED_RESET") reset = true;
+							if (blotStr == "XED_RESET") controlFlow = XedRulePatternControlFlow.Reset;
+							else if (blotStr == "NO_RETURN=1") controlFlow = XedRulePatternControlFlow.Continue;
 							else AddBlots(actionsBuilder, blotStr, fieldResolver);
 						}
 					}
 
-					ruleBuilder.Add(new XedRulePatternCase(conditionsBuilder.ToImmutable(),
-						actionsBuilder.ToImmutable(), reset));
+					ruleCaseBuilder.Add(new XedRulePatternCase(conditionsBuilder.ToImmutable(),
+						actionsBuilder.ToImmutable(), controlFlow));
 					conditionsBuilder.Clear();
 					actionsBuilder.Clear();
 				}
@@ -330,7 +338,7 @@ namespace Asmuth.X86.Xed
 
 					var targetName = sequenceEntryMatch.Groups["name"].Value;
 					var type = sequenceEntryMatch.Groups["parens"].Success
-						? XedSequenceEntryType.Pattern : XedSequenceEntryType.Sequence;
+						? XedSequenceEntryType.RulePattern : XedSequenceEntryType.Sequence;
 					sequenceEntryBuilder.Add(new XedSequenceEntry(targetName, type));
 				}
 				else throw new NotImplementedException();

@@ -151,7 +151,7 @@ namespace Asmuth.X86.Xed
 				var rexCase = prefixesPattern.Cases[0];
 				Assert.AreEqual(2, rexCase.Conditions.Length);
 				Assert.AreEqual(5, rexCase.Actions.Length);
-				Assert.IsTrue(rexCase.Reset);
+				Assert.AreEqual(XedRulePatternControlFlow.Reset, rexCase.ControlFlow);
 
 				var otherwiseCase = prefixesPattern.Cases[2];
 				Assert.AreEqual(0, otherwiseCase.Conditions.Length);
@@ -165,7 +165,7 @@ namespace Asmuth.X86.Xed
 				Assert.AreEqual(1, xmmPattern.Cases.Count);
 				Assert.AreEqual(2, xmmPattern.Cases[0].Conditions.Length);
 				Assert.AreEqual(1, xmmPattern.Cases[0].Actions.Length);
-				Assert.AreEqual(1, xmmPattern.Cases[0].OutRegBlot.Value.Value.Constant);
+				Assert.AreEqual(1, xmmPattern.Cases[0].TryGetOutRegBlot(xmmPattern.IsEncode).Value.Value.Constant);
 			}
 		}
 

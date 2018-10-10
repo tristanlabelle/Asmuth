@@ -10,8 +10,20 @@ namespace Asmuth.X86.Xed
 		public XedRegisterTable RegisterTable { get; } = new XedRegisterTable();
 		public EmbeddedKeyCollection<XedField, string> Fields { get; }
 			= new EmbeddedKeyCollection<XedField, string>(f => f.Name);
-		public EmbeddedKeyCollection<XedPattern, string> Patterns { get; }
+		public EmbeddedKeyCollection<XedPattern, string> EncodePatterns { get; }
 			= new EmbeddedKeyCollection<XedPattern, string>(p => p.Name);
+		public EmbeddedKeyCollection<XedPattern, string> EncodeDecodePatterns { get; }
+			= new EmbeddedKeyCollection<XedPattern, string>(p => p.Name);
+		public EmbeddedKeyCollection<XedPattern, string> DecodePatterns { get; }
+			= new EmbeddedKeyCollection<XedPattern, string>(p => p.Name);
+
+		public XedPattern FindPattern(string name, bool encode)
+		{
+			XedPattern pattern;
+			if (!(encode ? EncodePatterns : DecodePatterns).TryFind(name, out pattern))
+				EncodeDecodePatterns.TryFind(name, out pattern);
+			return pattern;
+		}
 
 		public static XedDatabase LoadDirectory(string path)
 		{
@@ -23,7 +35,7 @@ namespace Asmuth.X86.Xed
 					database.RegisterTable.AddOrUpdate(entry);
 
 			var registerFieldType = new XedRegisterFieldType(database.RegisterTable);
-			Func<string, XedEnumFieldType> enumLookup= s =>
+			Func<string, XedEnumFieldType> enumLookup = s =>
 				s == "reg" ? registerFieldType
 				: s == "error" ? XedEnumFieldType.Error
 				: s == "chip" ? XedEnumFieldType.DummyChip
@@ -74,35 +86,18 @@ namespace Asmuth.X86.Xed
 						if (value != entry.Value) throw new FormatException();
 						continue;
 					}
-					
+
 					widths.Add(entry.Key, entry.Value);
 				}
 			}
 			Func<string, XedOperandWidth> operandWidthResolver = s => widths[s];
 
-			// Load decode patterns
-			using (var reader = new StreamReader(Path.Combine(path, "all-dec-patterns.txt")))
-			{
-				foreach (var pattern in XedDataFiles.ParsePatterns(reader, stateResolver, fieldResolver))
-				{
-					// Merge rule patterns with the same name
-					if (database.Patterns.TryFind(pattern.Name, out var existing)
-						&& pattern is XedRulePattern && existing is XedRulePattern)
-					{
-						var newRulePattern = (XedRulePattern)pattern;
-						var exisingRulePattern = (XedRulePattern)existing;
-						if (newRulePattern.ReturnsRegister != exisingRulePattern.ReturnsRegister)
-							throw new FormatException();
+			// Load patterns
+			LoadPatterns(Path.Combine(path, "all-enc-dec-patterns.txt"), fieldResolver, stateResolver, database.EncodeDecodePatterns);
+			LoadPatterns(Path.Combine(path, "all-dec-patterns.txt"), fieldResolver, stateResolver, database.DecodePatterns);
+			LoadPatterns(Path.Combine(path, "all-enc-patterns.txt"), fieldResolver, stateResolver, database.EncodePatterns);
 
-						foreach (var @case in newRulePattern.Cases)
-							exisingRulePattern.Cases.Add(@case);
-						continue;
-					}
-
-					database.Patterns.Add(pattern);
-				}
-			}
-
+			// Load instructions
 			using (var reader = new StreamReader(Path.Combine(path, "all-enc-instructions.txt")))
 			{
 				var resolver = new XedInstructionStringResolvers
@@ -115,12 +110,12 @@ namespace Asmuth.X86.Xed
 				foreach (var entry in XedDataFiles.ParseInstructions(reader, resolver))
 				{
 					XedInstructionTable table;
-					if (database.Patterns.TryFind(entry.PatternName, out var callable))
+					if (database.EncodeDecodePatterns.TryFind(entry.PatternName, out var callable))
 						table = (XedInstructionTable)callable;
 					else
 					{
 						table = new XedInstructionTable(entry.PatternName);
-						database.Patterns.Add(table);
+						database.EncodeDecodePatterns.Add(table);
 					}
 
 					if (entry.Type == XedDataFiles.InstructionsFileEntryType.Instruction)
@@ -141,6 +136,44 @@ namespace Asmuth.X86.Xed
 			}
 
 			return database;
+		}
+
+		private static void LoadPatterns(string path,
+			Func<string, XedField> fieldResolver, Func<string, string> stateResolver,
+			IEmbeddedKeyCollection<XedPattern, string> patterns)
+		{
+			using (var reader = new StreamReader(path))
+			{
+				foreach (var pattern in XedDataFiles.ParsePatterns(reader, stateResolver, fieldResolver))
+				{
+					// Merge rule patterns with the same name
+					if (patterns.TryFind(pattern.Name, out var existing))
+					{
+						if (pattern.GetType() != existing.GetType()) throw new FormatException();
+
+						if (pattern is XedRulePattern)
+						{
+							var newRulePattern = (XedRulePattern)pattern;
+							var exisingRulePattern = (XedRulePattern)existing;
+							if (newRulePattern.ReturnsRegister != exisingRulePattern.ReturnsRegister)
+								throw new FormatException();
+
+							foreach (var @case in newRulePattern.Cases)
+								exisingRulePattern.Cases.Add(@case);
+							continue;
+						}
+						else if (pattern is XedSequence)
+						{
+							// Keep the latest
+							patterns.Remove(existing);
+							patterns.Add(pattern);
+							continue;
+						}
+					}
+
+					patterns.Add(pattern);
+				}
+			}
 		}
 	}
 }

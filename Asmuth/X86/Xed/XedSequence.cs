@@ -21,7 +21,7 @@ namespace Asmuth.X86.Xed
 	public enum XedSequenceEntryType : byte
 	{
 		Sequence,
-		Pattern
+		RulePattern
 	}
 
 	public readonly struct XedSequenceEntry
