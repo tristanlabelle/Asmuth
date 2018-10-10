@@ -231,7 +231,7 @@ namespace Asmuth.X86.Xed
 		private static readonly Regex rulePatternCaseLineRegex = new Regex(
 			@"^\s* (?<cond>\S.*?) \s* ((?<enc>->)|\|) \s* (?<act>\S.*?)? \s* :? \s*$", RegexOptions.IgnorePatternWhitespace);
 
-		public static IEnumerable<XedPattern> ParsePatterns(
+		public static IEnumerable<XedSymbol> ParsePatterns(
 			TextReader reader, Func<string, string> stateMacroResolver,
 			Func<string, XedField> fieldResolver)
 		{
@@ -338,7 +338,7 @@ namespace Asmuth.X86.Xed
 
 					var targetName = sequenceEntryMatch.Groups["name"].Value;
 					var type = sequenceEntryMatch.Groups["parens"].Success
-						? XedSequenceEntryType.RulePattern : XedSequenceEntryType.Sequence;
+						? XedSequenceEntryType.Pattern : XedSequenceEntryType.Sequence;
 					sequenceEntryBuilder.Add(new XedSequenceEntry(targetName, type));
 				}
 				else throw new NotImplementedException();

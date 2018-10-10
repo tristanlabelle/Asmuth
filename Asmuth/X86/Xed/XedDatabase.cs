@@ -10,6 +10,8 @@ namespace Asmuth.X86.Xed
 		public XedRegisterTable RegisterTable { get; } = new XedRegisterTable();
 		public EmbeddedKeyCollection<XedField, string> Fields { get; }
 			= new EmbeddedKeyCollection<XedField, string>(f => f.Name);
+		public EmbeddedKeyCollection<XedSequence, string> EncodeSequences { get; }
+			= new EmbeddedKeyCollection<XedSequence, string>(p => p.Name);
 		public EmbeddedKeyCollection<XedPattern, string> EncodePatterns { get; }
 			= new EmbeddedKeyCollection<XedPattern, string>(p => p.Name);
 		public EmbeddedKeyCollection<XedPattern, string> EncodeDecodePatterns { get; }
@@ -95,7 +97,8 @@ namespace Asmuth.X86.Xed
 			// Load patterns
 			LoadPatterns(Path.Combine(path, "all-enc-dec-patterns.txt"), fieldResolver, stateResolver, database.EncodeDecodePatterns);
 			LoadPatterns(Path.Combine(path, "all-dec-patterns.txt"), fieldResolver, stateResolver, database.DecodePatterns);
-			LoadPatterns(Path.Combine(path, "all-enc-patterns.txt"), fieldResolver, stateResolver, database.EncodePatterns);
+			LoadPatterns(Path.Combine(path, "all-enc-patterns.txt"), fieldResolver, stateResolver,
+				database.EncodePatterns, database.EncodeSequences);
 
 			// Load instructions
 			using (var reader = new StreamReader(Path.Combine(path, "all-enc-instructions.txt")))
@@ -140,33 +143,39 @@ namespace Asmuth.X86.Xed
 
 		private static void LoadPatterns(string path,
 			Func<string, XedField> fieldResolver, Func<string, string> stateResolver,
-			IEmbeddedKeyCollection<XedPattern, string> patterns)
+			IEmbeddedKeyCollection<XedPattern, string> patterns,
+			IEmbeddedKeyCollection<XedSequence, string> sequences = null)
 		{
 			using (var reader = new StreamReader(path))
 			{
-				foreach (var pattern in XedDataFiles.ParsePatterns(reader, stateResolver, fieldResolver))
+				foreach (var symbol in XedDataFiles.ParsePatterns(reader, stateResolver, fieldResolver))
 				{
-					// Merge rule patterns with the same name
-					if (patterns.TryFind(pattern.Name, out var existing))
+					if (symbol is XedSequence sequence)
 					{
-						if (pattern.GetType() != existing.GetType()) throw new FormatException();
+						if (sequences == null) throw new FormatException();
 
-						if (pattern is XedRulePattern)
+						// Only keep the latest sequence
+						if (sequences.TryFind(sequence.Name, out var existingSequence))
+							sequences.Remove(existingSequence);
+						sequences.Add(sequence);
+						continue;
+					}
+
+					var pattern = (XedPattern)symbol;
+					if (patterns.TryFind(symbol.Name, out var existingPattern))
+					{
+						if (symbol.GetType() != existingPattern.GetType()) throw new FormatException();
+
+						if (symbol is XedRulePattern)
 						{
-							var newRulePattern = (XedRulePattern)pattern;
-							var exisingRulePattern = (XedRulePattern)existing;
+							// Merge rule patterns with the same name
+							var newRulePattern = (XedRulePattern)symbol;
+							var exisingRulePattern = (XedRulePattern)existingPattern;
 							if (newRulePattern.ReturnsRegister != exisingRulePattern.ReturnsRegister)
 								throw new FormatException();
 
 							foreach (var @case in newRulePattern.Cases)
 								exisingRulePattern.Cases.Add(@case);
-							continue;
-						}
-						else if (pattern is XedSequence)
-						{
-							// Keep the latest
-							patterns.Remove(existing);
-							patterns.Add(pattern);
 							continue;
 						}
 					}

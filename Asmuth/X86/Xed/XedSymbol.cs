@@ -4,15 +4,23 @@ using System.Text;
 
 namespace Asmuth.X86.Xed
 {
-	public abstract class XedPattern
+	public abstract class XedSymbol
 	{
 		public string Name { get; }
 
-		internal XedPattern(string name)
+		internal XedSymbol(string name)
 		{
 			this.Name = name ?? throw new ArgumentNullException(nameof(name));
 		}
 
 		public override string ToString() => Name;
+	}
+
+	/// <summary>
+	/// Base class for rule and instruction patterns.
+	/// </summary>
+	public abstract class XedPattern : XedSymbol
+	{
+		internal XedPattern(string name) : base(name) { }
 	}
 }

@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Asmuth.X86.Xed
 {
-	public sealed class XedSequence : XedPattern
+	public sealed class XedSequence : XedSymbol
 	{
 		public ImmutableArray<XedSequenceEntry> Entries { get; }
 
@@ -21,7 +21,7 @@ namespace Asmuth.X86.Xed
 	public enum XedSequenceEntryType : byte
 	{
 		Sequence,
-		RulePattern
+		Pattern
 	}
 
 	public readonly struct XedSequenceEntry
