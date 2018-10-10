@@ -55,9 +55,9 @@ namespace Asmuth.X86.Xed
 			if (!lineMatch.Groups["bits16"].Success) width16 *= 8;
 
 			XedOperandWidth width;
-			if (lineMatch.Groups["size32"].Success)
+			if (lineMatch.Groups.TryGetValue("size32", out var size32Str))
 			{
-				if (!ushort.TryParse(lineMatch.Groups["size32"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var width32))
+				if (!ushort.TryParse(size32Str, NumberStyles.None, CultureInfo.InvariantCulture, out var width32))
 					throw new FormatException();
 				if (!lineMatch.Groups["bits32"].Success) width32 *= 8;
 
@@ -151,11 +151,11 @@ namespace Asmuth.X86.Xed
 		{
 			ushort width32 = 0;
 			ushort width64 = 0;
-			if (lineMatch.Groups["width32"].Success)
+			if (lineMatch.Groups.TryGetValue("width32", out var width32Str))
 			{
-				width32 = ushort.Parse(lineMatch.Groups["width32"].Value, CultureInfo.InvariantCulture);
-				if (lineMatch.Groups["width64"].Success)
-					width64 = ushort.Parse(lineMatch.Groups["width64"].Value, CultureInfo.InvariantCulture);
+				width32 = ushort.Parse(width32Str, CultureInfo.InvariantCulture);
+				if (lineMatch.Groups.TryGetValue("width64", out var width64Str))
+					width64 = ushort.Parse(width64Str, CultureInfo.InvariantCulture);
 				else
 					width64 = width32;
 			}
@@ -163,16 +163,16 @@ namespace Asmuth.X86.Xed
 			var name = lineMatch.Groups["name"].Value;
 			string parent32 = name;
 			string parent64 = name;
-			if (lineMatch.Groups["parent64"].Success)
+			if (lineMatch.Groups.TryGetValue("parent64", out var parent64Str))
 			{
-				parent64 = lineMatch.Groups["parent64"].Value;
-				parent32 = lineMatch.Groups["parent32"].Success
-					? lineMatch.Groups["parent32"].Value : parent64;
+				parent64 = parent64Str;
+				parent32 = lineMatch.Groups.TryGetValue("parent32", out var parent32Str)
+					? parent32Str : parent64;
 			}
 
 			byte? id = null;
-			if (lineMatch.Groups["id"].Success)
-				id = byte.Parse(lineMatch.Groups["id"].Value, CultureInfo.InvariantCulture);
+			if (lineMatch.Groups.TryGetValue("id", out var idStr))
+				id = byte.Parse(idStr, CultureInfo.InvariantCulture);
 
 			return new RegisterEntry(name, lineMatch.Groups["class"].Value,
 				width32, width64, parent32, parent64, id, lineMatch.Groups["h"].Success);

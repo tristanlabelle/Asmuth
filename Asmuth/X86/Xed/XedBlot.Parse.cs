@@ -42,44 +42,41 @@ namespace Asmuth.X86.Xed
 
 			XedBlot blot;
 			XedBlot? secondBlot = null;
-			if (highLevelMatch.Groups["field"].Success)
+			if (highLevelMatch.Groups.TryGetValue("field", out var fieldStr))
 			{
-				var field = fieldResolver(highLevelMatch.Groups["field"].Value);
+				var field = fieldResolver(fieldStr);
 
 				XedBlot? bitsBlot = null;
-				if (highLevelMatch.Groups["bits"].Success)
+				if (highLevelMatch.Groups.TryGetValue("bits", out var bitsStr))
 				{
-					var bitPattern = ParseBits(highLevelMatch.Groups["bits"].Value);
+					var bitPattern = ParseBits(bitsStr);
 					bitsBlot = MakeBits(field, bitPattern);
 				}
 
 				XedBlot? predicateBlot = null;
-				if (highLevelMatch.Groups["op"].Success)
+				if (highLevelMatch.Groups.TryGetValue("op", out var opStr))
 				{
 					XedBlotValue value;
-					if (highLevelMatch.Groups["val10"].Success)
-						value = XedBlotValue.MakeConstant(Convert.ToUInt16(
-							highLevelMatch.Groups["val10"].Value, 10));
-					else if (highLevelMatch.Groups["val2"].Success)
-						value = XedBlotValue.MakeConstant(Convert.ToByte(
-							highLevelMatch.Groups["val2"].Value, 2));
-					else if (highLevelMatch.Groups["val16"].Success)
-						value = XedBlotValue.MakeConstant(Convert.ToByte(
-							highLevelMatch.Groups["val16"].Value, 16));
-					else if (highLevelMatch.Groups["vale"].Success)
+					if (highLevelMatch.Groups.TryGetValue("val10", out var val10Str))
+						value = XedBlotValue.MakeConstant(Convert.ToUInt16(val10Str, 10));
+					else if (highLevelMatch.Groups.TryGetValue("val2", out var val2Str))
+						value = XedBlotValue.MakeConstant(Convert.ToByte(val2Str, 2));
+					else if (highLevelMatch.Groups.TryGetValue("val16", out var val16Str))
+						value = XedBlotValue.MakeConstant(Convert.ToByte(val16Str, 16));
+					else if (highLevelMatch.Groups.TryGetValue("vale", out var enumValueStr))
 					{
 						var enumType = (XedEnumFieldType)field.Type;
-						int enumerant = enumType.GetValue(highLevelMatch.Groups["vale"].Value);
+						int enumerant = enumType.GetValue(enumValueStr);
 						value = XedBlotValue.MakeConstant(checked((ushort)enumerant));
 					}
-					else if (highLevelMatch.Groups["valb"].Success)
-						value = XedBlotValue.MakeBits(highLevelMatch.Groups["valb"].Value);
-					else if (highLevelMatch.Groups["valc"].Success)
-						value = XedBlotValue.MakeCallResult(highLevelMatch.Groups["valc"].Value);
+					else if (highLevelMatch.Groups.TryGetValue("valb", out var bitPatternValueStr))
+						value = XedBlotValue.MakeBits(bitPatternValueStr);
+					else if (highLevelMatch.Groups.TryGetValue("valc", out var calleeValueStr))
+						value = XedBlotValue.MakeCallResult(calleeValueStr);
 					else
 						throw new UnreachableException();
 
-					predicateBlot = highLevelMatch.Groups["op"].Value[0] == '!'
+					predicateBlot = opStr[0] == '!'
 						? MakeInequality(field, value) : MakeEquality(field, value);
 				}
 
@@ -110,20 +107,15 @@ namespace Asmuth.X86.Xed
 			var match = bitsRegex.Match(str);
 			if (!match.Success) throw new FormatException();
 
-			if (match.Groups["base2"].Success)
-				return match.Groups["base2"].Value;
+			if (match.Groups.TryGetValue("base2", out var base2Str)) return base2Str;
 
-			if (match.Groups["base16"].Success)
-			{
-				var hexDigits = match.Groups["base16"].Value;
-				return Convert.ToString(Convert.ToInt64(hexDigits, 16), 2)
-					.PadLeft(hexDigits.Length * 4, '0');
-			}
+			if (match.Groups.TryGetValue("base16", out var base16Str))
+				return Convert.ToString(Convert.ToInt64(base16Str, 16), 2).PadLeft(base16Str.Length * 4, '0');
 
-			if (match.Groups["letter"].Success)
+			if (match.Groups.TryGetValue("letter", out var letterStr))
 			{
 				int length = int.Parse(match.Groups["length"].Value, CultureInfo.InvariantCulture);
-				return new string(match.Groups["letter"].Value[0], length);
+				return new string(letterStr[0], length);
 			}
 
 			return XedBitPattern.Normalize(match.Groups["pattern"].Value);

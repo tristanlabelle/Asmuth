@@ -43,9 +43,9 @@ namespace Asmuth.X86.Xed
 				int sizeInBytes = int.Parse(match.Groups["s"].Value, CultureInfo.InvariantCulture) / 8;
 				fieldType = XedIntegerFieldType.Get(sizeInBytes, isSigned: !match.Groups["u"].Success);
 			}
-			else if (match.Groups["e"].Success)
+			else if (match.Groups.TryGetValue("e", out var enumName))
 			{
-				fieldType = enumerationShortNameResolver(match.Groups["e"].Value);
+				fieldType = enumerationShortNameResolver(enumName);
 			}
 			else throw new UnreachableException();
 

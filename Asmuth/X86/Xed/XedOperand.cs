@@ -114,10 +114,9 @@ namespace Asmuth.X86.Xed
 
 			var field = resolvers.Field(typeMatch.Groups["n"].Value);
 			XedBlotValue? value = null;
-			if (typeMatch.Groups["v"].Success)
+			if (typeMatch.Groups.TryGetValue("v", out var valueStr))
 			{
-				var valueStr = typeMatch.Groups["v"].Value;
-				if (ushort.TryParse(typeMatch.Groups["v"].Value, out ushort intValue))
+				if (ushort.TryParse(valueStr, out ushort intValue))
 				{
 					value = XedBlotValue.MakeConstant(intValue);
 				}

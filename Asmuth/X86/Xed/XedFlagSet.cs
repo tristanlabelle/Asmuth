@@ -85,9 +85,9 @@ namespace Asmuth.X86.Xed
 			if (match == null) throw new FormatException();
 
 			XedFlagsRecordQualifier? qualifier = null;
-			if (match.Groups["q"].Success)
+			if (match.Groups.TryGetValue("q", out var qualifierStr))
 			{
-				if (!Enum.TryParse(match.Groups["q"].Value, ignoreCase: true, out XedFlagsRecordQualifier parsedQualifier))
+				if (!Enum.TryParse(qualifierStr, ignoreCase: true, out XedFlagsRecordQualifier parsedQualifier))
 					throw new FormatException();
 				qualifier = parsedQualifier;
 			}
