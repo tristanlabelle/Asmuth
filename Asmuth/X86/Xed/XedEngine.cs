@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Text;
 
 namespace Asmuth.X86.Xed
@@ -9,6 +10,7 @@ namespace Asmuth.X86.Xed
 	{
 		public XedDatabase Database { get; }
 		private readonly Dictionary<XedField, long> fieldValues = new Dictionary<XedField, long>();
+		private BitStream bitStream;
 		private XedInstruction encodingInstruction;
 		private int encodingInstructionFormIndex = -1;
 
@@ -16,12 +18,15 @@ namespace Asmuth.X86.Xed
 		{
 			this.Database = database ?? throw new ArgumentNullException(nameof(database));
 		}
-
+		
 		private bool IsEncoding => encodingInstruction != null;
 		private XedInstructionForm EncodingInstructionForm => encodingInstruction?.Forms[encodingInstructionFormIndex];
 
 		public byte[] Encode(XedInstruction instruction, int formIndex, bool x64, IntegerSize operandSize)
 		{
+			var memoryStream = new MemoryStream(capacity: 8);
+			bitStream = new BitStream(memoryStream);
+
 			encodingInstruction = instruction;
 			encodingInstructionFormIndex = formIndex;
 
@@ -35,14 +40,13 @@ namespace Asmuth.X86.Xed
 			if (!Database.EncodeSequences.TryFind("ISA_ENCODE", out XedSequence rootSequence))
 				throw new InvalidOperationException();
 
-			bool reset;
-			do { reset = Execute(rootSequence); }
-			while (reset);
+			Execute(rootSequence);
 
-			throw new NotImplementedException();
+			bitStream.Flush();
+			return memoryStream.ToArray();
 		}
 
-		private bool Execute(XedSequence sequence)
+		private void Execute(XedSequence sequence)
 		{
 			foreach (var entry in sequence.Entries)
 			{
@@ -50,19 +54,23 @@ namespace Asmuth.X86.Xed
 				{
 					if (!Database.EncodeSequences.TryFind(entry.TargetName, out var targetSequence))
 						throw new InvalidOperationException();
-					if (Execute(targetSequence)) return true;
+					Execute(targetSequence);
 				}
 				else if (entry.Type == XedSequenceEntryType.Pattern)
 				{
-					var pattern = Database.FindPattern(entry.TargetName, encode: IsEncoding);
-					if (pattern == null) throw new InvalidOperationException();
-					if (Execute(pattern)) throw new InvalidOperationException(); // Can't reset encoder
+					if (ExecutePattern(entry.TargetName))
+						throw new InvalidOperationException(); // Can't reset encoder
 				}
 				else
 					throw new InvalidOperationException();
 			}
+		}
 
-			return false; // Don't reset
+		private bool ExecutePattern(string name)
+		{
+			var pattern = Database.FindPattern(name, encode: IsEncoding);
+			if (pattern == null) throw new InvalidOperationException();
+			return Execute(pattern);
 		}
 
 		private bool Execute(XedPattern pattern)
@@ -92,27 +100,37 @@ namespace Asmuth.X86.Xed
 
 			foreach (var @case in rulePattern.Cases)
 			{
-				if (!TryMatchRuleCaseCondition(@case.Conditions, IsEncoding ? register : null))
-					continue;
-
-				var outReg = ExecuteRuleCaseActions(@case.Conditions);
-				if (outReg.HasValue)
-				{
-					if (!rulePattern.ReturnsRegister || IsEncoding)
-						throw new InvalidOperationException();
-					register = outReg;
-				}
-
-				if (@case.ControlFlow == XedRulePatternControlFlow.Break) break;
-				if (@case.ControlFlow == XedRulePatternControlFlow.Continue) continue;
-				if (@case.ControlFlow == XedRulePatternControlFlow.Reset) return true;
+				var controlFlow = ExecuteRuleCase(@case, ref register);
+				if (!rulePattern.ReturnsRegister && register.HasValue)
+					throw new InvalidOperationException();
+				if (controlFlow == XedRulePatternControlFlow.Break) break;
+				if (controlFlow == XedRulePatternControlFlow.Continue) continue;
+				if (controlFlow == XedRulePatternControlFlow.Reset) return true;
 				throw new UnreachableException();
 			}
 
 			return false;
 		}
 
-		private bool TryMatchRuleCaseCondition(ImmutableArray<XedBlot> blots, ushort? outReg)
+		private XedRulePatternControlFlow ExecuteRuleCase(XedRulePatternCase @case, ref ushort? register)
+		{
+			var bitVars = new SmallDictionary<char, long>();
+
+			if (!TryMatchRuleCaseCondition(@case.Conditions, IsEncoding ? register : null, bitVars))
+				return XedRulePatternControlFlow.Continue;
+
+			var outReg = ExecuteRuleCaseActions(@case.Conditions, bitVars);
+			if (outReg.HasValue)
+			{
+				if (IsEncoding) throw new InvalidOperationException();
+				register = outReg;
+			}
+
+			return @case.ControlFlow;
+		}
+
+		private bool TryMatchRuleCaseCondition(ImmutableArray<XedBlot> blots, ushort? register,
+			IDictionary<char, long> bitVars)
 		{
 			foreach (var blot in blots)
 			{
@@ -123,7 +141,7 @@ namespace Asmuth.X86.Xed
 
 					case XedBlotType.Equality:
 					case XedBlotType.Inequality:
-						if (!MatchPredicateBlot(blot.Field, blot.Value, isEquals: (blot.Type == XedBlotType.Equality), outReg))
+						if (!MatchPredicateBlot(blot.Field, blot.Value, isEquals: (blot.Type == XedBlotType.Equality), register))
 							return false;
 						break;
 
@@ -145,34 +163,68 @@ namespace Asmuth.X86.Xed
 				fieldValue = outReg.Value;
 			}
 			else fieldValue = fieldValues[field];
+			
+			return (fieldValue == Evaluate(value, outReg)) == isEquals;
+		}
 
-			// Load comparison value
-			long comparisonValue;
+		private long Evaluate(XedBlotValue value, ushort? outReg, IDictionary<char, long> bitVars = null)
+		{
 			if (value.Kind == XedBlotValueKind.Constant)
-				comparisonValue = value.Constant;
+				return value.Constant;
 			else if (value.Kind == XedBlotValueKind.CallResult)
 			{
 				var callee = Database.FindPattern(value.Callee, encode: IsEncoding) as XedRulePattern;
 				if (callee == null) throw new InvalidOperationException();
 				if (Execute(callee, ref outReg)) throw new InvalidOperationException(); // Can't reset here
-				comparisonValue = outReg.Value;
+				return outReg.Value;
 			}
 			else if (value.Kind == XedBlotValueKind.Bits)
-				throw new InvalidOperationException();
+			{
+				if (bitVars == null) throw new InvalidOperationException();
+				throw new NotImplementedException();
+			}
 			else
 				throw new UnreachableException();
-
-			return (fieldValue == comparisonValue) == isEquals;
 		}
 
-		private ushort? ExecuteRuleCaseActions(ImmutableArray<XedBlot> blots)
+		private ushort? ExecuteRuleCaseActions(ImmutableArray<XedBlot> blots, IDictionary<char, long> bitVars)
 		{
-			return ExecuteActionBlots(blots, b => true);
+			return ExecuteActionBlots(blots, b => true, bitVars);
 		}
 
-		private ushort? ExecuteActionBlots(ImmutableArray<XedBlot> blots, Predicate<XedBlot> filter)
+		private ushort? ExecuteActionBlots(ImmutableArray<XedBlot> blots, Predicate<XedBlot> filter,
+			IDictionary<char, long> bitVars)
 		{
-			throw new NotImplementedException();
+			ushort? outReg = null;
+			foreach (var blot in blots)
+			{
+				if (!filter(blot)) continue;
+
+				switch (blot.Type)
+				{
+					case XedBlotType.Bits:
+						if (blot.Field != null || !IsEncoding) throw new InvalidOperationException();
+						throw new NotImplementedException();
+
+					case XedBlotType.Equality:
+						{
+							var value = Evaluate(blot.Value, outReg: null, bitVars);
+							if (blot.Field.Name == "OUTREG") outReg = (ushort)value;
+							else fieldValues[blot.Field] = value;
+							break;
+						}
+
+					case XedBlotType.Call:
+						if (ExecutePattern(blot.Callee))
+							throw new InvalidOperationException(); // Can't bubble reset from here
+						break;
+
+					case XedBlotType.Inequality: throw new InvalidOperationException();
+					default: throw new UnreachableException();
+				}
+			}
+
+			return outReg;
 		}
 		
 		private bool Execute(XedInstructionTable instructionTable)
@@ -183,7 +235,7 @@ namespace Asmuth.X86.Xed
 					throw new InvalidOperationException();
 
 				var outRegister = ExecuteActionBlots(EncodingInstructionForm.Pattern,
-					b => b.Field.EncoderUsage == XedFieldUsage.Output);
+					b => b.Field.EncoderUsage == XedFieldUsage.Output, bitVars: null);
 				if (outRegister != null) throw new InvalidOperationException();
 				return false;
 			}
