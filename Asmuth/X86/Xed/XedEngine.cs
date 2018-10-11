@@ -36,6 +36,7 @@ namespace Asmuth.X86.Xed
 		public event Action<int, string> TraceMessage;
 		
 		private bool IsEncoding => encodingInstruction != null;
+		private bool IsDecoding => false;
 		private XedInstructionForm EncodingInstructionForm => encodingInstruction?.Forms[encodingInstructionFormIndex];
 
 		public byte[] Encode(XedInstruction instruction, int formIndex, CodeSegmentType codeSegmentType,
@@ -340,7 +341,10 @@ namespace Asmuth.X86.Xed
 				if (!outReg.HasValue) throw new InvalidOperationException();
 				fieldValue = outReg.Value;
 			}
-			else fieldValue = fieldValues[field];
+			else
+			{
+				fieldValue = fieldValues.GetValueOrDefault(field);
+			}
 			
 			return (fieldValue == Evaluate(value, outReg)) == isEquals;
 		}
@@ -369,7 +373,9 @@ namespace Asmuth.X86.Xed
 		private ushort? ExecuteRuleCaseActions(ImmutableArray<XedBlot> blots,
 			IDictionary<char, BitVariableValue> bitVars)
 		{
-			return ExecuteActionBlots(blots, b => true, bitVars);
+			return IsDecoding ? ExecuteActionBlots(blots, b => true, bitVars)
+				: isBinding ? ExecuteActionBlots(blots, b => b.Type != XedBlotType.Bits, bitVars)
+				: ExecuteActionBlots(blots, b => b.Type == XedBlotType.Bits, bitVars);
 		}
 
 		private ushort? ExecuteActionBlots(ImmutableArray<XedBlot> blots, Predicate<XedBlot> filter,
@@ -422,7 +428,7 @@ namespace Asmuth.X86.Xed
 				executionDepth++;
 
 				var outRegister = ExecuteActionBlots(EncodingInstructionForm.Pattern,
-					b => b.Field.EncoderUsage == XedFieldUsage.Output, bitVars: null);
+					b => b.Field == null || b.Field.EncoderUsage == XedFieldUsage.Output, bitVars: null);
 				if (outRegister != null) throw new InvalidOperationException();
 
 				executionDepth--;
