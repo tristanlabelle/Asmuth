@@ -26,13 +26,14 @@ namespace Asmuth.X86.Xed
 		private XedInstruction encodingInstruction;
 		private byte encodingInstructionFormIndex;
 		private bool isBinding;
+		private byte executionDepth;
 
 		public XedEngine(XedDatabase database)
 		{
 			this.Database = database ?? throw new ArgumentNullException(nameof(database));
 		}
 
-		public event Action<string> TraceMessage;
+		public event Action<int, string> TraceMessage;
 		
 		private bool IsEncoding => encodingInstruction != null;
 		private XedInstructionForm EncodingInstructionForm => encodingInstruction?.Forms[encodingInstructionFormIndex];
@@ -65,7 +66,9 @@ namespace Asmuth.X86.Xed
 			if (!Database.EncodeSequences.TryFind("ISA_ENCODE", out XedSequence rootSequence))
 				throw new InvalidOperationException();
 
-			Execute(rootSequence);
+			executionDepth = 0;
+			try { Execute(rootSequence); }
+			finally { executionDepth = 0; }
 
 			bitStream.Flush();
 			return memoryStream.ToArray();
@@ -73,8 +76,9 @@ namespace Asmuth.X86.Xed
 
 		private void Execute(XedSequence sequence)
 		{
-			TraceMessage?.Invoke($"Executing sequence {sequence.Name}");
+			TraceMessage?.Invoke(executionDepth, $"Sequence {sequence.Name}");
 
+			executionDepth++;
 			foreach (var entry in sequence.Entries)
 			{
 				if (entry.Type == XedSequenceEntryType.Sequence)
@@ -103,6 +107,8 @@ namespace Asmuth.X86.Xed
 				else
 					throw new InvalidOperationException();
 			}
+
+			executionDepth--;
 		}
 
 		private bool ExecutePattern(string name)
@@ -124,7 +130,6 @@ namespace Asmuth.X86.Xed
 
 		private bool Execute(XedRulePattern rulePattern)
 		{
-			TraceMessage?.Invoke($"Executing rule pattern {rulePattern.Name}");
 			if (rulePattern.ReturnsRegister) throw new InvalidOperationException();
 			ushort? outReg = null;
 			return Execute(rulePattern, ref outReg);
@@ -136,19 +141,37 @@ namespace Asmuth.X86.Xed
 			if (register.HasValue != (IsEncoding && rulePattern.ReturnsRegister))
 				throw new InvalidOperationException();
 
+			TraceMessage?.Invoke(executionDepth, $"Rule pattern {rulePattern.Name}()");
+			executionDepth++;
+
+			bool? reset = null;
 			foreach (var @case in rulePattern.Cases)
 			{
 				var controlFlow = TryExecuteRuleCase(@case, ref register);
 				if (!rulePattern.ReturnsRegister && register.HasValue)
 					throw new InvalidOperationException();
-				if (controlFlow == XedRulePatternControlFlow.Break) return false;
+
 				if (controlFlow == XedRulePatternControlFlow.Continue) continue;
-				if (controlFlow == XedRulePatternControlFlow.Reset) return true;
+
+				if (controlFlow == XedRulePatternControlFlow.Break)
+				{
+					reset = false;
+					break;
+				}
+
+				if (controlFlow == XedRulePatternControlFlow.Reset)
+				{
+					reset = true;
+					break;
+				}
+
 				throw new UnreachableException();
 			}
+			
+			if (!reset.HasValue) throw new InvalidOperationException();
 
-			// No case matched
-			throw new InvalidOperationException();
+			executionDepth--;
+			return reset.Value;
 		}
 
 		private XedRulePatternControlFlow TryExecuteRuleCase(XedRulePatternCase @case, ref ushort? register)
@@ -158,7 +181,8 @@ namespace Asmuth.X86.Xed
 			if (!TryMatchRuleCaseCondition(@case.Conditions, IsEncoding ? register : null, bitVars))
 				return XedRulePatternControlFlow.Continue;
 
-			TraceMessage?.Invoke($"Matched case '{@case}'");
+			TraceMessage?.Invoke(executionDepth, $"Case '{@case}'");
+			executionDepth++;
 
 			var outReg = ExecuteRuleCaseActions(@case.Conditions, bitVars);
 			if (outReg.HasValue)
@@ -167,6 +191,7 @@ namespace Asmuth.X86.Xed
 				register = outReg;
 			}
 
+			executionDepth--;
 			return @case.ControlFlow;
 		}
 
@@ -385,21 +410,30 @@ namespace Asmuth.X86.Xed
 
 		private bool Execute(XedInstructionTable instructionTable)
 		{
-			TraceMessage?.Invoke($"Using instruction table {instructionTable.Name}");
+			TraceMessage?.Invoke(executionDepth, $"Instruction table {instructionTable.Name}()");
+			executionDepth++;
+
 			if (IsEncoding)
 			{
 				if (!instructionTable.Instructions.Contains(encodingInstruction))
 					throw new InvalidOperationException();
 
+				TraceMessage?.Invoke(executionDepth, $"Instruction {encodingInstruction.Class}");
+				executionDepth++;
+
 				var outRegister = ExecuteActionBlots(EncodingInstructionForm.Pattern,
 					b => b.Field.EncoderUsage == XedFieldUsage.Output, bitVars: null);
 				if (outRegister != null) throw new InvalidOperationException();
-				return false;
+
+				executionDepth--;
 			}
 			else
 			{
 				throw new NotImplementedException();
 			}
+
+			executionDepth--;
+			return false;
 		}
 	}
 }
