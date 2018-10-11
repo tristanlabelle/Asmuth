@@ -24,23 +24,36 @@ namespace Asmuth.X86.Xed
 		private readonly Dictionary<XedField, long> fieldValues = new Dictionary<XedField, long>();
 		private BitStream bitStream;
 		private XedInstruction encodingInstruction;
-		private int encodingInstructionFormIndex = -1;
+		private byte encodingInstructionFormIndex;
+		private bool isBinding;
 
 		public XedEngine(XedDatabase database)
 		{
 			this.Database = database ?? throw new ArgumentNullException(nameof(database));
 		}
+
+		public event Action<string> TraceMessage;
 		
 		private bool IsEncoding => encodingInstruction != null;
 		private XedInstructionForm EncodingInstructionForm => encodingInstruction?.Forms[encodingInstructionFormIndex];
 
-		public byte[] Encode(XedInstruction instruction, int formIndex, bool x64, IntegerSize operandSize)
+		public byte[] Encode(XedInstruction instruction, int formIndex, CodeSegmentType codeSegmentType,
+			AddressSize? effectiveAddressSize = null, IntegerSize? effectiveOperandSize = null)
 		{
+			if (effectiveOperandSize == IntegerSize.Byte)
+				throw new ArgumentOutOfRangeException(nameof(effectiveOperandSize));
+
 			var memoryStream = new MemoryStream(capacity: 8);
 			bitStream = new BitStream(memoryStream);
 
 			encodingInstruction = instruction;
-			encodingInstructionFormIndex = formIndex;
+			encodingInstructionFormIndex = checked((byte)formIndex);
+
+			// Set up field values
+			fieldValues.Add(Database.Fields.Get("MODE"), (int)codeSegmentType);
+			fieldValues.Add(Database.Fields.Get("EASZ"),
+				effectiveAddressSize.HasValue ? (int)effectiveAddressSize.Value + 1 : 0);
+			fieldValues.Add(Database.Fields.Get("EOSZ"), (int)effectiveOperandSize.GetValueOrDefault());
 
 			foreach (var blot in instruction.Forms[formIndex].Pattern)
 			{
@@ -60,6 +73,8 @@ namespace Asmuth.X86.Xed
 
 		private void Execute(XedSequence sequence)
 		{
+			TraceMessage?.Invoke($"Executing sequence {sequence.Name}");
+
 			foreach (var entry in sequence.Entries)
 			{
 				if (entry.Type == XedSequenceEntryType.Sequence)
@@ -70,7 +85,19 @@ namespace Asmuth.X86.Xed
 				}
 				else if (entry.Type == XedSequenceEntryType.Pattern)
 				{
-					if (ExecutePattern(entry.TargetName))
+					string patternName = entry.TargetName;
+					if (patternName.EndsWith("_BIND"))
+					{
+						patternName = patternName.Substring(0, patternName.Length - "_BIND".Length);
+						isBinding = true;
+					}
+					else if (patternName.EndsWith("_EMIT"))
+					{
+						patternName = patternName.Substring(0, patternName.Length - "_EMIT".Length);
+						isBinding = false;
+					}
+
+					if (ExecutePattern(patternName))
 						throw new InvalidOperationException(); // Can't reset encoder
 				}
 				else
@@ -87,18 +114,17 @@ namespace Asmuth.X86.Xed
 
 		private bool Execute(XedPattern pattern)
 		{
-			bool reset;
 			if (pattern is XedRulePattern rulePattern)
-				reset = Execute(rulePattern);
+				return Execute(rulePattern);
 			else if (pattern is XedInstructionTable instructionTable)
-				reset = Execute(instructionTable);
+				return Execute(instructionTable);
 			else
 				throw new InvalidOperationException();
-			return reset;
 		}
 
 		private bool Execute(XedRulePattern rulePattern)
 		{
+			TraceMessage?.Invoke($"Executing rule pattern {rulePattern.Name}");
 			if (rulePattern.ReturnsRegister) throw new InvalidOperationException();
 			ushort? outReg = null;
 			return Execute(rulePattern, ref outReg);
@@ -112,24 +138,27 @@ namespace Asmuth.X86.Xed
 
 			foreach (var @case in rulePattern.Cases)
 			{
-				var controlFlow = ExecuteRuleCase(@case, ref register);
+				var controlFlow = TryExecuteRuleCase(@case, ref register);
 				if (!rulePattern.ReturnsRegister && register.HasValue)
 					throw new InvalidOperationException();
-				if (controlFlow == XedRulePatternControlFlow.Break) break;
+				if (controlFlow == XedRulePatternControlFlow.Break) return false;
 				if (controlFlow == XedRulePatternControlFlow.Continue) continue;
 				if (controlFlow == XedRulePatternControlFlow.Reset) return true;
 				throw new UnreachableException();
 			}
 
-			return false;
+			// No case matched
+			throw new InvalidOperationException();
 		}
 
-		private XedRulePatternControlFlow ExecuteRuleCase(XedRulePatternCase @case, ref ushort? register)
+		private XedRulePatternControlFlow TryExecuteRuleCase(XedRulePatternCase @case, ref ushort? register)
 		{
 			var bitVars = new SmallDictionary<char, BitVariableValue>();
 
 			if (!TryMatchRuleCaseCondition(@case.Conditions, IsEncoding ? register : null, bitVars))
 				return XedRulePatternControlFlow.Continue;
+
+			TraceMessage?.Invoke($"Matched case '{@case}'");
 
 			var outReg = ExecuteRuleCaseActions(@case.Conditions, bitVars);
 			if (outReg.HasValue)
@@ -356,6 +385,7 @@ namespace Asmuth.X86.Xed
 
 		private bool Execute(XedInstructionTable instructionTable)
 		{
+			TraceMessage?.Invoke($"Using instruction table {instructionTable.Name}");
 			if (IsEncoding)
 			{
 				if (!instructionTable.Instructions.Contains(encodingInstruction))

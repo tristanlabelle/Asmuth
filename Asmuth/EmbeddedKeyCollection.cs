@@ -8,6 +8,7 @@ namespace Asmuth
 {
 	public interface IEmbeddedKeyCollection<T, TKey> : ICollection<T>
 	{
+		T this[TKey key] { get; }
 		TKey GetKey(T item);
 		bool TryFind(TKey key, out T item);
 	}
@@ -29,10 +30,10 @@ namespace Asmuth
 
 		public int Count => items.Count;
 
+		public T this[TKey key] => items[key];
+
 		public void Add(T item) => items.Add(keyGetter(item), item);
-
 		public void Clear() => items.Clear();
-
 		public TKey GetKey(T item) => keyGetter(item);
 
 		public bool Contains(T item)
@@ -58,5 +59,19 @@ namespace Asmuth
 		bool ICollection<T>.IsReadOnly => false;
 		IEnumerator<T> IEnumerable<T>.GetEnumerator() => items.Values.GetEnumerator();
 		IEnumerator IEnumerable.GetEnumerator() => items.Values.GetEnumerator();
+	}
+
+	public static class EmbeddedKeyCollectionExtensions
+	{
+		public static T Get<T, TKey>(this IEmbeddedKeyCollection<T, TKey> collection, TKey key) => collection[key];
+
+		public static T GetOrDefault<T, TKey>(this IEmbeddedKeyCollection<T, TKey> collection, TKey key)
+			=> collection.TryFind(key, out T item) ? item : default;
+
+		public static T GetOrDefault<T, TKey>(this IEmbeddedKeyCollection<T, TKey> collection, TKey key, T defaultValue)
+			=> collection.TryFind(key, out T item) ? item : defaultValue;
+
+		public static T? GetNullable<T, TKey>(this IEmbeddedKeyCollection<T, TKey> collection, TKey key) where T : struct
+			=> collection.TryFind(key, out T item) ? item : (T?)null;
 	}
 }

@@ -35,6 +35,19 @@ namespace Asmuth.X86.Xed
 			}
 			return null;
 		}
+
+		public override string ToString()
+		{
+			if (Conditions.Length == 0) return "otherwise";
+
+			var str = new StringBuilder();
+			foreach (var blot in Conditions)
+			{
+				if (str.Length > 0) str.Append(' ');
+				str.Append(blot.ToString());
+			}
+			return str.ToString();
+		}
 	}
 
 	// XED patterns aka rules
