@@ -6,6 +6,28 @@ namespace Asmuth.X86.Xed
 {
 	public static class XedBitPattern
 	{
+		public readonly struct Span
+		{
+			private readonly byte @char;
+			private readonly byte startIndex;
+			private readonly byte length;
+
+			public Span(char @char, int startIndex, int length)
+			{
+				this.@char = (byte)@char;
+				this.startIndex = (byte)startIndex;
+				this.length = (byte)length;
+			}
+
+			public char Char => (char)@char;
+			public int StartIndex => startIndex;
+			public int Length => length;
+			public int EndIndex => startIndex + length;
+
+			public bool IsConstant => Char == '0' || Char == '1';
+			public bool IsVariable => !IsConstant;
+		}
+
 		public static bool IsConstant(string pattern)
 		{
 			foreach (var c in pattern)
@@ -55,6 +77,22 @@ namespace Asmuth.X86.Xed
 
 			return normalizedChars == null ? pattern
 				: new string(normalizedChars, 0, normalizedLength);
+		}
+
+		public static Span GetSpanAt(string pattern, int startIndex)
+		{
+			if (startIndex < 0 || startIndex >= pattern.Length)
+				throw new ArgumentOutOfRangeException(nameof(startIndex));
+
+			char c = pattern[startIndex];
+			if ((c < 'a' || c > 'z') && c != '0' && c != '1')
+				throw new FormatException();
+
+			int length = 1;
+			while (startIndex + length < pattern.Length && pattern[startIndex + length] == c)
+				length++;
+
+			return new Span(c, startIndex, length);
 		}
 	}
 }

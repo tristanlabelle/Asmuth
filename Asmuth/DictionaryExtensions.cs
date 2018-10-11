@@ -6,22 +6,20 @@ namespace Asmuth
 {
 	public static class DictionaryExtensions
 	{
+		public static TValue GetValue<TKey, TValue>(
+			this IDictionary<TKey, TValue> dictionary, TKey key)
+			=> dictionary[key];
+
 		public static TValue GetValueOrDefault<TKey, TValue>(
 			this IDictionary<TKey, TValue> dictionary, TKey key)
-		{
-			return dictionary.TryGetValue(key, out TValue value) ? value : default;
-		}
+			=> dictionary.TryGetValue(key, out TValue value) ? value : default;
 
 		public static TValue GetValueOrDefault<TKey, TValue>(
 			this IDictionary<TKey, TValue> dictionary, TKey key, TValue defaultValue)
-		{
-			return dictionary.TryGetValue(key, out TValue value) ? value : defaultValue;
-		}
+			=> dictionary.TryGetValue(key, out TValue value) ? value : defaultValue;
 
 		public static TValue? GetValueAsNullable<TKey, TValue>(
 			this IDictionary<TKey, TValue> dictionary, TKey key) where TValue : struct
-		{
-			return dictionary.TryGetValue(key, out TValue value) ? value : (TValue?)null;
-		}
+			=> dictionary.TryGetValue(key, out TValue value) ? value : (TValue?)null;
 	}
 }
