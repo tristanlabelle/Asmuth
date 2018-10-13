@@ -238,10 +238,9 @@ namespace Asmuth.X86.Xed
 			string sequenceName = null;
 			string rulePatternName = null;
 			bool returnsRegister = false;
-			var conditionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
-			var actionsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
+			var caseLhsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
+			var caseRhsBuilder = ImmutableArray.CreateBuilder<XedBlot>();
 			var ruleCaseBuilder = ImmutableArray.CreateBuilder<XedRulePatternCase>();
-			bool isEncodeRule = false;
 			var sequenceEntryBuilder = ImmutableArray.CreateBuilder<XedSequenceEntry>();
 			while (true)
 			{
@@ -268,11 +267,9 @@ namespace Asmuth.X86.Xed
 				{
 					if (rulePatternName != null)
 					{
-						yield return new XedRulePattern(rulePatternName, returnsRegister, isEncodeRule,
-							ruleCaseBuilder.ToImmutable());
+						yield return new XedRulePattern(rulePatternName, returnsRegister, ruleCaseBuilder.ToImmutable());
 						ruleCaseBuilder.Clear();
 						rulePatternName = null;
-						isEncodeRule = false;
 					}
 					else if (sequenceName != null)
 					{
@@ -306,14 +303,12 @@ namespace Asmuth.X86.Xed
 					if (!rulePatternCaseMatch.Success) throw new FormatException();
 
 					bool isEncodeCase = rulePatternCaseMatch.Groups["enc"].Success;
-					if (ruleCaseBuilder.Count == 0) isEncodeRule = isEncodeCase;
-					else if (isEncodeCase != isEncodeRule) throw new FormatException();
 
 					var lhsGroup = rulePatternCaseMatch.Groups["cond"];
 					var rhsGroup = rulePatternCaseMatch.Groups["act"];
 					if (lhsGroup.Value != "otherwise")
 						foreach (var blotStr in Regex.Split(rulePatternCaseMatch.Groups["cond"].Value, @"\s+"))
-							AddBlots(conditionsBuilder, blotStr, fieldResolver);
+							AddBlots(caseLhsBuilder, blotStr, fieldResolver);
 
 					var controlFlow = XedRulePatternControlFlow.Break;
 					if (rhsGroup.Success && rhsGroup.Value != "nothing")
@@ -322,14 +317,15 @@ namespace Asmuth.X86.Xed
 						{
 							if (blotStr == "XED_RESET") controlFlow = XedRulePatternControlFlow.Reset;
 							else if (blotStr == "NO_RETURN=1") controlFlow = XedRulePatternControlFlow.Continue;
-							else AddBlots(actionsBuilder, blotStr, fieldResolver);
+							else AddBlots(caseRhsBuilder, blotStr, fieldResolver);
 						}
 					}
 
-					ruleCaseBuilder.Add(new XedRulePatternCase(conditionsBuilder.ToImmutable(),
-						actionsBuilder.ToImmutable(), controlFlow));
-					conditionsBuilder.Clear();
-					actionsBuilder.Clear();
+					ruleCaseBuilder.Add(new XedRulePatternCase(
+						caseLhsBuilder.ToImmutable(), caseRhsBuilder.ToImmutable(),
+						isEncodeCase, controlFlow));
+					caseLhsBuilder.Clear();
+					caseRhsBuilder.Clear();
 				}
 				else if (sequenceName != null)
 				{

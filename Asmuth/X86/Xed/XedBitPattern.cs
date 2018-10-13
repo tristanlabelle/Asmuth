@@ -79,6 +79,30 @@ namespace Asmuth.X86.Xed
 				: new string(normalizedChars, 0, normalizedLength);
 		}
 
+		public static string Prettify(string pattern)
+		{
+			if (IsConstant(pattern))
+			{
+				if (pattern.Length == 8) return "0x" + Convert.ToString(Convert.ToByte(pattern, fromBase: 2), toBase: 16);
+				return "0b" + pattern;
+			}
+
+			var str = new StringBuilder(pattern.Length + pattern.Length / 4); // Heuristic
+			for (int i = 0; i < pattern.Length; ++i)
+			{
+				char c = pattern[i];
+				if (i > 0 && (IsZeroOrOne(pattern[i - 1])
+					? !IsZeroOrOne(c)
+					: (IsZeroOrOne(c) || c != pattern[i - 1])))
+					str.Append('_');
+				str.Append(c);
+			}
+
+			return str.ToString();
+		}
+
+		private static bool IsZeroOrOne(char c) => c == '0' || c == '1';
+
 		public static Span GetSpanAt(string pattern, int startIndex)
 		{
 			if (startIndex < 0 || startIndex >= pattern.Length)

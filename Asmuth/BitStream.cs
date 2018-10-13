@@ -54,7 +54,39 @@ namespace Asmuth
 
 		public void WriteRightAlignedBits(ulong bits, byte count)
 		{
-			throw new NotImplementedException();
+			if (!CanWrite) throw new InvalidOperationException();
+
+			var position = Position;
+			var underlyingLength = underlying.Length;
+			if (position >= underlyingLength)
+			{
+				while (count > 1)
+				{
+					if (bitSubPosition == 0 && count >= 8)
+					{
+						underlying.WriteByte((byte)(bits >> (count - 8)));
+						count -= 8;
+						continue;
+					}
+
+					var writeCount = (byte)Math.Min(count, 8 - trailingBitCount);
+					var shift = 7 - bitSubPosition - writeCount;
+					trailingBits &= (byte)~(((1 << writeCount) - 1) << shift);
+					trailingBits |= (byte)((bits >> (count - writeCount)) << shift);
+					count -= writeCount;
+					bitSubPosition += writeCount;
+					if (bitSubPosition == 8)
+					{
+						underlying.WriteByte(trailingBits);
+						bitSubPosition = 0;
+						trailingBitCount = 0;
+						trailingBits = 0;
+					}
+					else if (bitSubPosition > trailingBitCount)
+						trailingBitCount = bitSubPosition;
+				}
+			}
+			else throw new NotImplementedException();
 		}
 
 		public void WriteAlignedByte(byte value)

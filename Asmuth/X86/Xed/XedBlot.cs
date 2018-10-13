@@ -44,7 +44,7 @@ namespace Asmuth.X86.Xed
 		public override string ToString()
 		{
 			if (Kind == XedBlotValueKind.Constant) return constant.ToString(CultureInfo.InvariantCulture);
-			if (Kind == XedBlotValueKind.Bits) return str;
+			if (Kind == XedBlotValueKind.Bits) return XedBitPattern.Prettify(str);
 			if (Kind == XedBlotValueKind.CallResult) return str + "()";
 			throw new UnreachableException();
 		}
@@ -117,7 +117,7 @@ namespace Asmuth.X86.Xed
 			if (Type == XedBlotType.Bits)
 			{
 				if (Field == null) return str;
-				return Field.Name + "[" + str + "]";
+				return Field.Name + "[" + XedBitPattern.Prettify(str) + "]";
 			}
 			if (Type == XedBlotType.Call) return str + "()";
 

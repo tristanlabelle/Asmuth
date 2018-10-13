@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Asmuth.X86.Xed
@@ -62,6 +63,16 @@ namespace Asmuth.X86.Xed
 				if (blot.Type != XedBlotType.Equality || blot.Field.EncoderUsage != XedFieldUsage.Input)
 					continue;
 				fieldValues[blot.Field] = blot.Value.Constant;
+			}
+
+			var traceListeners = TraceMessage;
+			if (traceListeners != null)
+			{
+				var str = new StringBuilder();
+				str.Append("Assign ");
+				foreach (var entry in fieldValues.OrderBy(pair => pair.Key.Name))
+					str.Append(entry.Key.Name).Append('=').Append(entry.Value).Append(' ');
+				traceListeners(executionDepth, str.ToString());
 			}
 
 			if (!Database.EncodeSequences.TryFind("ISA_ENCODE", out XedSequence rootSequence))
@@ -175,24 +186,49 @@ namespace Asmuth.X86.Xed
 			return reset.Value;
 		}
 
-		private XedRulePatternControlFlow TryExecuteRuleCase(XedRulePatternCase @case, ref ushort? register)
+		private XedRulePatternControlFlow TryExecuteRuleCase(
+			XedRulePatternCase @case, ref ushort? register)
 		{
 			var bitVars = new SmallDictionary<char, BitVariableValue>();
 
-			if (!TryMatchRuleCaseCondition(@case.Conditions, IsEncoding ? register : null, bitVars))
-				return XedRulePatternControlFlow.Continue;
-
-			TraceMessage?.Invoke(executionDepth, $"Case '{@case}'");
-			executionDepth++;
-
-			var outReg = ExecuteRuleCaseActions(@case.Conditions, bitVars);
-			if (outReg.HasValue)
+			if (IsDecoding ^ @case.IsEncode)
 			{
-				if (IsEncoding) throw new InvalidOperationException();
-				register = outReg;
-			}
+				if (!TryMatchRuleCaseCondition(@case.Lhs, IsEncoding ? register : null, bitVars))
+					return XedRulePatternControlFlow.Continue;
 
-			executionDepth--;
+				TraceMessage?.Invoke(executionDepth, $"Case '{@case}'");
+				executionDepth++;
+
+				var outReg = ExecuteRuleCaseActions(@case.Rhs, bitVars);
+				if (outReg.HasValue)
+				{
+					if (IsEncoding) throw new InvalidOperationException();
+					register = outReg;
+				}
+
+				executionDepth--;
+			}
+			else if (IsEncoding && !@case.IsEncode)
+			{
+				// Right-to-left match
+				if (!TryMatchRuleCaseCondition(@case.Rhs, register, bitVars)
+					|| !TryMatchRuleCaseCondition(@case.Lhs, null, bitVars))
+					return XedRulePatternControlFlow.Continue;
+
+				TraceMessage?.Invoke(executionDepth, $"Case '{@case}'");
+				executionDepth++;
+
+				var outReg = ExecuteRuleCaseActions(@case.Lhs, bitVars);
+				if (outReg.HasValue)
+				{
+					if (IsEncoding) throw new InvalidOperationException();
+					register = outReg;
+				}
+
+				executionDepth--;
+			}
+			else throw new InvalidOperationException();
+
 			return @case.ControlFlow;
 		}
 
@@ -216,10 +252,12 @@ namespace Asmuth.X86.Xed
 						isMatch = TryMatchBits(blot.BitPattern, blot.Field, bitVars);
 					}
 				}
-				else if (blot.Type == XedBlotType.Equality)
-					isMatch = MatchPredicateBlot(blot.Field, blot.Value, isEquals: true, register);
-				else if (blot.Type == XedBlotType.Inequality)
-					isMatch = MatchPredicateBlot(blot.Field, blot.Value, isEquals: false, register);
+				else if (blot.Type == XedBlotType.Equality || blot.Type == XedBlotType.Inequality)
+				{
+					if (IsEncoding && blot.Field.EncoderUsage == XedFieldUsage.Output) continue;
+					bool isEquals = blot.Type == XedBlotType.Equality;
+					isMatch = MatchPredicateBlot(blot.Field, blot.Value, isEquals, register);
+				}
 				else if (blot.Type == XedBlotType.Call)
 					throw new InvalidOperationException();
 				else
@@ -299,10 +337,19 @@ namespace Asmuth.X86.Xed
 			return true;
 		}
 		
-		private void ProduceBits(string pattern, IDictionary<char, BitVariableValue> bitVars)
+		private void ProduceBits(string pattern, IDictionary<char, BitVariableValue> bitVars, XedField field)
 		{
 			var value = EvaluateBits(pattern, bitVars);
 			if (value.Length != pattern.Length) throw new InvalidOperationException();
+
+			if (field != null)
+			{
+				if (!(field.Type is XedBitsFieldType bitsFieldType))
+					throw new InvalidOperationException();
+				if (value.Length != bitsFieldType.SizeInBits) throw new InvalidOperationException();
+				fieldValues[field] = (long)value.Bits;
+			}
+
 			bitStream.WriteRightAlignedBits(value.Bits, (byte)value.Length);
 		}
 
@@ -341,10 +388,7 @@ namespace Asmuth.X86.Xed
 				if (!outReg.HasValue) throw new InvalidOperationException();
 				fieldValue = outReg.Value;
 			}
-			else
-			{
-				fieldValue = fieldValues.GetValueOrDefault(field);
-			}
+			else fieldValue = fieldValues[field];
 			
 			return (fieldValue == Evaluate(value, outReg)) == isEquals;
 		}
@@ -389,13 +433,14 @@ namespace Asmuth.X86.Xed
 				switch (blot.Type)
 				{
 					case XedBlotType.Bits:
-						if (blot.Field != null || !IsEncoding) throw new InvalidOperationException();
-						ProduceBits(blot.BitPattern, bitVars);
+						if (!IsEncoding) throw new InvalidOperationException();
+						ProduceBits(blot.BitPattern, bitVars, blot.Field);
 						break;
 
 					case XedBlotType.Equality:
 						{
 							var value = Evaluate(blot.Value, outReg: null, bitVars);
+							TraceMessage?.Invoke(executionDepth, $"Assign {blot.Field.Name}={value}");
 							if (blot.Field.Name == "OUTREG") outReg = (ushort)value;
 							else fieldValues[blot.Field] = value;
 							break;

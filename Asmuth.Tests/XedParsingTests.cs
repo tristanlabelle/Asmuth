@@ -149,13 +149,13 @@ namespace Asmuth.X86.Xed
 				Assert.AreEqual(3, prefixesPattern.Cases.Count);
 
 				var rexCase = prefixesPattern.Cases[0];
-				Assert.AreEqual(2, rexCase.Conditions.Length);
-				Assert.AreEqual(5, rexCase.Actions.Length);
+				Assert.AreEqual(2, rexCase.Lhs.Length);
+				Assert.AreEqual(5, rexCase.Rhs.Length);
 				Assert.AreEqual(XedRulePatternControlFlow.Reset, rexCase.ControlFlow);
 
 				var otherwiseCase = prefixesPattern.Cases[2];
-				Assert.AreEqual(0, otherwiseCase.Conditions.Length);
-				Assert.AreEqual(0, otherwiseCase.Actions.Length);
+				Assert.AreEqual(0, otherwiseCase.Lhs.Length);
+				Assert.AreEqual(0, otherwiseCase.Rhs.Length);
 			}
 
 			{
@@ -163,9 +163,9 @@ namespace Asmuth.X86.Xed
 				Assert.AreEqual("XMM_R_64", xmmPattern.Name);
 				Assert.IsTrue(xmmPattern.ReturnsRegister);
 				Assert.AreEqual(1, xmmPattern.Cases.Count);
-				Assert.AreEqual(2, xmmPattern.Cases[0].Conditions.Length);
-				Assert.AreEqual(1, xmmPattern.Cases[0].Actions.Length);
-				Assert.AreEqual(1, xmmPattern.Cases[0].TryGetOutRegBlot(xmmPattern.IsEncode).Value.Value.Constant);
+				Assert.AreEqual(2, xmmPattern.Cases[0].Lhs.Length);
+				Assert.AreEqual(1, xmmPattern.Cases[0].Rhs.Length);
+				Assert.AreEqual(1, xmmPattern.Cases[0].OutRegBlot.Value.Value.Constant);
 			}
 		}
 

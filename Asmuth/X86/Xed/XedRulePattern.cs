@@ -14,38 +14,57 @@ namespace Asmuth.X86.Xed
 
 	public readonly struct XedRulePatternCase
 	{
-		public ImmutableArray<XedBlot> Conditions { get; }
-		public ImmutableArray<XedBlot> Actions { get; }
+		public ImmutableArray<XedBlot> Lhs { get; }
+		public ImmutableArray<XedBlot> Rhs { get; }
+		public bool IsEncode { get; }
 		public XedRulePatternControlFlow ControlFlow { get; }
 
-		public XedRulePatternCase(ImmutableArray<XedBlot> conditions,
-			ImmutableArray<XedBlot> actions, XedRulePatternControlFlow controlFlow)
+		public XedRulePatternCase(ImmutableArray<XedBlot> lhs, ImmutableArray<XedBlot> rhs,
+			bool isEncode, XedRulePatternControlFlow controlFlow)
 		{
-			this.Conditions = conditions;
-			this.Actions = actions;
+			this.Lhs = lhs;
+			this.Rhs = rhs;
+			this.IsEncode = isEncode;
 			this.ControlFlow = controlFlow;
 		}
 
-		public XedBlot? TryGetOutRegBlot(bool isEncode)
+		public XedBlot? OutRegBlot
 		{
-			foreach (var blot in (isEncode ? Conditions : Actions))
+			get
 			{
-				if (blot.Type != XedBlotType.Equality || blot.Field.Name != "OUTREG") continue;
-				return blot;
+				foreach (var blot in (IsEncode ? Lhs : Rhs))
+					if (blot.Type == XedBlotType.Equality && blot.Field.Name == "OUTREG")
+						return blot;
+				return null;
 			}
-			return null;
 		}
 
 		public override string ToString()
 		{
-			if (Conditions.Length == 0) return "otherwise";
-
 			var str = new StringBuilder();
-			foreach (var blot in Conditions)
+
+			if (Lhs.Length == 0) str.Append("otherwise");
+			else
 			{
-				if (str.Length > 0) str.Append(' ');
-				str.Append(blot.ToString());
+				for (int i = 0; i < Lhs.Length; ++i)
+				{
+					if (i > 0) str.Append(' ');
+					str.Append(Lhs[i].ToString());
+				}
 			}
+
+			str.Append(IsEncode ? " -> " : " | ");
+
+			if (Rhs.Length == 0 && IsEncode) str.Append("nothing");
+			else
+			{
+				for (int i = 0; i < Rhs.Length; ++i)
+				{
+					if (i > 0) str.Append(' ');
+					str.Append(Rhs[i].ToString());
+				}
+			}
+
 			return str.ToString();
 		}
 	}
@@ -54,22 +73,25 @@ namespace Asmuth.X86.Xed
 	public sealed class XedRulePattern : XedPattern
 	{
 		public bool ReturnsRegister { get; }
-		public bool IsEncode { get; }
 		public IList<XedRulePatternCase> Cases { get; } = new List<XedRulePatternCase>();
 
-		public XedRulePattern(string name, bool returnsRegister, bool isEncode, IEnumerable<XedRulePatternCase> cases)
+		public XedRulePattern(string name, bool returnsRegister, IEnumerable<XedRulePatternCase> cases)
 			: base(name)
 		{
 			this.ReturnsRegister = returnsRegister;
-			this.IsEncode = isEncode;
 
+			bool? isEncode = null;
 			foreach (var @case in cases)
 			{
-				var outRegBlot = @case.TryGetOutRegBlot(isEncode);
+				if (!isEncode.HasValue) isEncode = @case.IsEncode;
+				else if (@case.IsEncode != isEncode) throw new ArgumentException();
+
+				var outRegBlot = @case.OutRegBlot;
 				if (outRegBlot.HasValue != ReturnsRegister) throw new ArgumentException();
 				Cases.Add(@case);
 			}
 		}
-	}
 
+		public bool IsEncode => Cases[0].IsEncode;
+	}
 }
