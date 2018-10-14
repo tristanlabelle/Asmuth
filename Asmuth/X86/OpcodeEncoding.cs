@@ -73,34 +73,37 @@ namespace Asmuth.X86
 		#endregion
 
 		#region Packed Fields
-		// 0b00AABBCC: Nullable<X64>, Nullable<AddressSize>, Nullable<OperandSize>
-		private readonly byte contextFields;
-		public bool? X64 => AsBool_ZeroIsNull((contextFields >> 4) & 3);
-		public AddressSize? AddressSize => (AddressSize?)AsInt_ZeroIsNull((contextFields >> 2) & 3);
-		public OperandSizeEncoding OperandSize => (OperandSizeEncoding)(contextFields & 3);
-		private static byte MakeContextFields(bool? x64, AddressSize? addressSize, OperandSizeEncoding operandSize)
-			=> (byte)((AsZeroIsNull(x64) << 4)
-			| (AsZeroIsNull((int?)addressSize) << 2)
-			| (byte)operandSize);
+		// Lead bitfield: everything up to and including the main byte
+		private static readonly Bitfield32.Builder leadBitfieldBuilder = new Bitfield32.Builder();
+		private readonly Bitfield32 leadBitfield;
 
-		// 0b00AABBCC: VexType, Nullable<VectorSize>, Nullable<OperandSizePromotion>
-		private readonly byte vexFields;
-		public VexType VexType => (VexType)((vexFields >> 4) & 3);
-		public AvxVectorSize? VectorSize => (AvxVectorSize?)AsInt_ZeroIsNull((vexFields >> 2) & 3);
-		public bool? OperandSizePromotion => AsBool_ZeroIsNull(vexFields & 3);
-		private static byte MakeVexFields(VexType vexType, AvxVectorSize? vectorSize, bool? operandSizePromotion)
-			=> (byte)(((int)vexType << 4)
-			| (AsZeroIsNull((int?)vectorSize) << 2)
-			| AsZeroIsNull(operandSizePromotion));
+		private static readonly Bitfield32.NullableBool x64Field = leadBitfieldBuilder;
+		public bool? X64 => leadBitfield[x64Field];
 
-		// 0b0AAABBBB: Nullable<SimdPrefix>, Map
-		private readonly byte mapFields;
-		public SimdPrefix? SimdPrefix => (SimdPrefix?)AsInt_ZeroIsNull((mapFields >> 4) & 7);
-		public OpcodeMap Map => (OpcodeMap)(mapFields & 0xF);
-		private static byte MakeMapFields(SimdPrefix? simdPrefix, OpcodeMap map)
-			=> (byte)((AsZeroIsNull((int?)simdPrefix) << 4) | (int)map);
+		private static readonly Bitfield32.NullableUIntMaxValue2 addressSizeField = leadBitfieldBuilder;
+		public AddressSize? AddressSize => (AddressSize?)leadBitfield[addressSizeField];
+		
+		private static readonly Bitfield32.UInt2 operandSizeField = leadBitfieldBuilder;
+		public OperandSizeEncoding OperandSize => (OperandSizeEncoding)leadBitfield[operandSizeField];
 
-		public byte MainByte { get; }
+		private static readonly Bitfield32.UInt2 vexTypeField = leadBitfieldBuilder;
+		public VexType VexType => (VexType)leadBitfield[vexTypeField];
+
+		private static readonly Bitfield32.NullableUIntMaxValue2 vectorSizeField = leadBitfieldBuilder;
+		public AvxVectorSize? VectorSize => (AvxVectorSize?)leadBitfield[vectorSizeField];
+
+		private static readonly Bitfield32.NullableBool operandSizePromotionField = leadBitfieldBuilder;
+		public bool? OperandSizePromotion => leadBitfield[operandSizePromotionField];
+
+		private static readonly Bitfield32.NullableUIntMaxValue6 simdPrefixField = leadBitfieldBuilder;
+		public SimdPrefix? SimdPrefix => (SimdPrefix?)leadBitfield[simdPrefixField];
+
+		private static readonly Bitfield32.UInt4 mapField = leadBitfieldBuilder;
+		public OpcodeMap Map => (OpcodeMap)leadBitfield[mapField];
+
+		private static readonly Bitfield32.Byte mainByteField = leadBitfieldBuilder;
+		public byte MainByte => leadBitfield[mainByteField];
+		
 		public ModRMEncoding ModRM { get; }
 
 		// 0b000ABBBB: HasImm8Ext, ImmediateSizeInBytes
@@ -115,10 +118,16 @@ namespace Asmuth.X86
 		public OpcodeEncoding(ref Builder builder)
 		{
 			builder.Validate();
-			contextFields = MakeContextFields(builder.X64, builder.AddressSize, builder.OperandSize);
-			vexFields = MakeVexFields(builder.VexType, builder.VectorSize, builder.OperandSizePromotion);
-			mapFields = MakeMapFields(builder.SimdPrefix, builder.Map);
-			MainByte = builder.MainByte;
+			leadBitfield = new Bitfield32();
+			leadBitfield[x64Field] = builder.X64;
+			leadBitfield[addressSizeField] = (byte?)builder.AddressSize;
+			leadBitfield[operandSizeField] = (byte)builder.OperandSize;
+			leadBitfield[vexTypeField] = (byte)builder.VexType;
+			leadBitfield[vectorSizeField] = (byte?)builder.VectorSize;
+			leadBitfield[operandSizePromotionField] = builder.OperandSizePromotion;
+			leadBitfield[simdPrefixField] = (byte?)builder.SimdPrefix;
+			leadBitfield[mapField] = (byte)builder.Map;
+			leadBitfield[mainByteField] = builder.MainByte;
 			ModRM = builder.ModRM;
 			immFields = MakeImmFields(builder.ImmediateSizeInBytes, builder.Imm8Ext);
 			imm8Ext = builder.Imm8Ext.GetValueOrDefault();
