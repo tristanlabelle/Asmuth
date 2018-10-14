@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace Asmuth.X86.Xed
@@ -83,7 +84,12 @@ namespace Asmuth.X86.Xed
 		{
 			if (IsConstant(pattern))
 			{
-				if (pattern.Length == 8) return "0x" + Convert.ToString(Convert.ToByte(pattern, fromBase: 2), toBase: 16);
+				if (pattern.Length == 8)
+				{
+					return "0x" + Convert.ToByte(pattern, fromBase: 2)
+						.ToString("x2", CultureInfo.InvariantCulture);
+				}
+
 				return "0b" + pattern;
 			}
 

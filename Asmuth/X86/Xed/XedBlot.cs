@@ -116,7 +116,7 @@ namespace Asmuth.X86.Xed
 		{
 			if (Type == XedBlotType.Bits)
 			{
-				if (Field == null) return str;
+				if (Field == null) return XedBitPattern.Prettify(str);
 				return Field.Name + "[" + XedBitPattern.Prettify(str) + "]";
 			}
 			if (Type == XedBlotType.Call) return str + "()";

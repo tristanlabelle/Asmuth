@@ -52,12 +52,13 @@ namespace Asmuth.X86.Xed
 			encodingInstruction = instruction;
 			encodingInstructionFormIndex = checked((byte)formIndex);
 
-			// Set up field values
+			// Context fields
 			fieldValues.Add(Database.Fields.Get("MODE"), (int)codeSegmentType);
 			fieldValues.Add(Database.Fields.Get("EASZ"),
 				effectiveAddressSize.HasValue ? (int)effectiveAddressSize.Value + 1 : 0);
 			fieldValues.Add(Database.Fields.Get("EOSZ"), (int)effectiveOperandSize.GetValueOrDefault());
 
+			// Instruction pattern fields
 			foreach (var blot in instruction.Forms[formIndex].Pattern)
 			{
 				if (blot.Type != XedBlotType.Equality || blot.Field.EncoderUsage != XedFieldUsage.Input)
@@ -75,6 +76,12 @@ namespace Asmuth.X86.Xed
 				traceListeners(executionDepth, str.ToString());
 			}
 
+			// Operands
+			foreach (var operand in instruction.Forms[formIndex].Operands)
+			{
+				throw new NotImplementedException();
+			}
+
 			if (!Database.EncodeSequences.TryFind("ISA_ENCODE", out XedSequence rootSequence))
 				throw new InvalidOperationException();
 
@@ -88,7 +95,8 @@ namespace Asmuth.X86.Xed
 
 		private void Execute(XedSequence sequence)
 		{
-			TraceMessage?.Invoke(executionDepth, $"Sequence {sequence.Name}");
+			string GetSuffixStr(bool isBinding) => isBinding ? "BIND" : "EMIT";
+			TraceMessage?.Invoke(executionDepth, $"Sequence {sequence.Name} ({GetSuffixStr(isBinding)})");
 
 			executionDepth++;
 			foreach (var entry in sequence.Entries)
@@ -218,7 +226,9 @@ namespace Asmuth.X86.Xed
 				TraceMessage?.Invoke(executionDepth, $"Case '{@case}'");
 				executionDepth++;
 
-				var outReg = ExecuteRuleCaseActions(@case.Lhs, bitVars);
+				var outReg = ExecuteActionBlots(@case.Lhs,
+					b => b.Type == XedBlotType.Equality && b.Field.EncoderUsage == XedFieldUsage.Output,
+					bitVars);
 				if (outReg.HasValue)
 				{
 					if (IsEncoding) throw new InvalidOperationException();
@@ -244,7 +254,8 @@ namespace Asmuth.X86.Xed
 					if (!originalBitStreamPosition.HasValue) originalBitStreamPosition = bitStream.Position;
 					if (IsEncoding)
 					{
-						DeconstructBits(blot.Field, blot.BitPattern, bitVars);
+						ulong bits = (ulong)fieldValues[blot.Field];
+						AssignBitVars(blot.BitPattern, bits, bitVars);
 						isMatch = true;
 					}
 					else
@@ -274,24 +285,15 @@ namespace Asmuth.X86.Xed
 			return true;
 		}
 
-		private void DeconstructBits(XedField field, string pattern, IDictionary<char, BitVariableValue> bitVars)
+		private void AssignBitVars(string pattern, ulong bits, IDictionary<char, BitVariableValue> bitVars)
 		{
-			if (!IsEncoding || field.EncoderUsage != XedFieldUsage.Input)
-				throw new InvalidOperationException();
-
-			var bitsFieldType = field.Type as XedBitsFieldType;
-			if (bitsFieldType == null) throw new InvalidOperationException();
-			if (bitsFieldType.SizeInBits != pattern.Length) throw new InvalidOperationException();
-
-			var fieldBits = (ulong)fieldValues[field];
-
 			int startIndex = 0;
 			while (startIndex < pattern.Length)
 			{
 				var span = XedBitPattern.GetSpanAt(pattern, startIndex);
 				if (span.IsConstant) throw new InvalidOperationException();
 
-				var bitVarValue = (fieldBits >> (pattern.Length - span.EndIndex))
+				var bitVarValue = (bits >> (pattern.Length - span.EndIndex))
 					& ((1UL << span.Length) - 1);
 				bitVars.Add(span.Char, new BitVariableValue(bitVarValue, span.Length));
 
@@ -337,23 +339,27 @@ namespace Asmuth.X86.Xed
 			return true;
 		}
 		
-		private void ProduceBits(string pattern, IDictionary<char, BitVariableValue> bitVars, XedField field)
+		private void ProduceBits(XedField field, string pattern, IDictionary<char, BitVariableValue> bitVars)
 		{
-			var value = EvaluateBits(pattern, bitVars);
-			if (value.Length != pattern.Length) throw new InvalidOperationException();
-
-			if (field != null)
+			ulong value;
+			if (field == null || XedBitPattern.IsConstant(pattern))
 			{
-				if (!(field.Type is XedBitsFieldType bitsFieldType))
+				value = EvaluateBits(pattern, bitVars);
+				if (field != null) fieldValues[field] = (long)value;
+			}
+			else
+			{
+				if (!(field.Type is XedBitsFieldType) || field.SizeInBits != pattern.Length)
 					throw new InvalidOperationException();
-				if (value.Length != bitsFieldType.SizeInBits) throw new InvalidOperationException();
-				fieldValues[field] = (long)value.Bits;
+
+				value = (ulong)fieldValues[field];
+				AssignBitVars(pattern, value, bitVars);
 			}
 
-			bitStream.WriteRightAlignedBits(value.Bits, (byte)value.Length);
+			bitStream.WriteRightAlignedBits(value, (byte)pattern.Length);
 		}
 
-		private BitVariableValue EvaluateBits(string pattern, IDictionary<char, BitVariableValue> bitVars)
+		private ulong EvaluateBits(string pattern, IDictionary<char, BitVariableValue> bitVars)
 		{
 			ulong bits = 0;
 
@@ -376,7 +382,7 @@ namespace Asmuth.X86.Xed
 				startIndex = span.EndIndex;
 			}
 
-			return new BitVariableValue(bits, pattern.Length);
+			return bits;
 		}
 
 		private bool MatchPredicateBlot(XedField field, XedBlotValue value, bool isEquals, ushort? outReg)
@@ -408,7 +414,7 @@ namespace Asmuth.X86.Xed
 			else if (value.Kind == XedBlotValueKind.Bits)
 			{
 				if (bitVars == null) throw new InvalidOperationException();
-				return (long)EvaluateBits(value.BitPattern, bitVars).Bits;
+				return (long)EvaluateBits(value.BitPattern, bitVars);
 			}
 			else
 				throw new UnreachableException();
@@ -434,7 +440,7 @@ namespace Asmuth.X86.Xed
 				{
 					case XedBlotType.Bits:
 						if (!IsEncoding) throw new InvalidOperationException();
-						ProduceBits(blot.BitPattern, bitVars, blot.Field);
+						ProduceBits(blot.Field, blot.BitPattern, bitVars);
 						break;
 
 					case XedBlotType.Equality:
