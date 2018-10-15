@@ -16,14 +16,14 @@ namespace Asmuth.X86
 		private static readonly OpcodeEncoding Nop_RM = new OpcodeEncoding.Builder
 		{
 			Map = OpcodeMap.Escape0F,
-			ModRM = ModRMEncoding.Any,
+			AddressingForm = ModRMEncoding.Any,
 			MainByte = 0x1F
 		};
 
 		private static readonly OpcodeEncoding Add_RM_R = new OpcodeEncoding.Builder
 		{
 			MainByte = 0x01,
-			ModRM = ModRMEncoding.Any
+			AddressingForm = ModRMEncoding.Any
 		};
 		
 		[TestMethod]
@@ -104,13 +104,13 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				MainByte = 0xD9,
-				ModRM = ModRMEncoding.FromFixedRegMemRM(2)
+				AddressingForm = new ModRMEncoding(ModRMModEncoding.Memory, reg: 2)
 			}, "fst");
 
 			table.Add(new OpcodeEncoding.Builder
 			{
 				MainByte = 0xD9,
-				ModRM = ModRMEncoding.FromFixedValue(0xD0)
+				AddressingForm = ModRMEncoding.FromFixedValue(0xD0)
 			}, "fnop");
 
 			Assert.AreEqual("fst", DecodeSingleForTag_32Bits(table, 0xD9, 0b00_010_000)); // Indirect eax /2
@@ -143,7 +143,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				MainByte = 0xB0,
-				ModRM = ModRMEncoding.MainByteReg,
+				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister,
 				ImmediateSizeInBytes = sizeof(sbyte)
 			}, "mov r8, imm8");
 
@@ -153,7 +153,7 @@ namespace Asmuth.X86
 				OperandSize = OperandSizeEncoding.Word,
 				OperandSizePromotion = false,
 				MainByte = 0xB8,
-				ModRM = ModRMEncoding.MainByteReg,
+				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister,
 				ImmediateSizeInBytes = sizeof(short)
 			}, "mov r16, imm16");
 
@@ -162,7 +162,7 @@ namespace Asmuth.X86
 				OperandSize = OperandSizeEncoding.Dword,
 				OperandSizePromotion = false,
 				MainByte = 0xB8,
-				ModRM = ModRMEncoding.MainByteReg,
+				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister,
 				ImmediateSizeInBytes = sizeof(int)
 			}, "mov r32, imm32");
 
@@ -171,7 +171,7 @@ namespace Asmuth.X86
 				X64 = true,
 				OperandSizePromotion = true,
 				MainByte = 0xB8,
-				ModRM = ModRMEncoding.MainByteReg,
+				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister,
 				ImmediateSizeInBytes = sizeof(long)
 			}, "mov r64, imm64");
 
@@ -201,7 +201,7 @@ namespace Asmuth.X86
 				OperandSize = OperandSizeEncoding.Dword,
 				OperandSizePromotion = false,
 				MainByte = 0xF7,
-				ModRM = ModRMEncoding.FromFixedRegAnyRM(0),
+				AddressingForm = new ModRMEncoding(ModRMModEncoding.RegisterOrMemory, reg: 0),
 				ImmediateSizeInBytes = sizeof(int)
 			}, "test r/m32, imm32");
 
@@ -210,7 +210,7 @@ namespace Asmuth.X86
 				OperandSize = OperandSizeEncoding.Dword,
 				OperandSizePromotion = false,
 				MainByte = 0xF7,
-				ModRM = ModRMEncoding.FromFixedRegAnyRM(3)
+				AddressingForm = new ModRMEncoding(ModRMModEncoding.RegisterOrMemory, reg: 3)
 			}, "neg r/m32");
 			
 			Assert.AreEqual(4, DecodeSingle_32Bits(table, 0xF7, ModRM_Reg(0), 0x00, 0x01, 0x02, 0x03).ImmediateSizeInBytes);
@@ -288,7 +288,7 @@ namespace Asmuth.X86
 			{
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x45, // 0x45 should not be interpreted as REX
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			};
 
 			var table = new OpcodeEncodingTable<string>();
@@ -309,20 +309,20 @@ namespace Asmuth.X86
 			{
 				X64 = false,
 				MainByte = 0x40,
-				ModRM = ModRMEncoding.MainByteReg
+				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister
 			}, "inc r16/32");
 
 			table.Add(new OpcodeEncoding.Builder
 			{
 				X64 = false,
 				MainByte = 0x48,
-				ModRM = ModRMEncoding.MainByteReg
+				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister
 			}, "dec r16/32");
 
 			table.Add(new OpcodeEncoding.Builder
 			{
 				MainByte = 0x01,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}, "add rm, r");
 			
 			Assert.AreEqual(0x42, DecodeSingle_32Bits(table, 0x42).MainOpcodeByte);
@@ -340,13 +340,13 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				MainByte = 0xC4,
-				ModRM = ModRMEncoding.AnyReg_MemRM
+				AddressingForm = ModRMEncoding.MemRM_AnyReg
 			}, "les m/r");
 
 			table.Add(new OpcodeEncoding.Builder
 			{
 				MainByte = 0xC5,
-				ModRM = ModRMEncoding.AnyReg_MemRM
+				AddressingForm = ModRMEncoding.MemRM_AnyReg
 			}, "lds m/r");
 
 			table.Add(new OpcodeEncoding.Builder
@@ -356,7 +356,7 @@ namespace Asmuth.X86
 				SimdPrefix = SimdPrefix._F3,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0xE6,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}, "VCVTDQ2PD xmm1, xmm2/m64");
 			
 			Assert.AreEqual(0xC4, DecodeSingle_32Bits(table, 0xC4, 0x01).MainOpcodeByte);
@@ -375,7 +375,7 @@ namespace Asmuth.X86
 				SimdPrefix = SimdPrefix._66,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x58,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}, "ADDPD xmm1,xmm2/m128");
 			
 			var modRM = ModRM.WithDirectRM(1, 2);
@@ -399,7 +399,7 @@ namespace Asmuth.X86
 				SimdPrefix = SimdPrefix._66,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x58,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}, "ADDPD xmm1,xmm2,xmm3/m128");
 
 			var modRM = ModRM.WithDirectRM(1, 2);
@@ -433,7 +433,7 @@ namespace Asmuth.X86
 				SimdPrefix = SimdPrefix.None,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0xC2,
-				ModRM = ModRMEncoding.Any,
+				AddressingForm = ModRMEncoding.Any,
 				ImmediateSizeInBytes = 1
 			};
 

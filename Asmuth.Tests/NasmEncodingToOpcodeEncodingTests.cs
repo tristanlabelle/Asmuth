@@ -23,7 +23,7 @@ namespace Asmuth.X86.Nasm
 			AssertEncoding("48+r", new OpcodeEncoding.Builder
 			{
 				MainByte = 0x48,
-				ModRM = ModRMEncoding.MainByteReg
+				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister
 			}); // DEC reg
 		}
 
@@ -33,31 +33,31 @@ namespace Asmuth.X86.Nasm
 			AssertEncoding("00 /r", new OpcodeEncoding.Builder
 			{
 				MainByte = 0x00,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}); // ADD r/m8, r8
 
 			AssertEncoding("f6 /3", NasmOperandType.RM8, new OpcodeEncoding.Builder
 			{
 				MainByte = 0xF6,
-				ModRM = ModRMEncoding.FromFixedRegAnyRM(3)
+				AddressingForm = new ModRMEncoding(ModRMModEncoding.RegisterOrMemory, reg: 3)
 			}); // NEG r/m8
 
 			AssertEncoding("d8 /0", NasmOperandType.Mem32, new OpcodeEncoding.Builder
 			{
 				MainByte = 0xD8,
-				ModRM = ModRMEncoding.FromFixedRegMemRM(0)
+				AddressingForm = new ModRMEncoding(ModRMModEncoding.Memory, 0)
 			}); // FADD m32
 
 			AssertEncoding("d8 c0+r", new OpcodeEncoding.Builder
 			{
 				MainByte = 0xD8,
-				ModRM = ModRMEncoding.FromFixedRegDirectRM(0)
+				AddressingForm = new ModRMEncoding(ModRMModEncoding.Register, reg: 0)
 			}); // FADD
 
 			AssertEncoding("d9 f2", new OpcodeEncoding.Builder
 			{
 				MainByte = 0xD9,
-				ModRM = ModRMEncoding.FromFixedValue(0xF2)
+				AddressingForm = ModRMEncoding.FromFixedValue(0xF2)
 			}); // FPTAN
 		}
 
@@ -96,7 +96,7 @@ namespace Asmuth.X86.Nasm
 			AssertEncoding("dd d1", new OpcodeEncoding.Builder
 			{
 				MainByte = 0xDD,
-				ModRM = ModRMEncoding.FromFixedValue(0xD1)
+				AddressingForm = ModRMEncoding.FromFixedValue(0xD1)
 			}); // FST
 		}
 
@@ -113,14 +113,14 @@ namespace Asmuth.X86.Nasm
 			{
 				Map = OpcodeMap.Escape0F38,
 				MainByte = 0xC9,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}); // SHA1MSG1
 
 			AssertEncoding("0f 3a cc /r ib", new OpcodeEncoding.Builder
 			{
 				Map = OpcodeMap.Escape0F3A,
 				MainByte = 0xCC,
-				ModRM = ModRMEncoding.Any,
+				AddressingForm = ModRMEncoding.Any,
 				ImmediateSizeInBytes = sizeof(sbyte)
 			}); // SHA1RNDS4
 		}
@@ -133,7 +133,7 @@ namespace Asmuth.X86.Nasm
 				SimdPrefix = SimdPrefix.None,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x10,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}); // MOVUPS
 
 			AssertEncoding("66 0f 10 /r", new OpcodeEncoding.Builder
@@ -141,7 +141,7 @@ namespace Asmuth.X86.Nasm
 				SimdPrefix = SimdPrefix._66,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x10,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}); // MOVUPD
 
 			AssertEncoding("f2 0f 10 /r", new OpcodeEncoding.Builder
@@ -149,7 +149,7 @@ namespace Asmuth.X86.Nasm
 				SimdPrefix = SimdPrefix._F2,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x10,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}); // MOVSD
 
 			AssertEncoding("f3 0f 10 /r", new OpcodeEncoding.Builder
@@ -157,7 +157,7 @@ namespace Asmuth.X86.Nasm
 				SimdPrefix = SimdPrefix._F3,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x10,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}); // MOVSS
 		}
 
@@ -172,7 +172,7 @@ namespace Asmuth.X86.Nasm
 				SimdPrefix = SimdPrefix.None,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x10,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}); // VMOVUPS
 
 			AssertEncoding("vex.nds.lig.f2.0f 10 /r", new OpcodeEncoding.Builder
@@ -181,7 +181,7 @@ namespace Asmuth.X86.Nasm
 				SimdPrefix = SimdPrefix._F2,
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0x10,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}); // VMOVSS
 
 			AssertEncoding("vex.dds.256.66.0f38.w1 98 /r", new OpcodeEncoding.Builder
@@ -192,7 +192,7 @@ namespace Asmuth.X86.Nasm
 				OperandSizePromotion = true,
 				Map = OpcodeMap.Escape0F38,
 				MainByte = 0x98,
-				ModRM = ModRMEncoding.Any
+				AddressingForm = ModRMEncoding.Any
 			}); // VFMADD132PD
 
 			AssertEncoding("xop.m8.w0.nds.l0.p0 a2 /r /is4", new OpcodeEncoding.Builder
@@ -203,7 +203,7 @@ namespace Asmuth.X86.Nasm
 				VectorSize = AvxVectorSize._128,
 				SimdPrefix = SimdPrefix.None,
 				MainByte = 0xA2,
-				ModRM = ModRMEncoding.Any,
+				AddressingForm = ModRMEncoding.Any,
 				ImmediateSizeInBytes = 1
 			}); // VPCMOV
 		}

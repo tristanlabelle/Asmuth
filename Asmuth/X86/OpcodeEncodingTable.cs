@@ -112,10 +112,10 @@ namespace Asmuth.X86
 						if (!entry.Opcode.HasModRM)
 							throw new ArgumentException("ModRM specified for opcode which takes none.");
 
-						if (!entry.Opcode.ModRM.IsValid(modRM.Value))
+						if (!entry.Opcode.AddressingForm.IsValid(modRM.Value))
 							continue;
 					}
-					else if (entry.Opcode.HasModRM && entry.Opcode.ModRM != ModRMEncoding.Any)
+					else if (entry.Opcode.HasModRM && entry.Opcode.AddressingForm != ModRMEncoding.Any)
 					{
 						return InstructionDecoderLookupResult.Ambiguous_RequireModRM;
 					}

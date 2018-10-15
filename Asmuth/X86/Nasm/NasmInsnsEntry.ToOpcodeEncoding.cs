@@ -15,20 +15,17 @@ namespace Asmuth.X86.Nasm
 			public ConditionCode? ConditionCode { get; set; } // For +cc opcodes
 			public IntegerSize? OperandSize { get; set; } // For iwd/iwdq immediates
 			public bool HasMOffs { get; set; }
-
-			// For /r disambiguation
-			private bool disallowRegRM;
-			public bool AllowRegRM { get => !disallowRegRM; set => disallowRegRM = !value; }
-
-			private bool disallowMemRM;
-			public bool AllowMemRM { get => !disallowMemRM; set => disallowMemRM = !value; }
+			public ModRMModEncoding ModEncoding { get; set; } // For /r disambiguation
 
 			public void SetRMFlagsFromOperandType(NasmOperandType type)
 			{
 				var baseRegOpType = type & NasmOperandType.OpType_Mask;
-				bool allowRegMemRM = baseRegOpType == NasmOperandType.OpType_RegisterOrMemory;
-				AllowRegRM = allowRegMemRM || baseRegOpType == NasmOperandType.OpType_Register;
-				AllowMemRM = allowRegMemRM || baseRegOpType == NasmOperandType.OpType_Memory;
+				if (baseRegOpType == NasmOperandType.OpType_Register)
+					ModEncoding = ModRMModEncoding.Register;
+				else if (baseRegOpType == NasmOperandType.OpType_Memory)
+					ModEncoding = ModRMModEncoding.Memory;
+				else
+					ModEncoding = ModRMModEncoding.RegisterOrMemory;
 			}
 		}
 
@@ -258,10 +255,10 @@ namespace Asmuth.X86.Nasm
 
 							// Heuristic: if it's of the form 0b11000000,
 							// it's probably a fixed ModRM, otherwise a fixed imm8
-							if (state == State.PostOpcode && builder.ModRM == ModRMEncoding.None
+							if (state == State.PostOpcode && builder.AddressingForm.IsNone
 								&& (token.Byte >> 6) == 3)
 							{
-								builder.ModRM = ModRMEncoding.FromFixedValue((ModRM)token.Byte);
+								builder.AddressingForm = ModRMEncoding.FromFixedValue((ModRM)token.Byte);
 								break;
 							}
 
@@ -282,7 +279,8 @@ namespace Asmuth.X86.Nasm
 
 							if (state < State.PostModRM)
 							{
-								SetModRM(ModRMEncoding.FromFixedRegDirectRM(
+								SetAddressingForm(new ModRMEncoding(
+									ModRMModEncoding.Register,
 									reg: ((ModRM)token.Byte).Reg));
 								break;
 							}
@@ -294,11 +292,11 @@ namespace Asmuth.X86.Nasm
 							break;
 
 						case NasmEncodingTokenType.ModRM:
-							SetModRM(reg: null, @params.AllowRegRM, @params.AllowMemRM);
+							SetAddressingForm(new ModRMEncoding(@params.ModEncoding));
 							break;
 
 						case NasmEncodingTokenType.ModRM_FixedReg:
-							SetModRM(reg: token.Byte, @params.AllowRegRM, @params.AllowMemRM);
+							SetAddressingForm(new ModRMEncoding(@params.ModEncoding, reg: token.Byte));
 							break;
 
 						// Immediates
@@ -496,20 +494,15 @@ namespace Asmuth.X86.Nasm
 			{
 				if (state >= State.PostOpcode) throw new FormatException("Out-of-order opcode token.");
 				builder.MainByte = value;
-				if (plusR) builder.ModRM = ModRMEncoding.MainByteReg;
+				if (plusR) builder.AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister;
 				AdvanceTo(State.PostOpcode);
 			}
-
-			private void SetModRM(byte? reg, bool allowRegRM, bool allowMemRM)
-			{
-				SetModRM(new ModRMEncoding(reg, allowRegRM: allowRegRM, allowMemRM: allowMemRM));
-			}
-
-			private void SetModRM(ModRMEncoding encoding)
+			
+			private void SetAddressingForm(AddressingFormEncoding encoding)
 			{
 				if (state != State.PostOpcode) throw new FormatException("Out-of-order ModRM token.");
-				if (builder.ModRM != ModRMEncoding.None) throw new FormatException("Multiple ModRMs.");
-				builder.ModRM = encoding;
+				if (!builder.AddressingForm.IsNone) throw new FormatException("Multiple ModRMs.");
+				builder.AddressingForm = encoding;
 				AdvanceTo(State.PostModRM);
 			}
 

@@ -42,7 +42,7 @@ namespace Asmuth.X86
 			public SimdPrefix? SimdPrefix;
 			public OpcodeMap Map;
 			public byte MainByte;
-			public ModRMEncoding ModRM;
+			public AddressingFormEncoding AddressingForm;
 			public int ImmediateSizeInBytes;
 			public byte? Imm8Ext;
 
@@ -60,7 +60,7 @@ namespace Asmuth.X86
 					throw new ArgumentException("Vex encoding implies SIMD prefixes.");
 				if (VexType == VexType.None && VectorSize.HasValue)
 					throw new ArgumentException("Escape-based non-legacy prefixes implies ignored VEX.L.");
-				if (ModRM == ModRMEncoding.MainByteReg && MainOpcodeByte.GetEmbeddedReg(MainByte) != 0)
+				if (AddressingForm.IsMainByteEmbeddedRegister && MainOpcodeByte.GetEmbeddedReg(MainByte) != 0)
 					throw new ArgumentException("Main byte-embedded reg implies multiple-of-8 main byte.");
 				if (Imm8Ext.HasValue && ImmediateSizeInBytes != 1)
 					throw new ArgumentException("imm8 opcode extension implies 8-bit immediate.");
@@ -104,7 +104,7 @@ namespace Asmuth.X86
 		private static readonly Bitfield32.Byte mainByteField = leadBitfieldBuilder;
 		public byte MainByte => leadBitfield[mainByteField];
 		
-		public ModRMEncoding ModRM { get; }
+		public AddressingFormEncoding AddressingForm { get; }
 
 		// 0b000ABBBB: HasImm8Ext, ImmediateSizeInBytes
 		private readonly byte immFields;
@@ -128,13 +128,13 @@ namespace Asmuth.X86
 			leadBitfield[simdPrefixField] = (byte?)builder.SimdPrefix;
 			leadBitfield[mapField] = (byte)builder.Map;
 			leadBitfield[mainByteField] = builder.MainByte;
-			ModRM = builder.ModRM;
+			AddressingForm = builder.AddressingForm;
 			immFields = MakeImmFields(builder.ImmediateSizeInBytes, builder.Imm8Ext);
 			imm8Ext = builder.Imm8Ext.GetValueOrDefault();
 		}
 
-		public byte MainByteMask => ModRM.MainByteMask;
-		public bool HasModRM => ModRM.IsPresent;
+		public byte MainByteMask => AddressingForm.MainByteMask;
+		public bool HasModRM => AddressingForm.HasModRM;
 		public int? ImmediateSizeInBits => ImmediateSizeInBytes * 8;
 
 		public bool IsValidInCodeSegment(CodeSegmentType codeSegmentType)
@@ -174,7 +174,7 @@ namespace Asmuth.X86
 			byte mainByte, ModRM? modRM, byte? imm8)
 		{
 			if (!IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, nonLegacyPrefixes, mainByte)) return false;
-			if (!ModRM.IsValid(modRM)) return false;
+			if (!AddressingForm.IsValid(modRM)) return false;
 			if (imm8.HasValue != (ImmediateSizeInBytes == 1)) return false;
 			if (Imm8Ext.HasValue && imm8.Value != Imm8Ext.Value) return false;
 			return true;
@@ -235,13 +235,13 @@ namespace Asmuth.X86
 
 			// The opcode itself
 			str.AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", MainByte);
-			if (ModRM == ModRMEncoding.MainByteReg)
+			if (AddressingForm.IsMainByteEmbeddedRegister)
 				str.Append("+r");
 
-			if (ModRM.IsPresent)
+			if (AddressingForm.HasModRM)
 			{
 				str.Append(' ');
-				str.Append(ModRM.ToString());
+				str.Append(AddressingForm.ModRM.Value.ToString());
 			}
 
 			if (ImmediateSizeInBytes > 0)

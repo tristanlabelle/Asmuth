@@ -38,7 +38,7 @@ namespace Asmuth.X86
 
 				if (!MainByte(lhs.MainByte, lhs.MainByteMask, rhs.MainByte, rhs.MainByteMask)) return;
 
-				result = result.Combine(ModRMEncoding.Compare(lhs.ModRM, rhs.ModRM));
+				result = result.Combine(AddressingFormEncoding.Compare(lhs.AddressingForm, rhs.AddressingForm));
 				if (result == SetComparisonResult.Disjoint || result == SetComparisonResult.Overlapping) return;
 
 				if (!Immediate(lhs.ImmediateSizeInBytes, lhs.Imm8Ext, rhs.ImmediateSizeInBytes, rhs.Imm8Ext)) return;

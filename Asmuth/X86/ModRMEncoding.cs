@@ -6,72 +6,144 @@ using System.Text;
 
 namespace Asmuth.X86
 {
-	public readonly struct ModRMEncoding : IEquatable<ModRMEncoding>
+	/// <summary>
+	/// Specifies how an opcode encodes adressing forms, as one of
+	/// no encoding, main byte-embedded register or a ModR/M and potential SIB byte.
+	/// </summary>
+	public readonly struct AddressingFormEncoding : IEquatable<AddressingFormEncoding>
 	{
-		// High nibble:
-		//   0: special values (no ModRM and MainByteReg)
-		//   1: direct (mod == 11)
-		//   2: indirect (mod != 11)
-		//   3: any
-		//   4+: fixed value+4
-		// Low nibble:
-		//   0: no ModRM
-		//   1: main byte reg
-		//   2: any reg
-		//   3+: fixed value+3
 		private readonly byte data;
 
-		private ModRMEncoding(byte data)
+		private AddressingFormEncoding(byte value) => this.data = value;
+		public AddressingFormEncoding(ModRMEncoding modRM) => this.data = (byte)(modRM.data + 2);
+
+		public bool IsNone => data == 0;
+		public bool IsMainByteEmbeddedRegister => data == 1;
+		public bool HasModRM => data >= 2;
+		public byte MainByteMask => IsMainByteEmbeddedRegister ? (byte)0xF8 : (byte)0xFF;
+		public ModRMEncoding? ModRM => data >= 2 ? new ModRMEncoding((byte)(data - 2)) : (ModRMEncoding?)null;
+
+		public bool IsValid(ModRM modRM) => HasModRM && ModRM.Value.IsValid(modRM);
+		public bool IsValid(ModRM? modRM) => modRM.HasValue ? IsValid(modRM.Value) : !HasModRM;
+
+		public bool Equals(AddressingFormEncoding other) => data == other.data;
+		public override bool Equals(object obj) => obj is AddressingFormEncoding && Equals((AddressingFormEncoding)obj);
+		public override int GetHashCode() => data;
+		public static bool Equals(AddressingFormEncoding lhs, AddressingFormEncoding rhs) => lhs.Equals(rhs);
+		public static bool operator ==(AddressingFormEncoding lhs, AddressingFormEncoding rhs) => Equals(lhs, rhs);
+		public static bool operator !=(AddressingFormEncoding lhs, AddressingFormEncoding rhs) => !Equals(lhs, rhs);
+
+		public override string ToString()
 		{
-			this.data = data;
+			if (IsNone) return string.Empty;
+			if (IsMainByteEmbeddedRegister) return "+r";
+			return ModRM.Value.ToString();
 		}
 
-		public ModRMEncoding(byte? reg, bool allowRegRM, bool allowMemRM, byte rmValue = 0)
+		public static readonly AddressingFormEncoding None = new AddressingFormEncoding(0);
+		public static readonly AddressingFormEncoding MainByteEmbeddedRegister = new AddressingFormEncoding(1);
+		public static readonly AddressingFormEncoding AnyModRM = ModRMEncoding.Any;
+		
+		public static SetComparisonResult Compare(AddressingFormEncoding lhs, AddressingFormEncoding rhs)
+		{
+			if (lhs.HasModRM && rhs.HasModRM) return ModRMEncoding.Compare(lhs.ModRM.Value, rhs.ModRM.Value);
+			return lhs.data == rhs.data ? SetComparisonResult.Equal : SetComparisonResult.Overlapping;
+		}
+
+		public static implicit operator AddressingFormEncoding(ModRMEncoding modRM)
+			=> new AddressingFormEncoding(modRM);
+	}
+
+	public enum ModRMModEncoding : byte
+	{
+		RegisterOrMemory,
+		Register, // MOD = 11, RM = Register operand
+		Memory, // MOD != 11, RM = Memory operand
+		DirectFixedRM // MOD == 11, RM = Fixed value
+	}
+	
+	public static class ModRMModEncodingEnum
+	{
+		public static bool IsDirect(this ModRMModEncoding mod)
+			=> ((byte)mod & 1) == 0;
+
+		public static bool CanEncodeRegister(this ModRMModEncoding mod)
+			=> (byte)mod <= 1;
+
+		public static bool CanEncodeMemory(this ModRMModEncoding mod)
+			=> ((byte)mod & 1) == 0;
+
+		public static bool IsValid(this ModRMModEncoding encoding, ModRMMod mod)
+		{
+			if (encoding == ModRMModEncoding.RegisterOrMemory) return true;
+			return (encoding == ModRMModEncoding.Memory) != (mod == ModRMMod.Direct);
+		}
+
+		public static bool IsValid(this ModRMModEncoding encoding, ModRM modRM, byte fixedRM)
+		{
+			if (encoding == ModRMModEncoding.DirectFixedRM)
+				return modRM.Mod == ModRMMod.Direct && modRM.RM == fixedRM;
+			return IsValid(encoding, modRM.Mod);
+		}
+	}
+
+	public readonly struct ModRMEncoding : IEquatable<ModRMEncoding>
+	{
+		// High nibble (Mod & RM):
+		//   0: register or memory
+		//   1: memory (mod == 11)
+		//   2: register (mod != 11)
+		//   3+: direct with fixed rm+3
+		// Low nibble (reg):
+		//   0: any reg
+		//   1+: fixed value+1
+		internal readonly byte data;
+
+		internal ModRMEncoding(byte data) => this.data = data;
+
+		public ModRMEncoding(ModRMModEncoding mod, byte? reg = null, byte rm = 0)
 		{
 			if (reg.HasValue)
 			{
 				if (reg.Value > 7) throw new ArgumentOutOfRangeException(nameof(reg));
-				data = (byte)(3 + reg.Value);
+				data = (byte)(reg.Value + 1);
 			}
 			else
 			{
-				data = 2;
+				data = 0;
 			}
 
-			if (allowRegRM) data |= 0x10;
-			if (allowMemRM) data |= 0x20;
-			if (!allowRegRM && !allowMemRM)
+			if (mod == ModRMModEncoding.DirectFixedRM)
 			{
-				if (rmValue > 7) throw new ArgumentOutOfRangeException(nameof(rmValue));
-				data |= (byte)((rmValue + 4) << 4);
+				if (rm > 7) throw new ArgumentOutOfRangeException(nameof(rm));
+				data |= (byte)((rm + 3) << 4);
+			}
+			else
+			{
+				if (mod >= ModRMModEncoding.DirectFixedRM)
+					throw new ArgumentOutOfRangeException(nameof(mod));
+				data |= (byte)((byte)mod << 4);
 			}
 		}
 
 		private byte RegNibble => (byte)(data & 0xF);
 		private byte RMNibble => (byte)(data >> 4);
+		
+		public byte? FixedReg => RegNibble >= 1 ? (byte?)(RegNibble - 1) : null;
 
-		public byte MainByteMask => this == MainByteReg ? (byte)0xF8 : (byte)0xFF;
-		public bool IsPresent => RMNibble != 0;
-		public byte? Reg => RegNibble >= 3 ? (byte?)(RegNibble - 3) : null;
-		public bool AllowsOnlyRegRM => RMNibble == 1;
-		public bool AllowsOnlyMemRM => RMNibble == 2;
-		public bool AllowsAnyRM => RMNibble == 3;
-		public bool AllowsRegRM => AllowsOnlyRegRM || AllowsAnyRM;
-		public bool AllowsMemRM => AllowsOnlyMemRM || AllowsAnyRM;
-		public bool DirectMod => RMNibble == 1 || RMNibble >= 4;
-		public byte? FixedRM => RMNibble > 3 ? (byte?)(RMNibble - 4) : null;
-		public ModRM? FixedValue => RMNibble > 3 && RegNibble >= 3
-			? (ModRM?)(0b11_000_000 | ((RegNibble - 3) << 3) | (RMNibble - 4)) : null;
+		public ModRMModEncoding Mod => RMNibble >= 3
+			? ModRMModEncoding.DirectFixedRM
+			: (ModRMModEncoding)RMNibble;
+
+		public byte? FixedRM => RMNibble >= 3 ? (byte?)(RMNibble - 3) : null;
+		public ModRM? FixedValue => RMNibble >= 3 && RegNibble >= 1
+			? (ModRM?)(0b11_000_000 | ((RegNibble - 1) << 3) | (RMNibble - 3)) : null;
 
 		public bool IsValid(ModRM modRM)
 		{
-			if (RegNibble != 2 && modRM.Reg != (RegNibble - 3)) return false;
-			if (modRM.IsDirect ? RMNibble == 2 : DirectMod) return false;
-			return RMNibble < 4 || (modRM.RM == RMNibble - 4);
+			return Mod.IsValid(modRM, fixedRM: (byte)(RMNibble - 3))
+				&& FixedReg.GetValueOrDefault(modRM.Reg) == modRM.Reg;
 		}
-
-		public bool IsValid(ModRM? modRM)
-			=> modRM.HasValue == IsPresent && IsValid(modRM.Value);
 
 		public bool Equals(ModRMEncoding other) => data == other.data;
 		public override bool Equals(object obj) => obj is ModRMEncoding && Equals((ModRMEncoding)obj);
@@ -82,60 +154,34 @@ namespace Asmuth.X86
 
 		public override string ToString()
 		{
-			if (this == MainByteReg) return "+r";
-			if (!IsPresent) return "";
-			
-			if (Reg.HasValue && DirectMod)
+			if (FixedReg.HasValue && Mod.IsDirect())
 			{
 				var value = (byte)new ModRM(
-					mod: ModRMMod.Direct, reg: Reg.Value, rm: FixedRM.GetValueOrDefault());
+					mod: ModRMMod.Direct, reg: FixedReg.Value, rm: FixedRM.GetValueOrDefault());
 				var str = value.ToString("x2", CultureInfo.InvariantCulture);
-				if (AllowsOnlyRegRM) str += "+r";
+				if (Mod == ModRMModEncoding.Register) str += "+r";
 				return str;
 			}
 			else
 			{
-				var str = AllowsOnlyMemRM ? "m/" : "/";
-				if (Reg.HasValue) str += (char)('0' + Reg.Value);
+				var str = Mod == ModRMModEncoding.Memory ? "m/" : "/";
+				if (FixedReg.HasValue) str += (char)('0' + FixedReg.Value);
 				else str += 'r';
 				return str;
 			}
 		}
-
-		public static ModRMEncoding FromFixedRegAnyRM(byte reg)
-		{
-			if (reg > 7) throw new ArgumentOutOfRangeException(nameof(reg));
-			return new ModRMEncoding((byte)(0x30 | (reg + 3)));
-		}
-
-		public static ModRMEncoding FromFixedRegMemRM(byte reg)
-		{
-			if (reg > 7) throw new ArgumentOutOfRangeException(nameof(reg));
-			return new ModRMEncoding((byte)(0x20 | (reg + 3)));
-		}
-
-		public static ModRMEncoding FromFixedRegDirectRM(byte reg)
-		{
-			if (reg > 7) throw new ArgumentOutOfRangeException(nameof(reg));
-			return new ModRMEncoding((byte)(0x10 | (reg + 3)));
-		}
-
+		
 		public static ModRMEncoding FromFixedValue(ModRM value)
 		{
 			if (value.IsIndirect) throw new ArgumentOutOfRangeException(nameof(value));
 			return new ModRMEncoding(
-				(byte)(((value.RM + 4) << 4) | (value.Reg + 3)));
+				(byte)(((value.RM + 3) << 4) | (value.Reg + 1)));
 		}
 
 		public static ModRMEncoding FromFixedValue(byte value) => FromFixedValue((ModRM)value);
 
 		public static SetComparisonResult Compare(ModRMEncoding lhs, ModRMEncoding rhs)
-		{
-			// Compare ModRM presence
-			if (lhs.IsPresent != rhs.IsPresent) return SetComparisonResult.Overlapping;
-			if (!lhs.IsPresent) return SetComparisonResult.Equal;
-			return CompareReg(lhs.Reg, rhs.Reg).Combine(CompareRM(lhs, rhs));
-		}
+			=> CompareReg(lhs.FixedReg, rhs.FixedReg).Combine(CompareRM(lhs, rhs));
 
 		private static SetComparisonResult CompareReg(byte? lhs, byte? rhs)
 		{
@@ -148,16 +194,16 @@ namespace Asmuth.X86
 		private static SetComparisonResult CompareRM(ModRMEncoding lhs, ModRMEncoding rhs)
 		{
 			// Handle 'any' ModRMs
-			if (lhs.AllowsAnyRM && rhs.AllowsAnyRM)
+			if (lhs.Mod == ModRMModEncoding.RegisterOrMemory && rhs.Mod == ModRMModEncoding.RegisterOrMemory)
 				return SetComparisonResult.Equal;
-			if (lhs.AllowsAnyRM && !rhs.AllowsAnyRM)
+			if (lhs.Mod == ModRMModEncoding.RegisterOrMemory)
 				return SetComparisonResult.SupersetSubset;
-			if (!lhs.AllowsAnyRM && rhs.AllowsAnyRM)
+			if (rhs.Mod == ModRMModEncoding.RegisterOrMemory)
 				return SetComparisonResult.SubsetSuperset;
 
 			// Handle indirect ModRMs
-			if (lhs.AllowsOnlyMemRM != rhs.AllowsOnlyMemRM) return SetComparisonResult.Disjoint;
-			if (lhs.AllowsOnlyMemRM) return SetComparisonResult.Equal;
+			if (lhs.Mod.IsDirect() != rhs.Mod.IsDirect()) return SetComparisonResult.Disjoint;
+			if (lhs.Mod == ModRMModEncoding.Memory) return SetComparisonResult.Equal;
 
 			// Handle fixed vs direct
 			if (!lhs.FixedRM.HasValue && rhs.FixedRM.HasValue) return SetComparisonResult.SupersetSubset;
@@ -166,10 +212,9 @@ namespace Asmuth.X86
 			return lhs.FixedRM == rhs.FixedRM
 				? SetComparisonResult.Equal : SetComparisonResult.Disjoint;
 		}
-
-		public static readonly ModRMEncoding None = new ModRMEncoding(0);
-		public static readonly ModRMEncoding MainByteReg = new ModRMEncoding(1);
-		public static readonly ModRMEncoding Any = new ModRMEncoding(0x32);
-		public static readonly ModRMEncoding AnyReg_MemRM = new ModRMEncoding(0x22);
+		
+		public static readonly ModRMEncoding Any = new ModRMEncoding(0x00);
+		public static readonly ModRMEncoding RegRM_AnyReg = new ModRMEncoding(0x10);
+		public static readonly ModRMEncoding MemRM_AnyReg = new ModRMEncoding(0x20);
 	}
 }
