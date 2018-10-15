@@ -73,6 +73,9 @@ namespace Asmuth.X86
 		public static bool CanEncodeMemory(this ModRMModEncoding mod)
 			=> ((byte)mod & 1) == 0;
 
+		public static bool CanHaveSibByte(this ModRMModEncoding mod)
+			=> CanEncodeMemory(mod);
+
 		public static bool IsValid(this ModRMModEncoding encoding, ModRMMod mod)
 		{
 			if (encoding == ModRMModEncoding.RegisterOrMemory) return true;
