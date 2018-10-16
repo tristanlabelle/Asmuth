@@ -11,4 +11,4 @@ One difficulty of x86-64 is the vast number of opcodes in existence, and the fac
 This project initially leveraged the NASM data files, which produced satisfyingly exhaustive opcode definitions but was complex due to their format, which is tailor-made for NASM's strings-to-bytes and bytes-to-strings operation.
 
 ### XED
-I was later made aware of Intel's XED project and its data files, which are as close as there is to an official, machine-readable definition of the x86-64 instruction set. Their format, however, is that of a rule-based language meant to be used to generate code for an encoder or decoder. With some assumptions
+I was later made aware of Intel's XED project and its data files, which are as close as there is to an official, machine-readable definition of the x86-64 instruction set. Their format, however, is that of a rule-based language meant to be used to generate code for an encoder or decoder. With some assumptions, it can still be used for our purposes.
