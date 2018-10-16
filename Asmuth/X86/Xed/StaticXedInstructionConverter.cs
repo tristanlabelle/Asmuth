@@ -176,9 +176,8 @@ namespace Asmuth.X86.Xed
 					if (XedBitPattern.IsConstant(bitPattern))
 					{
 						byte reg = Convert.ToByte(bitPattern, fromBase: 2);
-						builder.AddressingForm = builder.AddressingForm.ModRM.Value.Mod.IsDirect()
-							? new ModRMEncoding(ModRMModEncoding.Register, reg)
-							: new ModRMEncoding(ModRMModEncoding.Memory, reg);
+						builder.AddressingForm = new ModRMEncoding(
+							builder.AddressingForm.ModRM.Value.Mod, reg);
 					}
 					else if (bitPattern != "rrr") throw new FormatException();
 					state = BitsMatchingState.PostModReg;
@@ -206,10 +205,12 @@ namespace Asmuth.X86.Xed
 		{
 			var fields = GatherFieldValues(pattern);
 
-			var mode = fields["MODE"];
-			if (mode == 2) builder.X64 = true;
-			else if (mode != 2) builder.X64 = false;
-			else throw new FormatException();
+			if (fields.TryGetValue("MODE", out var mode))
+			{
+				if (mode == 2) builder.X64 = true;
+				else if (mode != 2) builder.X64 = false;
+				else throw new FormatException();
+			}
 
 			if (fields.TryGetValue("EASZ", out var easz))
 			{

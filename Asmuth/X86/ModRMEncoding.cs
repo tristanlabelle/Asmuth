@@ -64,9 +64,6 @@ namespace Asmuth.X86
 	
 	public static class ModRMModEncodingEnum
 	{
-		public static bool IsDirect(this ModRMModEncoding mod)
-			=> ((byte)mod & 1) == 0;
-
 		public static bool CanEncodeRegister(this ModRMModEncoding mod)
 			=> (byte)mod <= 1;
 
@@ -157,7 +154,7 @@ namespace Asmuth.X86
 
 		public override string ToString()
 		{
-			if (FixedReg.HasValue && Mod.IsDirect())
+			if (FixedReg.HasValue && !Mod.CanEncodeMemory())
 			{
 				var value = (byte)new ModRM(
 					mod: ModRMMod.Direct, reg: FixedReg.Value, rm: FixedRM.GetValueOrDefault());
@@ -205,7 +202,7 @@ namespace Asmuth.X86
 				return SetComparisonResult.SubsetSuperset;
 
 			// Handle indirect ModRMs
-			if (lhs.Mod.IsDirect() != rhs.Mod.IsDirect()) return SetComparisonResult.Disjoint;
+			if (lhs.Mod.CanEncodeMemory() != rhs.Mod.CanEncodeMemory()) return SetComparisonResult.Disjoint;
 			if (lhs.Mod == ModRMModEncoding.Memory) return SetComparisonResult.Equal;
 
 			// Handle fixed vs direct

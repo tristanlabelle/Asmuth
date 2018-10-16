@@ -246,7 +246,8 @@ namespace Asmuth.X86
 
 			if (ImmediateSizeInBytes > 0)
 			{
-				str.AppendFormat(CultureInfo.InvariantCulture, " i{0}", ImmediateSizeInBits * 8);
+				str.Append(" imm");
+				str.AppendFormat(CultureInfo.InvariantCulture, "{0}", ImmediateSizeInBits * 8);
 			}
 
 			return str.ToString();
