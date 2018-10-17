@@ -20,16 +20,14 @@ namespace Asmuth.X86.Nasm
 			Immediates
 		}
 
-		public bool Match(
-			CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes, byte mainByte,
+		public bool Match(in InstructionPrefixes prefixes, byte mainByte,
 			out bool hasModRM, out int immediateSize)
 		{
 			var partialInstruction = new Instruction.Builder
 			{
-				CodeSegmentType = codeSegmentType,
-				LegacyPrefixes = legacyPrefixes,
-				NonLegacyPrefixes = nonLegacyPrefixes,
+				CodeSegmentType = prefixes.CodeSegmentType,
+				LegacyPrefixes = prefixes.Legacy,
+				NonLegacyPrefixes = prefixes.NonLegacy,
 				MainByte = mainByte
 			}.Build();
 

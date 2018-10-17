@@ -70,6 +70,8 @@ namespace Asmuth.X86
 			legacyPrefixes.HasAddressSizeOverride);
 		public ImmutableLegacyPrefixList LegacyPrefixes => legacyPrefixes;
 		public NonLegacyPrefixes NonLegacyPrefixes => nonLegacyPrefixes;
+		public InstructionPrefixes Prefixes => new InstructionPrefixes(
+			CodeSegmentType, LegacyPrefixes, NonLegacyPrefixes);
 		public OpcodeMap OpcodeMap => nonLegacyPrefixes.OpcodeMap;
 		public byte MainOpcodeByte => mainOpcodeByte;
 		public ModRM? ModRM => (flags & Flags.HasModRM) == Flags.HasModRM ? modRM : (ModRM?)null;

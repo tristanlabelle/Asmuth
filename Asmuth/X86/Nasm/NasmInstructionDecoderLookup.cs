@@ -16,8 +16,7 @@ namespace Asmuth.X86.Nasm
 			this.entries = entries.ToList();
 		}
 
-		public InstructionDecoderLookupResult Lookup(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes,
+		public InstructionDecoderLookupResult Lookup(in InstructionPrefixes prefixes,
 			byte mainByte, ModRM? modRM, byte? imm8)
 		{
 			bool hasModRM = false;
@@ -25,8 +24,7 @@ namespace Asmuth.X86.Nasm
 			NasmInsnsEntry match = null;
 			foreach (var entry in entries)
 			{
-				if (entry.Match(codeSegmentType, legacyPrefixes, nonLegacyPrefixes, mainByte,
-					out bool entryHasModRM, out int entryImmediateSize))
+				if (entry.Match(prefixes, mainByte, out bool entryHasModRM, out int entryImmediateSize))
 				{
 					if (match != null)
 					{

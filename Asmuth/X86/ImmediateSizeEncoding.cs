@@ -55,14 +55,11 @@ namespace Asmuth.X86
 		public static int InBits(this ImmediateVariableSize size, AddressSize addressSize, IntegerSize operandSize)
 			=> InBytes(size, addressSize, operandSize) * 8;
 
-		public static int InBytes(this ImmediateVariableSize size, CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes)
-			=> InBytes(size, codeSegmentType.GetEffectiveAddressSize(legacyPrefixes),
-				codeSegmentType.GetIntegerOperandSize(legacyPrefixes, nonLegacyPrefixes));
+		public static int InBytes(this ImmediateVariableSize size, in InstructionPrefixes prefixes)
+			=> InBytes(size, prefixes.EffectiveAddressSize, prefixes.IntegerOperandSize);
 
-		public static int InBits(this ImmediateVariableSize size, CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes)
-			=> InBytes(size, codeSegmentType, legacyPrefixes, nonLegacyPrefixes);
+		public static int InBits(this ImmediateVariableSize size, in InstructionPrefixes prefixes)
+			=> InBytes(size, prefixes) * 8;
 	}
 
 	public readonly struct ImmediateSizeEncoding : IEquatable<ImmediateSizeEncoding>
@@ -112,14 +109,13 @@ namespace Asmuth.X86
 		public int InBytes(AddressSize addressSize, IntegerSize operandSize)
 			=> IsFixed ? BaseInBytes : BaseInBytes + Variable.Value.InBytes(addressSize, operandSize);
 
-		public int InBytes(CodeSegmentType codeSegmentType, ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes)
-			=> IsFixed ? BaseInBytes : BaseInBytes + Variable.Value.InBytes(codeSegmentType, legacyPrefixes, nonLegacyPrefixes);
+		public int InBytes(in InstructionPrefixes prefixes)
+			=> IsFixed ? BaseInBytes : BaseInBytes + Variable.Value.InBytes(prefixes);
 
 		public int InBits(AddressSize addressSize, IntegerSize operandSize)
 			=> InBytes(addressSize, operandSize) * 8;
 
-		public int InBits(CodeSegmentType codeSegmentType, ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes)
-			=> InBytes(codeSegmentType, legacyPrefixes, nonLegacyPrefixes) * 8;
+		public int InBits(in InstructionPrefixes prefixes) => InBytes(prefixes) * 8;
 
 		public bool Equals(ImmediateSizeEncoding other) => data == other.data;
 		public override bool Equals(object obj) => obj is ImmediateSizeEncoding && Equals((ImmediateSizeEncoding)obj);

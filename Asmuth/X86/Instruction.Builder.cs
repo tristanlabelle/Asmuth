@@ -13,6 +13,18 @@ namespace Asmuth.X86
 			public CodeSegmentType CodeSegmentType { get; set; } = CodeSegmentType.IA32_Default32;
 			public ImmutableLegacyPrefixList LegacyPrefixes { get; set; }
 			public NonLegacyPrefixes NonLegacyPrefixes { get; set; }
+
+			public InstructionPrefixes AllPrefixes
+			{
+				get => new InstructionPrefixes(CodeSegmentType, LegacyPrefixes, NonLegacyPrefixes);
+				set
+				{
+					CodeSegmentType = value.CodeSegmentType;
+					LegacyPrefixes = value.Legacy;
+					NonLegacyPrefixes = value.NonLegacy;
+				}
+			}
+
 			public byte MainByte { get; set; }
 			public ModRM? ModRM { get; set; }
 			public Sib? Sib { get; set; }

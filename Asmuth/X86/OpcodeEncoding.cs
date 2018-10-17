@@ -150,34 +150,32 @@ namespace Asmuth.X86
 		}
 
 		#region Matching
-		public bool IsMatchUpToMainByte(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes, byte mainByte)
+		public bool IsMatchUpToMainByte(in InstructionPrefixes prefixes, byte mainByte)
 		{
-			if (!IsValidInCodeSegment(codeSegmentType)) return false;
+			if (!IsValidInCodeSegment(prefixes.CodeSegmentType)) return false;
 
-			var effectiveAddressSize = codeSegmentType.GetEffectiveAddressSize(legacyPrefixes);
+			var effectiveAddressSize = prefixes.EffectiveAddressSize;
 			if (effectiveAddressSize != AddressSize.GetValueOrDefault(effectiveAddressSize)) return false;
 
-			if (nonLegacyPrefixes.VexType != VexType) return false;
-			if (nonLegacyPrefixes.VectorSize != VectorSize.GetValueOrDefault(nonLegacyPrefixes.VectorSize)) return false;
+			if (prefixes.VexType != VexType) return false;
+			if (prefixes.VectorSize != VectorSize.GetValueOrDefault(prefixes.VectorSize)) return false;
 
-			var integerSize = codeSegmentType.GetIntegerOperandSize(legacyPrefixes.HasOperandSizeOverride, nonLegacyPrefixes.OperandSizePromotion);
+			var integerSize = prefixes.IntegerOperandSize;
 			if (integerSize != OperandSize.AsIntegerSize().GetValueOrDefault(integerSize)) return false;
-			
-			var potentialSimdPrefix = nonLegacyPrefixes.SimdPrefix ?? legacyPrefixes.PotentialSimdPrefix;
+
+			var potentialSimdPrefix = prefixes.PotentialSimdPrefix;
 			if (potentialSimdPrefix != SimdPrefix.GetValueOrDefault(potentialSimdPrefix)) return false;
 
-			if (nonLegacyPrefixes.OpcodeMap != Map) return false;
+			if (prefixes.OpcodeMap != Map) return false;
 			if ((mainByte & MainByteMask) != MainByte) return false;
 
 			return true;
 		}
 
-		public bool IsMatch(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes,
+		public bool IsMatch(in InstructionPrefixes prefixes,
 			byte mainByte, ModRM? modRM, byte? imm8)
 		{
-			if (!IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, nonLegacyPrefixes, mainByte)) return false;
+			if (!IsMatchUpToMainByte(prefixes, mainByte)) return false;
 			if (!AddressingForm.IsValid(modRM)) return false;
 			if (imm8.HasValue != (ImmediateSize.FixedInBytes == 1)) return false;
 			if (Imm8Ext.HasValue && imm8.Value != Imm8Ext.Value) return false;
@@ -187,9 +185,7 @@ namespace Asmuth.X86
 		public bool IsMatch(in Instruction instruction)
 		{
 			var imm8 = instruction.ImmediateSizeInBytes == 1 ? instruction.ImmediateData.GetByte(0) : (byte?)null;
-			return IsMatch(instruction.CodeSegmentType,
-				instruction.LegacyPrefixes, instruction.NonLegacyPrefixes, instruction.MainOpcodeByte,
-				instruction.ModRM, imm8);
+			return IsMatch(instruction.Prefixes, instruction.MainOpcodeByte, instruction.ModRM, imm8);
 		}
 		#endregion
 		

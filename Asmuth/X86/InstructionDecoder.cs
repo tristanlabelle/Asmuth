@@ -313,10 +313,8 @@ namespace Asmuth.X86
 			}
 
 			builder.MainByte = @byte;
-
-			var lookupResult = lookup.Lookup(CodeSegmentType,
-				builder.LegacyPrefixes, builder.NonLegacyPrefixes,
-				builder.MainByte, modRM: null, imm8: null);
+			
+			var lookupResult = lookup.Lookup(builder.AllPrefixes, builder.MainByte, modRM: null, imm8: null);
 			if (lookupResult.IsNotFound)
 				return AdvanceToError(InstructionDecodingError.UnknownOpcode);
 
@@ -340,8 +338,7 @@ namespace Asmuth.X86
 			// If the main opcode byte wasn't enough to lookup the opcode, repeat the lookup now
 			if (lookupTag == failedLookupTag)
 			{
-				var lookupResult = lookup.Lookup(builder.CodeSegmentType, builder.LegacyPrefixes,
-					builder.NonLegacyPrefixes, builder.MainByte, modRM, imm8: null);
+				var lookupResult = lookup.Lookup(builder.AllPrefixes, builder.MainByte, modRM, imm8: null);
 				switch (lookupResult.Status)
 				{
 					case InstructionDecoderLookupStatus.Success:
@@ -399,8 +396,7 @@ namespace Asmuth.X86
 			{
 				Debug.Assert(immediateSizeInBytes == 1);
 
-				var lookupResult = lookup.Lookup(builder.CodeSegmentType, builder.LegacyPrefixes,
-					builder.NonLegacyPrefixes, builder.MainByte, builder.ModRM, imm8: @byte);
+				var lookupResult = lookup.Lookup(builder.AllPrefixes, builder.MainByte, builder.ModRM, imm8: @byte);
 				switch (lookupResult.Status)
 				{
 					case InstructionDecoderLookupStatus.Success:

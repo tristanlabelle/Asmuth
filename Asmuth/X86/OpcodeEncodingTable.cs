@@ -95,16 +95,15 @@ namespace Asmuth.X86
 		}
 		
 		InstructionDecoderLookupResult IInstructionDecoderLookup.Lookup(
-			CodeSegmentType codeSegmentType, ImmutableLegacyPrefixList legacyPrefixes,
-			NonLegacyPrefixes nonLegacyPrefixes, byte mainByte, ModRM? modRM, byte? imm8)
+			in InstructionPrefixes prefixes, byte mainByte, ModRM? modRM, byte? imm8)
 		{
-			var bucketKey = OpcodeLookup.GetBucketKey(legacyPrefixes, nonLegacyPrefixes, mainByte);
+			var bucketKey = OpcodeLookup.GetBucketKey(prefixes.Legacy, prefixes.NonLegacy, mainByte);
 			
 			if (buckets.TryGetValue(bucketKey, out var bucket))
 			{
 				foreach (var entry in bucket)
 				{
-					if (!entry.Opcode.IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, nonLegacyPrefixes, mainByte))
+					if (!entry.Opcode.IsMatchUpToMainByte(prefixes, mainByte))
 						continue;
 					
 					if (modRM.HasValue)
@@ -133,10 +132,8 @@ namespace Asmuth.X86
 						}
 					}
 					
-					return InstructionDecoderLookupResult.Success(
-						entry.Opcode.HasModRM,
-						entry.Opcode.ImmediateSize.InBytes(codeSegmentType, legacyPrefixes, nonLegacyPrefixes),
-						entry.Tag);
+					return InstructionDecoderLookupResult.Success(entry.Opcode.HasModRM,
+						entry.Opcode.ImmediateSize.InBytes(prefixes), entry.Tag);
 				}
 			}
 

@@ -124,14 +124,13 @@ namespace Asmuth.X86
 			throw new NotImplementedException();
 		}
 		
-		public InstructionDecoderLookupResult Lookup(CodeSegmentType codeSegmentType,
-			ImmutableLegacyPrefixList legacyPrefixes, NonLegacyPrefixes nonLegacyPrefixes,
+		public InstructionDecoderLookupResult Lookup(in InstructionPrefixes prefixes,
 			byte mainByte, ModRM? modRM, byte? imm8)
 		{
-			bool hasModRM = HasModRM(nonLegacyPrefixes.OpcodeMap, mainByte);
+			bool hasModRM = HasModRM(prefixes.OpcodeMap, mainByte);
 			if (!hasModRM && modRM.HasValue) throw new ArgumentException();
 
-			ImmediateSizeEncoding? immediateSize = GetImmediateSize(nonLegacyPrefixes.OpcodeMap, mainByte, modRM);
+			ImmediateSizeEncoding? immediateSize = GetImmediateSize(prefixes.OpcodeMap, mainByte, modRM);
 			if (!immediateSize.HasValue)
 			{
 				// We need to read the ModRM byte
@@ -139,8 +138,7 @@ namespace Asmuth.X86
 				return InstructionDecoderLookupResult.Ambiguous_RequireModRM;
 			}
 			
-			return InstructionDecoderLookupResult.Success(hasModRM,
-				immediateSize.Value.InBytes(codeSegmentType, legacyPrefixes, nonLegacyPrefixes));
+			return InstructionDecoderLookupResult.Success(hasModRM, immediateSize.Value.InBytes(prefixes));
 		}
 	}
 }
