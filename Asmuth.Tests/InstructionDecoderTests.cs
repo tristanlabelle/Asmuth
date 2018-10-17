@@ -144,7 +144,7 @@ namespace Asmuth.X86
 			{
 				MainByte = 0xB0,
 				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister,
-				ImmediateSizeInBytes = sizeof(sbyte)
+				ImmediateSize = ImmediateSizeEncoding.Byte
 			}, "mov r8, imm8");
 
 			table.Add(new OpcodeEncoding.Builder
@@ -154,7 +154,7 @@ namespace Asmuth.X86
 				OperandSizePromotion = false,
 				MainByte = 0xB8,
 				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister,
-				ImmediateSizeInBytes = sizeof(short)
+				ImmediateSize = ImmediateSizeEncoding.Word
 			}, "mov r16, imm16");
 
 			table.Add(new OpcodeEncoding.Builder
@@ -163,7 +163,7 @@ namespace Asmuth.X86
 				OperandSizePromotion = false,
 				MainByte = 0xB8,
 				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister,
-				ImmediateSizeInBytes = sizeof(int)
+				ImmediateSize = ImmediateSizeEncoding.Dword
 			}, "mov r32, imm32");
 
 			table.Add(new OpcodeEncoding.Builder
@@ -172,7 +172,7 @@ namespace Asmuth.X86
 				OperandSizePromotion = true,
 				MainByte = 0xB8,
 				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister,
-				ImmediateSizeInBytes = sizeof(long)
+				ImmediateSize = ImmediateSizeEncoding.Qword
 			}, "mov r64, imm64");
 
 			var instructions = new[]
@@ -202,7 +202,7 @@ namespace Asmuth.X86
 				OperandSizePromotion = false,
 				MainByte = 0xF7,
 				AddressingForm = new ModRMEncoding(ModRMModEncoding.RegisterOrMemory, reg: 0),
-				ImmediateSizeInBytes = sizeof(int)
+				ImmediateSize = ImmediateSizeEncoding.Dword
 			}, "test r/m32, imm32");
 
 			table.Add(new OpcodeEncoding.Builder
@@ -234,7 +234,7 @@ namespace Asmuth.X86
 					{
 						AddressSize = addressSize,
 						MainByte = 0xC7,
-						ImmediateSizeInBytes = addressSize.InBytes()
+						ImmediateSize = ImmediateSizeEncoding.FromBytes(addressSize.InBytes())
 					};
 					
 					if (addressSize == AddressSize._16)
@@ -434,7 +434,7 @@ namespace Asmuth.X86
 				Map = OpcodeMap.Escape0F,
 				MainByte = 0xC2,
 				AddressingForm = ModRMEncoding.Any,
-				ImmediateSizeInBytes = 1
+				ImmediateSize = ImmediateSizeEncoding.Byte
 			};
 
 			builder.Imm8Ext = 0x00;

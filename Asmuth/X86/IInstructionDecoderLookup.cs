@@ -35,11 +35,11 @@ namespace Asmuth.X86
 		public InstructionDecoderLookupStatus Status => status;
 		public bool IsNotFound => status == InstructionDecoderLookupStatus.NotFound;
 		public bool IsSuccess => status == InstructionDecoderLookupStatus.Success;
-		public bool HasImmediateSizeInBytes => status >= InstructionDecoderLookupStatus.Ambiguous_RequireImm8;
+		public bool HasImmediateSize => status >= InstructionDecoderLookupStatus.Ambiguous_RequireImm8;
 
 		public bool HasModRM => IsNotFound ? throw new InvalidOperationException() : hasModRM;
 
-		public int ImmediateSizeInBytes => HasImmediateSizeInBytes
+		public int ImmediateSizeInBytes => HasImmediateSize
 			? immediateSizeInBytes : throw new InvalidOperationException();
 
 		public object Tag => IsSuccess ? tag : throw new InvalidOperationException();

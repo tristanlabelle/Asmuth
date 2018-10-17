@@ -43,7 +43,7 @@ namespace Asmuth.X86
 			public OpcodeMap Map;
 			public byte MainByte;
 			public AddressingFormEncoding AddressingForm;
-			public int ImmediateSizeInBytes;
+			public ImmediateSizeEncoding ImmediateSize;
 			public byte? Imm8Ext;
 
 			public void Validate()
@@ -62,7 +62,7 @@ namespace Asmuth.X86
 					throw new ArgumentException("Escape-based non-legacy prefixes implies ignored VEX.L.");
 				if (AddressingForm.IsMainByteEmbeddedRegister && MainOpcodeByte.GetEmbeddedReg(MainByte) != 0)
 					throw new ArgumentException("Main byte-embedded reg implies multiple-of-8 main byte.");
-				if (Imm8Ext.HasValue && ImmediateSizeInBytes != 1)
+				if (Imm8Ext.HasValue && ImmediateSize.FixedInBytes != 1)
 					throw new ArgumentException("imm8 opcode extension implies 8-bit immediate.");
 			}
 
@@ -106,13 +106,18 @@ namespace Asmuth.X86
 		
 		public AddressingFormEncoding AddressingForm { get; }
 
-		// 0b000ABBBB: HasImm8Ext, ImmediateSizeInBytes
+		// 0bABBBCCCC: HasImm8Ext, Nullable<VariableSize>, BaseSizeInBytes
 		private readonly byte immFields;
 		private readonly byte imm8Ext;
-		public int ImmediateSizeInBytes => immFields & 0xF;
-		public byte? Imm8Ext => immFields == 0b10001 ? (byte?)imm8Ext : null;
-		private static byte MakeImmFields(int sizeInBytes, byte? imm8Ext)
-			=> (byte)(imm8Ext.HasValue ? 0x10 | sizeInBytes : sizeInBytes);
+		private ImmediateVariableSize? ImmediateVariableSize => (immFields & 0b111_0000) > 0
+			? (ImmediateVariableSize?)(((immFields >> 4) & 0b111) - 1) : null;
+		public ImmediateSizeEncoding ImmediateSize => ImmediateSizeEncoding.FromBytes(
+			@base: immFields & 0xF, variable: ImmediateVariableSize);
+		public byte? Imm8Ext => immFields == 0b1000_0001 ? (byte?)imm8Ext : null;
+		private static byte MakeImmFields(ImmediateSizeEncoding size, byte? imm8Ext)
+			=> (byte)((imm8Ext.HasValue ? 0x80 : 0)
+				| (size.IsFixed ? 0 : (((int)size.Variable + 1) << 4))
+				| size.BaseInBytes);
 		#endregion
 
 		public OpcodeEncoding(ref Builder builder)
@@ -129,13 +134,12 @@ namespace Asmuth.X86
 			leadBitfield[mapField] = (byte)builder.Map;
 			leadBitfield[mainByteField] = builder.MainByte;
 			AddressingForm = builder.AddressingForm;
-			immFields = MakeImmFields(builder.ImmediateSizeInBytes, builder.Imm8Ext);
+			immFields = MakeImmFields(builder.ImmediateSize, builder.Imm8Ext);
 			imm8Ext = builder.Imm8Ext.GetValueOrDefault();
 		}
 
 		public byte MainByteMask => AddressingForm.MainByteMask;
 		public bool HasModRM => AddressingForm.HasModRM;
-		public int? ImmediateSizeInBits => ImmediateSizeInBytes * 8;
 
 		public bool IsValidInCodeSegment(CodeSegmentType codeSegmentType)
 		{
@@ -175,7 +179,7 @@ namespace Asmuth.X86
 		{
 			if (!IsMatchUpToMainByte(codeSegmentType, legacyPrefixes, nonLegacyPrefixes, mainByte)) return false;
 			if (!AddressingForm.IsValid(modRM)) return false;
-			if (imm8.HasValue != (ImmediateSizeInBytes == 1)) return false;
+			if (imm8.HasValue != (ImmediateSize.FixedInBytes == 1)) return false;
 			if (Imm8Ext.HasValue && imm8.Value != Imm8Ext.Value) return false;
 			return true;
 		}
@@ -235,20 +239,14 @@ namespace Asmuth.X86
 
 			// The opcode itself
 			str.AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", MainByte);
+
 			if (AddressingForm.IsMainByteEmbeddedRegister)
 				str.Append("+r");
+			else if (AddressingForm.HasModRM)
+				str.Append(' ').Append(AddressingForm.ModRM.Value.ToString());
 
-			if (AddressingForm.HasModRM)
-			{
-				str.Append(' ');
-				str.Append(AddressingForm.ModRM.Value.ToString());
-			}
-
-			if (ImmediateSizeInBytes > 0)
-			{
-				str.Append(" imm");
-				str.AppendFormat(CultureInfo.InvariantCulture, "{0}", ImmediateSizeInBits * 8);
-			}
+			if (ImmediateSize.IsNonZero)
+				str.Append(' ').Append(ImmediateSize);
 
 			return str.ToString();
 		}

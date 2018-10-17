@@ -264,9 +264,10 @@ namespace Asmuth.X86.Nasm
 
 							// Opcode extension byte
 							Debug.Assert(state == State.PostOpcode || state == State.PostModRM);
-							if (builder.ImmediateSizeInBytes > 0) throw new FormatException("Imm8 extension with other intermediates.");
+							if (builder.ImmediateSize.IsNonZero)
+								throw new FormatException("Imm8 extension with other intermediates.");
+							builder.ImmediateSize = ImmediateSizeEncoding.Byte;
 							builder.Imm8Ext = token.Byte;
-							builder.ImmediateSizeInBytes = 1;
 							break;
 
 						case NasmEncodingTokenType.Byte_PlusRegister:
@@ -304,44 +305,46 @@ namespace Asmuth.X86.Nasm
 						case NasmEncodingTokenType.Immediate_Byte_Signed:
 						case NasmEncodingTokenType.Immediate_Byte_Unsigned:
 						case NasmEncodingTokenType.Immediate_RelativeOffset8:
-							AddImmediateWithSizeInBytes(1);
+							AddImmediate(ImmediateSizeEncoding.Byte);
 							break;
 
 						case NasmEncodingTokenType.Immediate_Word:
 						case NasmEncodingTokenType.Immediate_Segment: // TODO: Make sure this happens in the right order
-							AddImmediateWithSizeInBytes(2);
+							AddImmediate(ImmediateSizeEncoding.Word);
 							break;
 
 						case NasmEncodingTokenType.Immediate_Dword:
 						case NasmEncodingTokenType.Immediate_Dword_Signed:
-							AddImmediateWithSizeInBytes(4);
+							AddImmediate(ImmediateSizeEncoding.Dword);
 							break;
 
 						case NasmEncodingTokenType.Immediate_WordOrDword:
-							AddVariableSizedImmediate(allowQword: false, moffs: @params.HasMOffs);
+							AddVariableSizedImmediate(ImmediateVariableSize.WordOrDword_OperandSize);
 							break;
 
 						case NasmEncodingTokenType.Immediate_WordOrDwordOrQword:
-							AddVariableSizedImmediate(allowQword: true, moffs: @params.HasMOffs);
+							AddVariableSizedImmediate(@params.HasMOffs
+								? ImmediateVariableSize.WordOrDwordOrQword_AddressSize
+								: ImmediateVariableSize.WordOrDwordOrQword_OperandSize);
 							break;
 
 						case NasmEncodingTokenType.Immediate_Qword:
-							AddImmediateWithSizeInBytes(8);
+							AddImmediate(ImmediateSizeEncoding.Qword);
 							break;
 
 						case NasmEncodingTokenType.Immediate_RelativeOffset:
 							if (builder.X64 == true || builder.OperandSize == OperandSizeEncoding.Dword)
-								AddImmediateWithSizeInBytes(sizeof(int));
+								AddImmediate(ImmediateSizeEncoding.Dword);
 							else if (builder.OperandSize == OperandSizeEncoding.Word)
-								AddImmediateWithSizeInBytes(sizeof(short));
+								AddImmediate(ImmediateSizeEncoding.Word);
 							else
 								throw new FormatException("Ambiguous relative offset size.");
 							break;
 
 						case NasmEncodingTokenType.Immediate_Is4:
-							if (builder.ImmediateSizeInBytes > 0)
+							if (builder.ImmediateSize.IsNonZero)
 								throw new FormatException("Imm8 extension must be the only immediate.");
-							AddImmediateWithSizeInBytes(1);
+							AddImmediate(ImmediateSizeEncoding.Byte);
 							break;
 
 						// Jump, it's not clear what additional info these provides so skip
@@ -409,26 +412,31 @@ namespace Asmuth.X86.Nasm
 				builder.Map = vexEncoding.Value.OpcodeMap;
 				AdvanceTo(State.PreOpcode);
 			}
-
-			// TODO: Simplify this? iwd is always for far ptrs and iwdq for mem_offs
-			private void AddVariableSizedImmediate(bool allowQword, bool moffs)
+			
+			private void AddVariableSizedImmediate(ImmediateVariableSize variableSize)
 			{
-				int immediateSizeInBytes;
-				if (moffs)
+				var size = new ImmediateSizeEncoding(variableSize);
+
+				// See if we can resolve the variable size
+				if (variableSize.IsAddressSizeDependent() && builder.AddressSize.HasValue)
 				{
-					if (!builder.AddressSize.HasValue) throw new FormatException("No address size provided for iwd/idwq moffs.");
-					immediateSizeInBytes = builder.AddressSize.Value.InBytes();
+					int inBytes = variableSize.InBytes(builder.AddressSize.Value, default);
+					size = ImmediateSizeEncoding.FromBytes(inBytes);
 				}
-				else
+				else if (variableSize.IsOperandSizeDependent())
 				{
-					if (!operandSize.HasValue) throw new FormatException("No operand size provided for iwd/idwq immediate.");
-					immediateSizeInBytes = operandSize.Value.InBytes();
+					if (builder.OperandSize == OperandSizeEncoding.Word)
+						size = ImmediateSizeEncoding.Word;
+					else if (builder.OperandSize == OperandSizeEncoding.Dword)
+						size = ImmediateSizeEncoding.Dword;
+					else if (builder.OperandSizePromotion.HasValue)
+					{
+						int inBytes = variableSize.InBytes(default, IntegerSize.Qword);
+						size = ImmediateSizeEncoding.FromBytes(inBytes);
+					}
 				}
 
-				if (immediateSizeInBytes == 8 && !allowQword)
-					immediateSizeInBytes = 4;
-
-				AddImmediateWithSizeInBytes(immediateSizeInBytes);
+				AddImmediate(size);
 			}
 
 			private void SetAddressSize(AddressSize size)
@@ -506,11 +514,11 @@ namespace Asmuth.X86.Nasm
 				AdvanceTo(State.PostModRM);
 			}
 
-			private void AddImmediateWithSizeInBytes(int count)
+			private void AddImmediate(ImmediateSizeEncoding size)
 			{
 				if (state < State.PostOpcode) throw new FormatException("Out-of-order immediate token.");
 				if (builder.Imm8Ext.HasValue) throw new FormatException();
-				builder.ImmediateSizeInBytes += (byte)count;
+				builder.ImmediateSize = ImmediateSizeEncoding.Combine(builder.ImmediateSize, size);
 				AdvanceTo(State.Immediates);
 			}
 

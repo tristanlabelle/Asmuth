@@ -134,7 +134,8 @@ namespace Asmuth.X86
 					}
 					
 					return InstructionDecoderLookupResult.Success(
-						entry.Opcode.HasModRM, entry.Opcode.ImmediateSizeInBytes,
+						entry.Opcode.HasModRM,
+						entry.Opcode.ImmediateSize.InBytes(codeSegmentType, legacyPrefixes, nonLegacyPrefixes),
 						entry.Tag);
 				}
 			}

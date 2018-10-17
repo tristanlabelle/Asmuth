@@ -67,19 +67,19 @@ namespace Asmuth.X86.Nasm
 			AssertEncoding("04 ib", new OpcodeEncoding.Builder
 			{
 				MainByte = 0x04,
-				ImmediateSizeInBytes = sizeof(sbyte)
+				ImmediateSize = ImmediateSizeEncoding.Byte
 			}); // ADD reg_al, imm
 
 			AssertEncoding("05 iw", new OpcodeEncoding.Builder
 			{
 				MainByte = 0x05,
-				ImmediateSizeInBytes = sizeof(short)
+				ImmediateSize = ImmediateSizeEncoding.Word
 			}); // ADD reg_ax, imm
 
 			AssertEncoding("05 id", new OpcodeEncoding.Builder
 			{
 				MainByte = 0x05,
-				ImmediateSizeInBytes = sizeof(int)
+				ImmediateSize = ImmediateSizeEncoding.Dword
 			}); // ADD reg_eax, imm
 		}
 
@@ -89,7 +89,7 @@ namespace Asmuth.X86.Nasm
 			AssertEncoding("d5 0a", new OpcodeEncoding.Builder
 			{
 				MainByte = 0xD5,
-				ImmediateSizeInBytes = sizeof(sbyte),
+				ImmediateSize = ImmediateSizeEncoding.Byte,
 				Imm8Ext = 0x0A
 			}); // AAD
 
@@ -121,7 +121,7 @@ namespace Asmuth.X86.Nasm
 				Map = OpcodeMap.Escape0F3A,
 				MainByte = 0xCC,
 				AddressingForm = ModRMEncoding.Any,
-				ImmediateSizeInBytes = sizeof(sbyte)
+				ImmediateSize = ImmediateSizeEncoding.Byte
 			}); // SHA1RNDS4
 		}
 
@@ -204,7 +204,7 @@ namespace Asmuth.X86.Nasm
 				SimdPrefix = SimdPrefix.None,
 				MainByte = 0xA2,
 				AddressingForm = ModRMEncoding.Any,
-				ImmediateSizeInBytes = 1
+				ImmediateSize = ImmediateSizeEncoding.Byte
 			}); // VPCMOV
 		}
 

@@ -320,7 +320,7 @@ namespace Asmuth.X86
 			if (lookupResult.IsNotFound)
 				return AdvanceToError(InstructionDecodingError.UnknownOpcode);
 
-			if (lookupResult.HasImmediateSizeInBytes)
+			if (lookupResult.HasImmediateSize)
 				immediateSizeInBytes = lookupResult.ImmediateSizeInBytes;
 
 			if (lookupResult.IsSuccess)

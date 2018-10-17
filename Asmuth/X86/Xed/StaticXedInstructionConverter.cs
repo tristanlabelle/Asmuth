@@ -81,14 +81,33 @@ namespace Asmuth.X86.Xed
 							: state != BitsMatchingState.PostFirstImmediate)
 							throw new FormatException();
 
-						var bitSizeStr = immediateMatch.Groups["s"].Value;
-						if (bitSizeStr == "8") builder.ImmediateSizeInBytes += 1;
-						else if (bitSizeStr == "16") builder.ImmediateSizeInBytes += 2;
-						else if (bitSizeStr == "32") builder.ImmediateSizeInBytes += 4;
-						else if (bitSizeStr == "64") builder.ImmediateSizeInBytes += 8;
-						else throw new NotImplementedException();
-						// UIMMv, SIMMz, BRDISPz, MEMDISPv, MEMDISP
+						var typeName = immediateMatch.Groups["n"].Value;
 
+						ImmediateSizeEncoding immediateSize;
+						var bitSizeStr = immediateMatch.Groups["s"].Value;
+						if (bitSizeStr == "8") immediateSize = ImmediateSizeEncoding.Byte;
+						else if (bitSizeStr == "16") immediateSize = ImmediateSizeEncoding.Word;
+						else if (bitSizeStr == "32") immediateSize = ImmediateSizeEncoding.Dword;
+						else if (bitSizeStr == "64") immediateSize = ImmediateSizeEncoding.Qword;
+						else if (bitSizeStr == "z")
+						{
+							if (typeName == "SIMM" || typeName == "UIMM" || typeName == "BRDISP")
+								immediateSize = ImmediateSizeEncoding.WordOrDword_OperandSize;
+							else
+								throw new FormatException();
+						}
+						else if (bitSizeStr == "v")
+						{
+							if (typeName == "SIMM" || typeName == "UIMM")
+								immediateSize = ImmediateSizeEncoding.WordOrDwordOrQword_OperandSize;
+							else if (typeName == "MEMDISP")
+								immediateSize = ImmediateSizeEncoding.WordOrDwordOrQword_AddressSize;
+							else
+								throw new FormatException();
+						}
+						else throw new NotImplementedException();
+
+						builder.ImmediateSize = ImmediateSizeEncoding.Combine(builder.ImmediateSize, immediateSize);
 						state = isFirstImmediate
 							? BitsMatchingState.PostFirstImmediate
 							: BitsMatchingState.End;

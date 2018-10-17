@@ -41,7 +41,7 @@ namespace Asmuth.X86
 				result = result.Combine(AddressingFormEncoding.Compare(lhs.AddressingForm, rhs.AddressingForm));
 				if (result == SetComparisonResult.Disjoint || result == SetComparisonResult.Overlapping) return;
 
-				if (!Immediate(lhs.ImmediateSizeInBytes, lhs.Imm8Ext, rhs.ImmediateSizeInBytes, rhs.Imm8Ext)) return;
+				if (!Immediate(lhs.ImmediateSize, lhs.Imm8Ext, rhs.ImmediateSize, rhs.Imm8Ext)) return;
 			}
 
 			private bool Compare(bool? lhs, bool? rhs)
@@ -75,10 +75,11 @@ namespace Asmuth.X86
 				throw new UnreachableException();
 			}
 
-			private bool Immediate(int lhsImmSize, byte? lhsImm8Ext, int rhsImmSize, byte? rhsImm8Ext)
+			private bool Immediate(ImmediateSizeEncoding lhsImmSize, byte? lhsImm8Ext,
+				ImmediateSizeEncoding rhsImmSize, byte? rhsImm8Ext)
 			{
 				if (lhsImmSize != rhsImmSize) return AddOverlapping();
-				return lhsImmSize == 1
+				return lhsImmSize.FixedInBytes == 1
 					? Compare((int?)lhsImm8Ext, (int?)rhsImm8Ext)
 					: AddEqual();
 			}
