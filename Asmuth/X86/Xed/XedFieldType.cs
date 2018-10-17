@@ -110,7 +110,7 @@ namespace Asmuth.X86.Xed
 		
 		private XedBitsFieldType(int size)
 		{
-			if (size < 1 || size > 32) throw new ArgumentOutOfRangeException(nameof(size));
+			if (size < 1 || size > 64) throw new ArgumentOutOfRangeException(nameof(size));
 			this.size = (byte)size;
 		}
 
@@ -185,7 +185,7 @@ namespace Asmuth.X86.Xed
 			if (!enumerant.StartsWith(prefix)) throw new FormatException();
 			string shortName = enumerant.Substring(prefix.Length);
 			if (shortName == "INVALID") return 0;
-			return GetValue_NotNull(shortName);
+			return (ushort)(GetValue_NotNull(shortName) + 1);
 		}
 
 		public string GetEnumerant(ushort value) => value == 0 ? "@" : GetEnumerant((ushort)(value - 1));

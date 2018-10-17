@@ -9,18 +9,6 @@ namespace Asmuth.X86.Xed
 {
 	public sealed class XedEngine
 	{
-		private readonly struct BitVariableValue
-		{
-			public ulong Bits { get; }
-			public int Length { get; }
-
-			public BitVariableValue(ulong bits, int length)
-			{
-				this.Bits = bits;
-				this.Length = length;
-			}
-		}
-
 		public XedDatabase Database { get; }
 		private readonly Dictionary<XedField, long> fieldValues = new Dictionary<XedField, long>();
 		private BitStream bitStream;
@@ -197,7 +185,7 @@ namespace Asmuth.X86.Xed
 		private XedRulePatternControlFlow TryExecuteRuleCase(
 			XedRulePatternCase @case, ref ushort? register)
 		{
-			var bitVars = new SmallDictionary<char, BitVariableValue>();
+			var bitVars = new SmallDictionary<char, XedBitsValue>();
 
 			if (IsDecoding ^ @case.IsEncode)
 			{
@@ -243,7 +231,7 @@ namespace Asmuth.X86.Xed
 		}
 
 		private bool TryMatchRuleCaseCondition(ImmutableArray<XedBlot> blots, ushort? register,
-			IDictionary<char, BitVariableValue> bitVars)
+			IDictionary<char, XedBitsValue> bitVars)
 		{
 			long? originalBitStreamPosition = null;
 			foreach (var blot in blots)
@@ -285,7 +273,7 @@ namespace Asmuth.X86.Xed
 			return true;
 		}
 
-		private void AssignBitVars(string pattern, ulong bits, IDictionary<char, BitVariableValue> bitVars)
+		private void AssignBitVars(string pattern, ulong bits, IDictionary<char, XedBitsValue> bitVars)
 		{
 			int startIndex = 0;
 			while (startIndex < pattern.Length)
@@ -295,13 +283,13 @@ namespace Asmuth.X86.Xed
 
 				var bitVarValue = (bits >> (pattern.Length - span.EndIndex))
 					& ((1UL << span.Length) - 1);
-				bitVars.Add(span.Char, new BitVariableValue(bitVarValue, span.Length));
+				bitVars.Add(span.Char, new XedBitsValue(bitVarValue, span.Length));
 
 				startIndex = span.EndIndex;
 			}
 		}
 
-		private bool TryMatchBits(string pattern, XedField field, IDictionary<char, BitVariableValue> bitVars)
+		private bool TryMatchBits(string pattern, XedField field, IDictionary<char, XedBitsValue> bitVars)
 		{
 			if (IsEncoding || field.DecoderUsage != XedFieldUsage.Output)
 				throw new InvalidOperationException();
@@ -328,7 +316,7 @@ namespace Asmuth.X86.Xed
 				}
 				else
 				{
-					bitVars.Add(span.Char, new BitVariableValue(actualBits, span.Length));
+					bitVars.Add(span.Char, new XedBitsValue(actualBits, span.Length));
 				}
 
 				startIndex = span.EndIndex;
@@ -339,12 +327,12 @@ namespace Asmuth.X86.Xed
 			return true;
 		}
 		
-		private void ProduceBits(XedField field, string pattern, IDictionary<char, BitVariableValue> bitVars)
+		private void ProduceBits(XedField field, string pattern, IDictionary<char, XedBitsValue> bitVars)
 		{
 			ulong value;
 			if (field == null || XedBitPattern.IsConstant(pattern))
 			{
-				value = EvaluateBits(pattern, bitVars);
+				value = XedBitPattern.Evaluate(pattern, bitVars.GetValue).Bits;
 				if (field != null) fieldValues[field] = (long)value;
 			}
 			else
@@ -357,32 +345,6 @@ namespace Asmuth.X86.Xed
 			}
 
 			bitStream.WriteRightAlignedBits(value, (byte)pattern.Length);
-		}
-
-		private ulong EvaluateBits(string pattern, IDictionary<char, BitVariableValue> bitVars)
-		{
-			ulong bits = 0;
-
-			int startIndex = 0;
-			while (startIndex < pattern.Length)
-			{
-				var span = XedBitPattern.GetSpanAt(pattern, startIndex);
-
-				ulong spanBits;
-				if (span.Char == '0') spanBits = 0;
-				else if (span.Char == '1') spanBits = ulong.MaxValue;
-				else
-				{
-					var bitVar = bitVars[span.Char];
-					if (bitVar.Length != span.Length) throw new InvalidOperationException();
-					spanBits = bitVar.Bits;
-				}
-
-				bits |= spanBits << (pattern.Length - span.EndIndex);
-				startIndex = span.EndIndex;
-			}
-
-			return bits;
 		}
 
 		private bool MatchPredicateBlot(XedField field, XedBlotValue value, bool isEquals, ushort? outReg)
@@ -400,7 +362,7 @@ namespace Asmuth.X86.Xed
 		}
 
 		private long Evaluate(XedBlotValue value, ushort? outReg,
-			IDictionary<char, BitVariableValue> bitVars = null)
+			IDictionary<char, XedBitsValue> bitVars = null)
 		{
 			if (value.Kind == XedBlotValueKind.Constant)
 				return value.Constant;
@@ -414,14 +376,14 @@ namespace Asmuth.X86.Xed
 			else if (value.Kind == XedBlotValueKind.Bits)
 			{
 				if (bitVars == null) throw new InvalidOperationException();
-				return (long)EvaluateBits(value.BitPattern, bitVars);
+				return (long)XedBitPattern.Evaluate(value.BitPattern, bitVars.GetValue).Bits;
 			}
 			else
 				throw new UnreachableException();
 		}
 
 		private ushort? ExecuteRuleCaseActions(ImmutableArray<XedBlot> blots,
-			IDictionary<char, BitVariableValue> bitVars)
+			IDictionary<char, XedBitsValue> bitVars)
 		{
 			return IsDecoding ? ExecuteActionBlots(blots, b => true, bitVars)
 				: isBinding ? ExecuteActionBlots(blots, b => b.Type != XedBlotType.Bits, bitVars)
@@ -429,7 +391,7 @@ namespace Asmuth.X86.Xed
 		}
 
 		private ushort? ExecuteActionBlots(ImmutableArray<XedBlot> blots, Predicate<XedBlot> filter,
-			IDictionary<char, BitVariableValue> bitVars)
+			IDictionary<char, XedBitsValue> bitVars)
 		{
 			ushort? outReg = null;
 			foreach (var blot in blots)

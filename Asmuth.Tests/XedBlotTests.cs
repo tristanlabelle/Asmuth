@@ -26,7 +26,7 @@ namespace Asmuth.X86.Xed
 			AssertParseEqual("REXW=w", XedBlot.MakeEquality(XedTestData.RexWField, XedBlotValue.MakeBits("w")));
 			AssertParseEqual("OUTREG=XED_REG_XMM0", XedBlot.MakeEquality(XedTestData.OutRegField, 1));
 			
-			AssertParseEqual("MOD!=3", XedBlot.MakeInequality(XedTestData.OutRegField, 3));
+			AssertParseEqual("MOD!=3", XedBlot.MakeInequality(XedTestData.ModField, 3));
 
 			AssertParseEqual("MODRM()", XedBlot.MakeCall("MODRM"));
 		}

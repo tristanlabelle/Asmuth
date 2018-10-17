@@ -14,7 +14,7 @@ namespace Asmuth.X86.Xed
 		public static XedField ModField { get; } = CreateField("MOD", XedBitsFieldType._2);
 		public static XedField RegField { get; } = CreateField("REG", XedBitsFieldType._3);
 		public static XedField RMField { get; } = CreateField("RM", XedBitsFieldType._3);
-		public static XedField UImm0Field { get; } = CreateField("UIMM8", XedBitsFieldType.FromSize(8));
+		public static XedField UImm0Field { get; } = CreateField("UIMM0", XedBitsFieldType.FromSize(64));
 		public static XedField Base0Field { get; }
 		public static XedField OutRegField { get; }
 		public static XedField Prefix66Field { get; } = CreateField("PREFIX66", XedBitsFieldType.Bit);
@@ -41,7 +41,7 @@ namespace Asmuth.X86.Xed
 			{
 				if (property.PropertyType != typeof(XedField)) continue;
 				var field = (XedField)property.GetValue(null);
-				if (field.Name == "name") return field;
+				if (field.Name == name) return field;
 			}
 			throw new KeyNotFoundException();
 		}

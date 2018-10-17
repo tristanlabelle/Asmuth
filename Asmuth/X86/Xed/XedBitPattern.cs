@@ -29,13 +29,26 @@ namespace Asmuth.X86.Xed
 			public bool IsVariable => !IsConstant;
 		}
 
-		public static bool IsConstant(string pattern)
+		public static XedBitsValue? TryAsConstant(string pattern)
 		{
+			ulong bits = 0;
+			int length = 0;
 			foreach (var c in pattern)
-				if (c != '0' && c != '1' && c != '_')
-					return false;
-			return true;
+			{
+				if (IsZeroOrOne(c))
+				{
+					bits <<= 1;
+					bits |= (uint)(c - '0');
+					length++;
+				}
+				else if (c == '_') continue;
+				else return null;
+			}
+
+			return new XedBitsValue(bits, length);
 		}
+
+		public static bool IsConstant(string pattern) => TryAsConstant(pattern).HasValue;
 
 		public static string Normalize(string pattern)
 		{
@@ -123,6 +136,37 @@ namespace Asmuth.X86.Xed
 				length++;
 
 			return new Span(c, startIndex, length);
+		}
+		
+		public static XedBitsValue Evaluate(string pattern, Func<char, XedBitsValue> variableResolver)
+		{
+			ulong bits = 0;
+			int length = 0;
+
+			int startIndex = 0;
+			while (startIndex < pattern.Length)
+			{
+				if (pattern[startIndex] == '_') continue;
+				var span = GetSpanAt(pattern, startIndex);
+				
+				if (IsZeroOrOne(span.Char))
+				{
+					bits <<= 1;
+					bits |= (uint)(span.Char - '0');
+					length++;
+				}
+				else
+				{
+					var variableValue = variableResolver(span.Char);
+					if (variableValue.Length != span.Length)
+						throw new InvalidOperationException("Mismatched bit variable size.");
+					bits <<= variableValue.Length;
+					bits |= variableValue.Mask;
+					length += variableValue.Length;
+				}
+			}
+
+			return new XedBitsValue(bits, length);
 		}
 	}
 }
