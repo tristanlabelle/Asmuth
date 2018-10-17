@@ -42,11 +42,11 @@ namespace Asmuth.X86.Xed
 			}
 
 			public static readonly FieldValue NotConstant = new FieldValue(FieldValueKind.NotConstant, 0);
-
+			
 			public static bool operator ==(FieldValue value, ushort constant)
 				=> value.kind == FieldValueKind.EqualConstant && value.constant == constant;
 			public static bool operator !=(FieldValue value, ushort constant)
-				=> value.kind == FieldValueKind.NotEqualConstant && value.constant != constant;
+				=> value.kind == FieldValueKind.NotEqualConstant && value.constant == constant;
 		}
 
 		public static OpcodeEncoding GetOpcodeEncoding(IEnumerable<XedBlot> pattern)
