@@ -63,8 +63,18 @@ namespace Asmuth.X86.Xed
 			var state = BitsMatchingState.Initial;
 			foreach (var blot in pattern)
 			{
+				if (state == BitsMatchingState.Initial
+					&& blot.Type == XedBlotType.Equality && blot.Field.Name == "VEXVALID"
+					&& blot.Value.Kind == XedBlotValueKind.Constant && blot.Value.Constant > 0)
+				{
+					// VEX/EVEX/XOP-prefixed opcodes can't have escapes
+					// This fixes VTESTPD whose main byte is 0x0F yet has no escapes
+					state = BitsMatchingState.PostEscapes;
+				}
 				if (blot.Type == XedBlotType.Bits)
+				{
 					MatchBits(blot.Field, blot.BitPattern, ref state, ref builder);
+				}
 				else if (blot.Type == XedBlotType.Call)
 				{
 					var callee = blot.Callee;
@@ -212,9 +222,14 @@ namespace Asmuth.X86.Xed
 					{
 						byte rm = Convert.ToByte(bitPattern, fromBase: 2);
 						var modRM = builder.AddressingForm.ModRM.Value;
-						if (modRM.Mod != ModRMModEncoding.Register) throw new FormatException();
-						builder.AddressingForm = new ModRMEncoding(
-							ModRMModEncoding.DirectFixedRM, modRM.FixedReg, rm);
+						if (modRM.Mod == ModRMModEncoding.Register)
+						{
+							builder.AddressingForm = new ModRMEncoding(
+								ModRMModEncoding.DirectFixedRM, modRM.FixedReg, rm);
+						}
+						else if (modRM.Mod == ModRMModEncoding.Memory && rm == 0b100)
+						{ } // VSIB
+						else throw new FormatException();
 					}
 					else if (bitPattern != "nnn") throw new FormatException();
 					state = BitsMatchingState.PostModRM;
@@ -254,17 +269,6 @@ namespace Asmuth.X86.Xed
 			
 			// ToConvert:
 			// public OperandSizeEncoding OperandSize;
-
-			if (fields.TryGetValue("REXW", out var rexW))
-			{
-				if (rexW.IsEquality(0)) builder.OperandSizePromotion = false;
-				else if (rexW.IsEquality(1))
-				{
-					builder.OperandSizePromotion = true;
-					builder.X64 = true;
-				}
-				else throw new FormatException();
-			}
 
 			if (fields.TryGetValue("VEXVALID", out var vexValid))
 			{
@@ -317,6 +321,17 @@ namespace Asmuth.X86.Xed
 				else if (map.IsEquality(8)) builder.Map = OpcodeMap.Xop8;
 				else if (map.IsEquality(9)) builder.Map = OpcodeMap.Xop9;
 				else if (map.IsEquality(10)) builder.Map = OpcodeMap.Xop10;
+				else throw new FormatException();
+			}
+
+			if (fields.TryGetValue("REXW", out var rexW))
+			{
+				if (rexW.IsEquality(0)) builder.OperandSizePromotion = false;
+				else if (rexW.IsEquality(1))
+				{
+					builder.OperandSizePromotion = true;
+					if (builder.VexType == VexType.None) builder.X64 = true;
+				}
 				else throw new FormatException();
 			}
 		}

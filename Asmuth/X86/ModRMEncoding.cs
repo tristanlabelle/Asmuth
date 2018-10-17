@@ -116,9 +116,11 @@ namespace Asmuth.X86
 			}
 			else
 			{
-				var str = Mod == ModRMModEncoding.Memory ? "m/" : "/";
+				var str = "/";
 				if (FixedReg.HasValue) str += (char)('0' + FixedReg.Value);
 				else str += 'r';
+				if (Mod == ModRMModEncoding.Memory) str += 'm';
+				else if (Mod == ModRMModEncoding.Register) str += 'r';
 				return str;
 			}
 		}
