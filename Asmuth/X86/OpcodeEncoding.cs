@@ -54,8 +54,6 @@ namespace Asmuth.X86
 					throw new ArgumentException("16-bit addresses imply IA32 mode.");
 				if (OperandSize == OperandSizeEncoding.Word && X64 != false)
 					throw new ArgumentException("16-bit operands imply IA32 mode.");
-				if (Map == OpcodeMap.Default && SimdPrefix.HasValue)
-					throw new ArgumentException("Default opcode map implies no SIMD prefix.");
 				if (VexType != VexType.None && !SimdPrefix.HasValue)
 					throw new ArgumentException("Vex encoding implies SIMD prefixes.");
 				if (VexType == VexType.None && VectorSize.HasValue)

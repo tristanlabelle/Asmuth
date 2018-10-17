@@ -16,7 +16,7 @@ namespace Asmuth.X86.Xed
 					(?<op>\!?=)
 					(
 						(?<val10>[0-9]+)
-						| 0b(?<val2>[01]+)
+						| 0b(?<val2>[01][01_]*)
 						| 0x(?<val16>[0-9a-fA-F]+)
 						| (?<vale>XED_[A-Z0-9_]+|@)
 						| (?<valb>[a-z01_]+)
@@ -29,7 +29,7 @@ namespace Asmuth.X86.Xed
 
 		private static readonly Regex bitsRegex = new Regex(
 			@"^(
-				0b(?<base2>[01]+)
+				0b(?<base2>[01][01_]*)
 				| 0x(?<base16>[0-9a-fA-F]+)
 				| (?<letter>[a-z])/(?<length>\d+)
 				| (?<pattern>[01a-z_]+)
@@ -60,7 +60,7 @@ namespace Asmuth.X86.Xed
 					if (highLevelMatch.Groups.TryGetValue("val10", out var val10Str))
 						value = XedBlotValue.MakeConstant(Convert.ToUInt16(val10Str, 10));
 					else if (highLevelMatch.Groups.TryGetValue("val2", out var val2Str))
-						value = XedBlotValue.MakeConstant(Convert.ToByte(val2Str, 2));
+						value = XedBlotValue.MakeConstant(Convert.ToByte(val2Str.Replace("_", ""), 2));
 					else if (highLevelMatch.Groups.TryGetValue("val16", out var val16Str))
 						value = XedBlotValue.MakeConstant(Convert.ToByte(val16Str, 16));
 					else if (highLevelMatch.Groups.TryGetValue("vale", out var enumValueStr))
@@ -107,7 +107,8 @@ namespace Asmuth.X86.Xed
 			var match = bitsRegex.Match(str);
 			if (!match.Success) throw new FormatException();
 
-			if (match.Groups.TryGetValue("base2", out var base2Str)) return base2Str;
+			if (match.Groups.TryGetValue("base2", out var base2Str))
+				return base2Str.Replace("_", string.Empty);
 
 			if (match.Groups.TryGetValue("base16", out var base16Str))
 				return Convert.ToString(Convert.ToInt64(base16Str, 16), 2).PadLeft(base16Str.Length * 4, '0');

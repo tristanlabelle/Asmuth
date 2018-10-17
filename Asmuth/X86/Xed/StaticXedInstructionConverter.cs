@@ -27,26 +27,22 @@ namespace Asmuth.X86.Xed
 			NotEqualConstant,
 			NotConstant
 		}
-
-#pragma warning disable CS0660, CS0661 // Improper ==/!=, operator overloading hacks
+		
 		private readonly struct FieldValue
-#pragma warning restore CS0660, CS0661
 		{
 			private readonly ushort constant;
-			private readonly FieldValueKind kind;
+			public FieldValueKind Kind { get; }
 
 			public FieldValue(FieldValueKind kind, ushort constant)
 			{
-				this.kind = kind;
+				this.Kind = kind;
 				this.constant = constant;
 			}
 
+			public bool IsEquality(ushort value) => Kind == FieldValueKind.EqualConstant && constant == value;
+			public bool IsInequality(ushort value) => Kind == FieldValueKind.NotEqualConstant && constant == value;
+
 			public static readonly FieldValue NotConstant = new FieldValue(FieldValueKind.NotConstant, 0);
-			
-			public static bool operator ==(FieldValue value, ushort constant)
-				=> value.kind == FieldValueKind.EqualConstant && value.constant == constant;
-			public static bool operator !=(FieldValue value, ushort constant)
-				=> value.kind == FieldValueKind.NotEqualConstant && value.constant == constant;
 		}
 
 		public static OpcodeEncoding GetOpcodeEncoding(IEnumerable<XedBlot> pattern)
@@ -58,7 +54,7 @@ namespace Asmuth.X86.Xed
 		}
 
 		private static readonly Regex immediateCalleeRegex = new Regex(
-			@"^ (?<se>SE_)? (?<n>SIMM|UIMM|BRDISP|MEMDISP) (?<s>8|16|32|64|v|z)? (?<2>_1)? $",
+			@"^ (?<se>SE_)? (?<n>SIMM|UIMM|BRDISP|MEMDISP) (?<s>8|16|32|64|v|z)? (_1)? $",
 			RegexOptions.IgnorePatternWhitespace);
 
 		private static void GetOpcodeEncoding_BitsAndCalls(IEnumerable<XedBlot> pattern,
@@ -75,10 +71,9 @@ namespace Asmuth.X86.Xed
 					var immediateMatch = immediateCalleeRegex.Match(callee);
 					if (immediateMatch.Success)
 					{
-						bool isFirstImmediate = !immediateMatch.Groups["2"].Success;
-						if (isFirstImmediate
-							? (state != BitsMatchingState.PostMainByte && state != BitsMatchingState.PostModRM)
-							: state != BitsMatchingState.PostFirstImmediate)
+						if (state != BitsMatchingState.PostMainByte
+							&& state != BitsMatchingState.PostModRM
+							&& state != BitsMatchingState.PostFirstImmediate)
 							throw new FormatException();
 
 						var typeName = immediateMatch.Groups["n"].Value;
@@ -108,9 +103,8 @@ namespace Asmuth.X86.Xed
 						else throw new NotImplementedException();
 
 						builder.ImmediateSize = ImmediateSizeEncoding.Combine(builder.ImmediateSize, immediateSize);
-						state = isFirstImmediate
-							? BitsMatchingState.PostFirstImmediate
-							: BitsMatchingState.End;
+						state = state < BitsMatchingState.PostFirstImmediate
+							? BitsMatchingState.PostFirstImmediate : BitsMatchingState.End;
 					}
 					else if (callee == "MODRM")
 					{
@@ -130,7 +124,6 @@ namespace Asmuth.X86.Xed
 			if (field == null)
 			{
 				if (!XedBitPattern.IsConstant(bitPattern)) throw new FormatException();
-				if (state >= BitsMatchingState.PostMainByte) throw new FormatException();
 
 				if (bitPattern.Length == 8)
 				{
@@ -153,17 +146,20 @@ namespace Asmuth.X86.Xed
 					else if (state == BitsMatchingState.PostMainByte || state == BitsMatchingState.PostModRM)
 					{
 						// 3D Now! suffix opcode
+						builder.ImmediateSize = ImmediateSizeEncoding.Byte;
 						builder.Imm8Ext = b;
 						state = BitsMatchingState.End;
 					}
-					else
+					else if (state < BitsMatchingState.PostMainByte)
 					{
 						builder.MainByte = b;
 						state = BitsMatchingState.PostMainByte;
 					}
+					else throw new FormatException();
 				}
 				else if (bitPattern.Length == 5)
 				{
+					if (state >= BitsMatchingState.PostMainByte) throw new FormatException();
 					builder.MainByte = (byte)(Convert.ToByte(bitPattern, fromBase: 2) << 3);
 					builder.AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister;
 					state = BitsMatchingState.PostMainByte5Bits;
@@ -172,10 +168,17 @@ namespace Asmuth.X86.Xed
 			}
 			else
 			{
-				if (field.Name == "SVN")
+				if (field.Name == "SRM")
 				{
 					if (state != BitsMatchingState.PostMainByte5Bits) throw new FormatException();
 					if (bitPattern.Length != 3) throw new FormatException();
+					if (XedBitPattern.IsConstant(bitPattern))
+					{
+						// This supports NOP90 as "0b1001_0 SRM[0b000]" - not sure why they chose this encoding
+						builder.MainByte |= (byte)XedBitPattern.TryAsConstant(bitPattern).Value.Bits;
+						builder.AddressingForm = AddressingFormEncoding.None;
+					}
+					else if (bitPattern != "rrr") throw new FormatException();
 					state = BitsMatchingState.PostMainByte;
 				}
 				else if (field.Name == "MOD")
@@ -226,33 +229,49 @@ namespace Asmuth.X86.Xed
 
 			if (fields.TryGetValue("MODE", out var mode))
 			{
-				if (mode == 2) builder.X64 = true;
-				else if (mode != 2) builder.X64 = false;
+				if (mode.IsEquality(2)) builder.X64 = true;
+				else if (mode.IsInequality(2) || mode.IsEquality(0) || mode.IsEquality(1))
+					builder.X64 = false; // BNDMOV overloads patterns for 16/32-bit modes, but ignore those
 				else throw new FormatException();
 			}
 
 			if (fields.TryGetValue("EASZ", out var easz))
 			{
-				if (easz == 1) builder.AddressSize = AddressSize._16;
-				else if (easz == 2) builder.AddressSize = AddressSize._32;
-				else if (easz == 3) builder.AddressSize = AddressSize._64;
-				else if (easz != 1) { } // Some VEX opcodes don't support 16-bit addressing, ignore for now
+				if (easz.IsEquality(1))
+				{
+					builder.AddressSize = AddressSize._16;
+					builder.X64 = false;
+				}
+				else if (easz.IsEquality(2)) builder.AddressSize = AddressSize._32;
+				else if (easz.IsEquality(3))
+				{
+					builder.AddressSize = AddressSize._64;
+					builder.X64 = true;
+				}
+				else if (easz.IsInequality(1)) { } // Some VEX opcodes don't support 16-bit addressing, ignore for now
 				else throw new FormatException();
 			}
+			
+			// ToConvert:
+			// public OperandSizeEncoding OperandSize;
 
 			if (fields.TryGetValue("REXW", out var rexW))
 			{
-				if (rexW == 0) builder.OperandSizePromotion = false;
-				else if (rexW == 1) builder.OperandSizePromotion = true;
+				if (rexW.IsEquality(0)) builder.OperandSizePromotion = false;
+				else if (rexW.IsEquality(1))
+				{
+					builder.OperandSizePromotion = true;
+					builder.X64 = true;
+				}
 				else throw new FormatException();
 			}
 
 			if (fields.TryGetValue("VEXVALID", out var vexValid))
 			{
-				if (vexValid == 0) builder.VexType = VexType.None;
-				else if (vexValid == 1) builder.VexType = VexType.Vex;
-				else if (vexValid == 2) builder.VexType = VexType.EVex;
-				else if (vexValid == 3) builder.VexType = VexType.Xop;
+				if (vexValid.IsEquality(0)) builder.VexType = VexType.None;
+				else if (vexValid.IsEquality(1)) builder.VexType = VexType.Vex;
+				else if (vexValid.IsEquality(2)) builder.VexType = VexType.EVex;
+				else if (vexValid.IsEquality(3)) builder.VexType = VexType.Xop;
 				else throw new FormatException();
 			}
 
@@ -260,49 +279,46 @@ namespace Asmuth.X86.Xed
 			{
 				if (fields.TryGetValue("OSZ", out var osz))
 				{
-					if (osz == 0) builder.SimdPrefix = SimdPrefix.None;
-					else if (osz == 1) builder.SimdPrefix = SimdPrefix._66;
+					if (osz.IsEquality(0)) builder.SimdPrefix = SimdPrefix.None;
+					else if (osz.IsEquality(1)) builder.SimdPrefix = SimdPrefix._66;
 					else throw new FormatException();
 				}
 
 				if (fields.TryGetValue("REP", out var rep))
 				{
-					if (rep == 0) { } // OSZ case
-					else if (rep == 2) builder.SimdPrefix = SimdPrefix._F2;
-					else if (rep == 3) builder.SimdPrefix = SimdPrefix._F3;
-					else throw new FormatException();
+					if (rep.IsEquality(0)) { } // OSZ case
+					else if (rep.IsEquality(2)) builder.SimdPrefix = SimdPrefix._F2;
+					else if (rep.IsEquality(3)) builder.SimdPrefix = SimdPrefix._F3;
+					else if (rep.Kind == FieldValueKind.NotEqualConstant) { } // Ignore, no way to represent
 				}
 			}
 			else
 			{
 				var vexPrefix = fields["VEX_PREFIX"];
-				if (vexPrefix == 0) builder.SimdPrefix = SimdPrefix.None;
-				else if (vexPrefix == 1) builder.SimdPrefix = SimdPrefix._66;
-				else if (vexPrefix == 2) builder.SimdPrefix = SimdPrefix._F2;
-				else if (vexPrefix == 3) builder.SimdPrefix = SimdPrefix._F3;
+				if (vexPrefix.IsEquality(0)) builder.SimdPrefix = SimdPrefix.None;
+				else if (vexPrefix.IsEquality(1)) builder.SimdPrefix = SimdPrefix._66;
+				else if (vexPrefix.IsEquality(2)) builder.SimdPrefix = SimdPrefix._F2;
+				else if (vexPrefix.IsEquality(3)) builder.SimdPrefix = SimdPrefix._F3;
 				else throw new FormatException();
 
-				var vectorLength = fields["VL"];
-				if (vectorLength == 0) builder.VectorSize = AvxVectorSize._128;
-				else if (vectorLength == 1) builder.VectorSize = AvxVectorSize._256;
-				else if (vectorLength == 2) builder.VectorSize = AvxVectorSize._512;
-				else throw new FormatException();
+				if (fields.TryGetValue("VL", out var vectorLength))
+				{
+					if (vectorLength.IsEquality(0)) builder.VectorSize = AvxVectorSize._128;
+					else if (vectorLength.IsEquality(1)) builder.VectorSize = AvxVectorSize._256;
+					else if (vectorLength.IsEquality(2)) builder.VectorSize = AvxVectorSize._512;
+					else throw new FormatException();
+				}
 
 				var map = fields["MAP"];
-				if (vectorLength == 0) builder.Map = OpcodeMap.Default;
-				else if (vectorLength == 1) builder.Map = OpcodeMap.Escape0F;
-				else if (vectorLength == 2) builder.Map = OpcodeMap.Escape0F38;
-				else if (vectorLength == 3) builder.Map = OpcodeMap.Escape0F3A;
-				else if (vectorLength == 8) builder.Map = OpcodeMap.Xop8;
-				else if (vectorLength == 9) builder.Map = OpcodeMap.Xop9;
-				else if (vectorLength == 10) builder.Map = OpcodeMap.Xop10;
+				if (map.IsEquality(0)) builder.Map = OpcodeMap.Default;
+				else if (map.IsEquality(1)) builder.Map = OpcodeMap.Escape0F;
+				else if (map.IsEquality(2)) builder.Map = OpcodeMap.Escape0F38;
+				else if (map.IsEquality(3)) builder.Map = OpcodeMap.Escape0F3A;
+				else if (map.IsEquality(8)) builder.Map = OpcodeMap.Xop8;
+				else if (map.IsEquality(9)) builder.Map = OpcodeMap.Xop9;
+				else if (map.IsEquality(10)) builder.Map = OpcodeMap.Xop10;
 				else throw new FormatException();
 			}
-
-			// ToConvert:
-			// public AddressSize? AddressSize;
-			// public OperandSizeEncoding OperandSize;
-			// public byte? Imm8Ext;
 		}
 
 		private static SmallDictionary<string, FieldValue> GatherFieldValues(IEnumerable<XedBlot> pattern)
