@@ -189,7 +189,7 @@ namespace Asmuth.X86.Nasm
 				VexType = VexType.Vex,
 				VectorSize = AvxVectorSize._256,
 				SimdPrefix = SimdPrefix._66,
-				OperandSizePromotion = true,
+				OperandSize = OperandSizeEncoding.Promotion,
 				Map = OpcodeMap.Escape0F38,
 				MainByte = 0x98,
 				AddressingForm = ModRMEncoding.Any
@@ -199,7 +199,7 @@ namespace Asmuth.X86.Nasm
 			{
 				VexType = VexType.Xop,
 				Map = OpcodeMap.Xop8,
-				OperandSizePromotion = false,
+				OperandSize = OperandSizeEncoding.NoPromotion,
 				VectorSize = AvxVectorSize._128,
 				SimdPrefix = SimdPrefix.None,
 				MainByte = 0xA2,

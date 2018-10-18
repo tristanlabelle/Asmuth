@@ -408,7 +408,7 @@ namespace Asmuth.X86.Nasm
 				builder.VexType = vexEncoding.Value.Type;
 				builder.VectorSize = vexEncoding.Value.VectorSize;
 				builder.SimdPrefix = vexEncoding.Value.SimdPrefix;
-				builder.OperandSizePromotion = vexEncoding.Value.OperandSizePromotion;
+				builder.OperandSize = OperandSizeEncodingEnum.FromPromotion(vexEncoding.Value.OperandSizePromotion);
 				builder.Map = vexEncoding.Value.OpcodeMap;
 				AdvanceTo(State.PreOpcode);
 			}
@@ -429,7 +429,7 @@ namespace Asmuth.X86.Nasm
 						size = ImmediateSizeEncoding.Word;
 					else if (builder.OperandSize == OperandSizeEncoding.Dword)
 						size = ImmediateSizeEncoding.Dword;
-					else if (builder.OperandSizePromotion.HasValue)
+					else if (builder.OperandSize == OperandSizeEncoding.Promotion)
 					{
 						int inBytes = variableSize.InBytes(default, IntegerSize.Qword);
 						size = ImmediateSizeEncoding.FromBytes(inBytes);
@@ -464,16 +464,16 @@ namespace Asmuth.X86.Nasm
 				switch (size)
 				{
 					case IntegerSize.Word:
-						builder.OperandSize = OperandSizeEncoding.Word;
+						SetOperandSize(OperandSizeEncoding.Word);
 						SetX64(false);
 						break;
 
 					case IntegerSize.Dword:
-						builder.OperandSize = OperandSizeEncoding.Dword;
+						SetOperandSize(OperandSizeEncoding.Dword);
 						break;
 
 					case IntegerSize.Qword:
-						if (!optPromotion) SetOperandSizePromotion(true);
+						if (!optPromotion) SetOperandSize(OperandSizeEncoding.Promotion);
 						SetX64(true);
 						break;
 
@@ -481,13 +481,13 @@ namespace Asmuth.X86.Nasm
 				}
 			}
 
-			private void SetOperandSizePromotion(bool set)
+			private void SetOperandSize(OperandSizeEncoding encoding)
 			{
-				if (builder.OperandSizePromotion.GetValueOrDefault(set) != set)
+				if (builder.OperandSize != OperandSizeEncoding.Any && builder.OperandSize != encoding)
 					throw new FormatException("Conflicting operand size promotion encoding.");
 
-				builder.OperandSizePromotion = set;
-				if (set) SetX64(true);
+				builder.OperandSize = encoding;
+				if (encoding == OperandSizeEncoding.Promotion) SetX64(true);
 			}
 
 			private void SetSimdPrefix(SimdPrefix prefix)

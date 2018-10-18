@@ -270,20 +270,13 @@ namespace Asmuth.X86.Xed
 			if (fields.TryGetValue("EOSZ", out var eosz))
 			{
 				if (eosz.IsEquality(1))
-				{
 					builder.OperandSize = OperandSizeEncoding.Word;
-					builder.OperandSizePromotion = false;
-					builder.X64 = false;
-				}
 				else if (eosz.IsEquality(2) || eosz.IsInequality(1))
-				{
 					builder.OperandSize = OperandSizeEncoding.Dword;
-					builder.OperandSizePromotion = false;
-				}
 				else if (eosz.IsEquality(3))
 					builder.X64 = true; // If REX.W is required, it will be specified 
 				else if (eosz.IsInequality(3))
-					builder.OperandSizePromotion = false;
+					builder.OperandSize = OperandSizeEncoding.NoPromotion;
 				else throw new FormatException();
 			}
 			
@@ -346,10 +339,10 @@ namespace Asmuth.X86.Xed
 
 			if (fields.TryGetValue("REXW", out var rexW))
 			{
-				if (rexW.IsEquality(0)) builder.OperandSizePromotion = false;
+				if (rexW.IsEquality(0)) builder.OperandSize = OperandSizeEncoding.NoPromotion;
 				else if (rexW.IsEquality(1))
 				{
-					builder.OperandSizePromotion = true;
+					builder.OperandSize = OperandSizeEncoding.Promotion;
 					if (builder.VexType == VexType.None) builder.X64 = true;
 				}
 				else throw new FormatException();

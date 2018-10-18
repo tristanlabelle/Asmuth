@@ -24,7 +24,7 @@ namespace Asmuth.X86
 			{
 				if (!Compare(lhs.X64, rhs.X64)) return;
 				if (!Compare((int?)lhs.AddressSize, (int?)rhs.AddressSize)) return;
-				if (!Compare((int?)lhs.OperandSize, (int?)rhs.OperandSize)) return;
+				if (!Compare(lhs.OperandSize, rhs.OperandSize)) return;
 				if (lhs.VexType != rhs.VexType)
 				{
 					AddDisjoint();
@@ -33,7 +33,6 @@ namespace Asmuth.X86
 
 				if (!Compare((int?)lhs.VectorSize, (int?)rhs.VectorSize)) return;
 				if (!Compare((int?)lhs.SimdPrefix, (int?)rhs.SimdPrefix)) return;
-				if (!Compare(lhs.OperandSizePromotion, rhs.OperandSizePromotion)) return;
 				if (!Compare((int)lhs.Map, (int)rhs.Map)) return;
 
 				if (!MainByte(lhs.MainByte, lhs.MainByteMask, rhs.MainByte, rhs.MainByteMask)) return;
@@ -42,6 +41,21 @@ namespace Asmuth.X86
 				if (result == SetComparisonResult.Disjoint || result == SetComparisonResult.Overlapping) return;
 
 				if (!Immediate(lhs.ImmediateSize, lhs.Imm8Ext, rhs.ImmediateSize, rhs.Imm8Ext)) return;
+			}
+
+			private bool Compare(OperandSizeEncoding lhs, OperandSizeEncoding rhs)
+			{
+				if (lhs == rhs) return AddEqual();
+				if (lhs == OperandSizeEncoding.Any) return AddSupersetSubset();
+				if (rhs == OperandSizeEncoding.Any) return AddSubsetSuperset();
+
+				if (lhs == OperandSizeEncoding.NoPromotion
+					&& (rhs == OperandSizeEncoding.Word || rhs == OperandSizeEncoding.Dword))
+					return AddOverlapping();
+				if ((lhs == OperandSizeEncoding.Word || lhs == OperandSizeEncoding.Dword)
+					&& rhs == OperandSizeEncoding.NoPromotion)
+					return AddOverlapping();
+				return AddDisjoint();
 			}
 
 			private bool Compare(bool? lhs, bool? rhs)

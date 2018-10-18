@@ -151,7 +151,6 @@ namespace Asmuth.X86
 			{
 				X64 = false,
 				OperandSize = OperandSizeEncoding.Word,
-				OperandSizePromotion = false,
 				MainByte = 0xB8,
 				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister,
 				ImmediateSize = ImmediateSizeEncoding.Word
@@ -160,7 +159,6 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				OperandSize = OperandSizeEncoding.Dword,
-				OperandSizePromotion = false,
 				MainByte = 0xB8,
 				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister,
 				ImmediateSize = ImmediateSizeEncoding.Dword
@@ -169,7 +167,7 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				X64 = true,
-				OperandSizePromotion = true,
+				OperandSize = OperandSizeEncoding.Promotion,
 				MainByte = 0xB8,
 				AddressingForm = AddressingFormEncoding.MainByteEmbeddedRegister,
 				ImmediateSize = ImmediateSizeEncoding.Qword
@@ -199,7 +197,6 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				OperandSize = OperandSizeEncoding.Dword,
-				OperandSizePromotion = false,
 				MainByte = 0xF7,
 				AddressingForm = new ModRMEncoding(ModRMModEncoding.RegisterOrMemory, reg: 0),
 				ImmediateSize = ImmediateSizeEncoding.Dword
@@ -208,7 +205,6 @@ namespace Asmuth.X86
 			table.Add(new OpcodeEncoding.Builder
 			{
 				OperandSize = OperandSizeEncoding.Dword,
-				OperandSizePromotion = false,
 				MainByte = 0xF7,
 				AddressingForm = new ModRMEncoding(ModRMModEncoding.RegisterOrMemory, reg: 3)
 			}, "neg r/m32");
@@ -240,7 +236,6 @@ namespace Asmuth.X86
 					if (addressSize == AddressSize._16)
 					{
 						builder.X64 = false;
-						builder.OperandSizePromotion = false;
 					}
 					else if (addressSize == AddressSize._64)
 					{
@@ -250,8 +245,6 @@ namespace Asmuth.X86
 					if (operandSize == IntegerSize.Word)
 					{
 						builder.OperandSize = OperandSizeEncoding.Word;
-						builder.X64 = false;
-						builder.OperandSizePromotion = false;
 					}
 					else if (operandSize == IntegerSize.Dword)
 					{
@@ -259,8 +252,8 @@ namespace Asmuth.X86
 					}
 					else if (operandSize == IntegerSize.Qword)
 					{
+						builder.OperandSize = OperandSizeEncoding.Promotion;
 						builder.X64 = true;
-						builder.OperandSizePromotion = true;
 					}
 
 					table.Add(builder, $"[a{addressSize.InBits()}] mov eax,moffs{operandSize.InBits()}");

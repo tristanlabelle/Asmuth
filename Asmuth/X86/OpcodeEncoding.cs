@@ -7,11 +7,11 @@ namespace Asmuth.X86
 {
 	public enum OperandSizeEncoding : byte
 	{
-		Any,
-		// No Byte because r/m8 are different opcodes
-		Word,
-		Dword
-		// No Qword because disambiguation is done through bool? X64/OperandSizePromotion
+		Any, // 66, REX.W, VEX.W*, are all fair game
+		Word, // No REX.W, 66 in 32-bit mode
+		Dword, // No REX.W, 66 in 16-bit mode
+		NoPromotion, // No REX.W / VEX.W0
+		Promotion // REX.W / VEX.W1
 	}
 
 	public static class OperandSizeEncodingEnum
@@ -21,11 +21,29 @@ namespace Asmuth.X86
 			switch (value)
 			{
 				case OperandSizeEncoding.Any: return null;
+				case OperandSizeEncoding.NoPromotion: return null;
 				case OperandSizeEncoding.Word: return IntegerSize.Word;
 				case OperandSizeEncoding.Dword: return IntegerSize.Dword;
+				case OperandSizeEncoding.Promotion: return IntegerSize.Qword;
 				default: throw new ArgumentOutOfRangeException(nameof(value));
 			}
 		}
+
+		public static OperandSizeEncoding FromPromotion(bool? promotion)
+		{
+			if (!promotion.HasValue) return OperandSizeEncoding.Any;
+			return promotion.Value ? OperandSizeEncoding.Promotion : OperandSizeEncoding.NoPromotion;
+		}
+
+		public static bool? GetPromotion(this OperandSizeEncoding value)
+		{
+			if (value == OperandSizeEncoding.Any) return null;
+			if (value == OperandSizeEncoding.Promotion) return true;
+			return false;
+		}
+
+		public static bool IsVexCompatible(this OperandSizeEncoding value)
+			=> value != OperandSizeEncoding.Word && value != OperandSizeEncoding.Dword;
 	}
 
 	public readonly partial struct OpcodeEncoding
@@ -38,7 +56,6 @@ namespace Asmuth.X86
 			public OperandSizeEncoding OperandSize;
 			public VexType VexType;
 			public AvxVectorSize? VectorSize;
-			public bool? OperandSizePromotion;
 			public SimdPrefix? SimdPrefix;
 			public OpcodeMap Map;
 			public byte MainByte;
@@ -52,10 +69,10 @@ namespace Asmuth.X86
 					throw new ArgumentException("64-bit addresses imply X64 mode.");
 				if (AddressSize == X86.AddressSize._16 && X64 != false)
 					throw new ArgumentException("16-bit addresses imply IA32 mode.");
-				if (OperandSize == OperandSizeEncoding.Word && X64 != false)
-					throw new ArgumentException("16-bit operands imply IA32 mode."); ;
-				if (OperandSizePromotion == true && VexType == VexType.None && X64 != true)
+				if (OperandSize == OperandSizeEncoding.Promotion && VexType == VexType.None && X64 != true)
 					throw new ArgumentException("REX.W implies X64.");
+				if (!OperandSize.IsVexCompatible() && VexType != VexType.None)
+					throw new ArgumentException("Word/dword operand size implies no VEX encoding.");
 				if (VexType != VexType.None && !SimdPrefix.HasValue)
 					throw new ArgumentException("Vex encoding implies SIMD prefixes.");
 				if (VexType == VexType.None && VectorSize.HasValue)
@@ -83,7 +100,7 @@ namespace Asmuth.X86
 		private static readonly Bitfield32.NullableUIntMaxValue2 addressSizeField = leadBitfieldBuilder;
 		public AddressSize? AddressSize => (AddressSize?)leadBitfield[addressSizeField];
 		
-		private static readonly Bitfield32.UInt2 operandSizeField = leadBitfieldBuilder;
+		private static readonly Bitfield32.UInt3 operandSizeField = leadBitfieldBuilder;
 		public OperandSizeEncoding OperandSize => (OperandSizeEncoding)leadBitfield[operandSizeField];
 
 		private static readonly Bitfield32.UInt2 vexTypeField = leadBitfieldBuilder;
@@ -91,9 +108,6 @@ namespace Asmuth.X86
 
 		private static readonly Bitfield32.NullableUIntMaxValue2 vectorSizeField = leadBitfieldBuilder;
 		public AvxVectorSize? VectorSize => (AvxVectorSize?)leadBitfield[vectorSizeField];
-
-		private static readonly Bitfield32.NullableBool operandSizePromotionField = leadBitfieldBuilder;
-		public bool? OperandSizePromotion => leadBitfield[operandSizePromotionField];
 
 		private static readonly Bitfield32.NullableUIntMaxValue6 simdPrefixField = leadBitfieldBuilder;
 		public SimdPrefix? SimdPrefix => (SimdPrefix?)leadBitfield[simdPrefixField];
@@ -129,7 +143,6 @@ namespace Asmuth.X86
 			leadBitfield[operandSizeField] = (byte)builder.OperandSize;
 			leadBitfield[vexTypeField] = (byte)builder.VexType;
 			leadBitfield[vectorSizeField] = (byte?)builder.VectorSize;
-			leadBitfield[operandSizePromotionField] = builder.OperandSizePromotion;
 			leadBitfield[simdPrefixField] = (byte?)builder.SimdPrefix;
 			leadBitfield[mapField] = (byte)builder.Map;
 			leadBitfield[mainByteField] = builder.MainByte;
@@ -199,7 +212,7 @@ namespace Asmuth.X86
 				VectorSize = VectorSize,
 				SimdPrefix = SimdPrefix.Value,
 				OpcodeMap = Map,
-				OperandSizePromotion = OperandSizePromotion
+				OperandSizePromotion = OperandSize.GetPromotion()
 			}.Build();
 		}
 
@@ -214,10 +227,6 @@ namespace Asmuth.X86
 			if (AddressSize.HasValue)
 				str.AppendFormat(CultureInfo.InvariantCulture, "a{0} ",
 					AddressSize.Value.InBits());
-
-			if (OperandSize != OperandSizeEncoding.Any)
-				str.AppendFormat(CultureInfo.InvariantCulture, "o{0} ",
-					OperandSize.AsIntegerSize().Value.InBits());
 			
 			if (VexType == VexType.None) AppendNonVexPrefixes(str);
 			else
@@ -246,6 +255,9 @@ namespace Asmuth.X86
 
 		private void AppendNonVexPrefixes(StringBuilder str)
 		{
+			if (OperandSize == OperandSizeEncoding.Word) str.Append("o16 ");
+			else if (OperandSize == OperandSizeEncoding.Dword) str.Append("o32 ");
+
 			// 66 REX.W 0F 38
 			if (SimdPrefix.HasValue)
 			{
@@ -259,7 +271,7 @@ namespace Asmuth.X86
 				}
 			}
 
-			if (OperandSizePromotion == true)
+			if (OperandSize == OperandSizeEncoding.Promotion)
 				str.Append("rex.w ");
 
 			switch (Map)

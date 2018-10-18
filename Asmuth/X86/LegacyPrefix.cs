@@ -96,6 +96,7 @@ namespace Asmuth.X86
 		}
 		public static string GetMnemonicOrHexValue(this LegacyPrefix prefix)
 			=> TryGetMnemonic(prefix) ?? prefix.GetEncodingByte().ToString("X2", CultureInfo.InvariantCulture);
+
 		public static byte GetEncodingByte(this LegacyPrefix prefix)
 		{
 			switch (prefix)
@@ -114,6 +115,7 @@ namespace Asmuth.X86
 				default: throw new ArgumentOutOfRangeException(nameof(prefix));
 			}
 		}
+
 		public static LegacyPrefixGroup GetGroup(this LegacyPrefix prefix)
 		{
 			switch (prefix)

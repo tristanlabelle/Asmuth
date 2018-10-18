@@ -68,7 +68,7 @@ namespace Asmuth.X86
 			get
 			{
 				if (IsEmpty) return SimdPrefix.None;
-				switch (this[Count - 1])
+				switch (this[Count - 1]) // TODO: Must the SIMD prefix be trailing? XED doesn't think so...
 				{
 					case LegacyPrefix.OperandSizeOverride: return SimdPrefix._66;
 					case LegacyPrefix.RepeatNotEqual: return SimdPrefix._F2;
