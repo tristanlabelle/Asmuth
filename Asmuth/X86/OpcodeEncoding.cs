@@ -207,9 +207,7 @@ namespace Asmuth.X86
 		public override string ToString()
 		{
 			var str = new StringBuilder(30);
-
-			str.Append('[');
-
+			
 			if (X64.HasValue)
 				str.Append(X64.Value ? "x64 " : "ia32 ");
 
@@ -220,10 +218,7 @@ namespace Asmuth.X86
 			if (OperandSize != OperandSizeEncoding.Any)
 				str.AppendFormat(CultureInfo.InvariantCulture, "o{0} ",
 					OperandSize.AsIntegerSize().Value.InBits());
-
-			str.Length--; // Remove '[' or space
-			if (str.Length > 0) str.Append("] ");
-
+			
 			if (VexType == VexType.None) AppendNonVexPrefixes(str);
 			else
 			{
@@ -241,7 +236,9 @@ namespace Asmuth.X86
 			else if (AddressingForm.HasModRM)
 				str.Append(' ').Append(AddressingForm.ModRM.Value.ToString());
 
-			if (ImmediateSize.IsNonZero)
+			if (Imm8Ext.HasValue)
+				str.Append(' ').AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", Imm8Ext.Value);
+			else if (ImmediateSize.IsNonZero)
 				str.Append(' ').Append(ImmediateSize);
 
 			return str.ToString();

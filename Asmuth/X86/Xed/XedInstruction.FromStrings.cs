@@ -17,20 +17,24 @@ namespace Asmuth.X86.Xed
 			var instruction = new XedInstruction();
 			foreach (var field in fields)
 			{
-				if (field.Key == "CPL")
-				{
-					instruction.privilegeLevel = byte.Parse(field.Value, CultureInfo.InvariantCulture);
-				}
-				else if (field.Key == "ATTRIBUTES")
+				if (field.Key == "ATTRIBUTES")
 				{
 					foreach (var attribute in Regex.Split(field.Value, @"\s+"))
 						if (attribute.Length > 0)
 							instruction.attributes.Add(attribute);
 				}
+				else if (field.Key == "CPL")
+				{
+					instruction.privilegeLevel = byte.Parse(field.Value, CultureInfo.InvariantCulture);
+				}
 				else if (field.Key == "FLAGS")
 				{
 					foreach (var str in Regex.Split(field.Value, @"\s*,\s*"))
 						instruction.flags.Add(XedFlagsRecord.Parse(str));
+				}
+				else if (field.Key == "VERSION")
+				{
+					instruction.version = byte.Parse(field.Value, CultureInfo.InvariantCulture);
 				}
 				else
 				{

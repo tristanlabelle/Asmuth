@@ -175,7 +175,29 @@ namespace Asmuth.X86.Xed
 					}
 
 					if (entry.Type == XedDataFiles.InstructionsFileEntryType.Instruction)
-						table.Instructions.Add(entry.Instruction);
+					{
+						bool canAdd = true;
+						if (entry.Instruction.Version > 0)
+						{
+							for (int i = 0; i < table.Instructions.Count; ++i)
+							{
+								var existing = table.Instructions[i];
+								if (existing.Class == entry.Instruction.Class)
+								{
+									if (existing.Version == entry.Instruction.Version)
+										throw new FormatException();
+									if (existing.Version < entry.Instruction.Version)
+										table.Instructions.RemoveAt(i);
+									else
+										canAdd = false;
+
+									break;
+								}
+							}
+						}
+
+						if (canAdd) table.Instructions.Add(entry.Instruction);
+					}
 					else if (entry.Type == XedDataFiles.InstructionsFileEntryType.DeleteInstruction)
 					{
 						for (int i = 0; i < table.Instructions.Count; ++i)

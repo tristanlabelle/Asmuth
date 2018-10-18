@@ -24,6 +24,9 @@ namespace Asmuth.X86.Xed
 		private byte privilegeLevel = 3;
 		public int PrivilegeLevel => privilegeLevel;
 
+		private byte version = 0;
+		public int Version => version;
+
 		private readonly List<XedFlagsRecord> flags = new List<XedFlagsRecord>();
 		public IReadOnlyList<XedFlagsRecord> Flags => flags;
 

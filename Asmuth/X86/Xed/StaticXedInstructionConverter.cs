@@ -266,6 +266,26 @@ namespace Asmuth.X86.Xed
 				else if (easz.IsInequality(1)) { } // Some VEX opcodes don't support 16-bit addressing, ignore for now
 				else throw new FormatException();
 			}
+
+			if (fields.TryGetValue("EOSZ", out var eosz))
+			{
+				if (eosz.IsEquality(1))
+				{
+					builder.OperandSize = OperandSizeEncoding.Word;
+					builder.OperandSizePromotion = false;
+					builder.X64 = false;
+				}
+				else if (eosz.IsEquality(2) || eosz.IsInequality(1))
+				{
+					builder.OperandSize = OperandSizeEncoding.Dword;
+					builder.OperandSizePromotion = false;
+				}
+				else if (eosz.IsEquality(3))
+					builder.X64 = true; // If REX.W is required, it will be specified 
+				else if (eosz.IsInequality(3))
+					builder.OperandSizePromotion = false;
+				else throw new FormatException();
+			}
 			
 			// ToConvert:
 			// public OperandSizeEncoding OperandSize;
