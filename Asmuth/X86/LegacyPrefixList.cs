@@ -16,28 +16,46 @@ namespace Asmuth.X86
 	[StructLayout(LayoutKind.Sequential, Size = sizeof(uint))]
 	public readonly struct ImmutableLegacyPrefixList : IList<LegacyPrefix>, IReadOnlyList<LegacyPrefix>
 	{
-		private const uint legacyPrefixCount = 11;
+		// The Intel Instruction Set Reference Manual says
+		// "Instruction prefixes are divided into four groups, each with a set of allowable prefix codes.
+		// For each instruction, it is only useful to include up to one prefix code from each of the four groups
+		// (Groups 1, 2, 3, 4). Groups 1 through 4 may be placed in any order relative to each other."
 
-		private static readonly uint[] multiples =
+		// Multiple prefixes of the same group are legal, merely not "useful", although this
+		// is contradicted by the "XAquire/XRelease Lock" sequence, both of which are from intel's group 1.
+		// A prefix can even be repeated, such as in "66 66 90" (a wide NOP sequence seen in the wild).
+
+		// Hence we need to support an arbitrary list of prefixes, of at least length 4, though this
+		// may be only bounded by the maximum instruction length of 15 bytes (hence 14 legacy prefixes).
+		// We allocate 32 bits to storing this list and maximize the storage potential by encoding using
+		// a radix based on the number of different legacy prefixes, and reserve a few bits for storing
+		// the size of the list.
+		private const uint radix = 11; // Number of different legacy prefixes
+		public const int Capacity = 7; // Solve 32 - ceil(log2(n+1)) - ceil(log2(11^n))
+
+		private static readonly uint[] radixPowers = new uint[Capacity]
 		{
 			1,
-			legacyPrefixCount,
-			legacyPrefixCount * legacyPrefixCount,
-			legacyPrefixCount * legacyPrefixCount * legacyPrefixCount,
-			legacyPrefixCount * legacyPrefixCount * legacyPrefixCount * legacyPrefixCount,
+			radix,
+			radix * radix,
+			radix * radix * radix,
+			radix * radix * radix * radix,
+			radix * radix * radix * radix * radix,
+			radix * radix * radix * radix * radix * radix,
 		};
+		private const int countShift = 29;
+		private const uint countUnit = 1U << countShift;
+		private const uint itemsMask = countUnit - 1;
+		private const uint countMask = ~itemsMask;
 
-		public static readonly ImmutableLegacyPrefixList Empty;
-		public const int Capacity = 5;
+		private readonly uint data; // Top bits for count, rest for items stored right to left
 
-		// Top byte is count
-		// Low bytes store items as multiples of lookup.Count
-		private readonly uint storage;
-
-		private ImmutableLegacyPrefixList(uint storage) { this.storage = storage; }
+		private ImmutableLegacyPrefixList(uint storage) { this.data = storage; }
 
 		#region Properties
-		public int Count => (int)(storage >> 24);
+		private uint itemsData => data & itemsMask;
+		public uint countData => data & countMask;
+		public int Count => (int)(data >> countShift);
 		public bool IsEmpty => Count == 0;
 		public bool HasOperandSizeOverride => Contains(LegacyPrefix.OperandSizeOverride);
 		public bool HasAddressSizeOverride => Contains(LegacyPrefix.AddressSizeOverride);
@@ -47,7 +65,7 @@ namespace Asmuth.X86
 		{
 			get
 			{
-				var prefix = GetPrefixFromGroup(LegacyPrefixGroup.SegmentOverride);
+				var prefix = GetLastPrefixFromGroup(LegacyPrefixGroup.SegmentOverride);
 				if (!prefix.HasValue) return null;
 				switch (prefix.Value)
 				{
@@ -67,39 +85,46 @@ namespace Asmuth.X86
 		{
 			get
 			{
-				if (IsEmpty) return SimdPrefix.None;
-				switch (this[Count - 1]) // TODO: Must the SIMD prefix be trailing? XED doesn't think so...
+				// According to the VS disassembler,
+				// The last SIMD prefix will win for decoding,
+				// although an invalid instruction interrupt will certainly be produced.
+				for (int i = Count - 1; i >= 0; --i)
 				{
-					case LegacyPrefix.OperandSizeOverride: return SimdPrefix._66;
-					case LegacyPrefix.RepeatNotEqual: return SimdPrefix._F2;
-					case LegacyPrefix.RepeatEqual: return SimdPrefix._F3;
-					default: return SimdPrefix.None;
+					var prefix = this[i];
+					if (prefix == LegacyPrefix.OperandSizeOverride) return SimdPrefix._66;
+					if (prefix == LegacyPrefix.RepeatNotEqual) return SimdPrefix._F2;
+					if (prefix == LegacyPrefix.RepeatEqual) return SimdPrefix._F3;
 				}
+				return SimdPrefix.None;
 			}
 		}
 		#endregion
 
 		public LegacyPrefix this[int index]
-			=> (LegacyPrefix)((storage & 0xFFFFFF) / multiples[index] % legacyPrefixCount);
+		{
+			get
+			{
+				if ((uint)index >= (uint)Count) throw new ArgumentOutOfRangeException(nameof(index));
+				return (LegacyPrefix)(itemsData / radixPowers[index] % radix);
+			}
+		}
 
 		#region Methods
 		public bool Contains(LegacyPrefix item) => IndexOf(item) >= 0;
-
-		public bool EndsWith(LegacyPrefix item)
-		{
-			if (Count == 0) return false;
-			return this[Count - 1] == item;
-		}
 		
-		public LegacyPrefix? GetPrefixFromGroup(LegacyPrefixGroup group)
+		public LegacyPrefix? GetLastPrefixFromGroup(LegacyPrefixGroup group)
 		{
-			for (int i = 0; i < Count; ++i)
-				if (this[i].GetGroup() == group)
-					return this[i];
+			for (int i = Count - 1; i >= 0; --i)
+			{
+				var prefix = this[i];
+				if (prefix.GetGroup() == group)
+					return prefix;
+			}
 			return null;
 		}
 
-		public bool ContainsFromGroup(LegacyPrefixGroup group) => GetPrefixFromGroup(group).HasValue;
+		public bool ContainsFromGroup(LegacyPrefixGroup group)
+			=> GetLastPrefixFromGroup(group).HasValue;
 
 		public void CopyTo(LegacyPrefix[] array, int arrayIndex)
 		{
@@ -114,20 +139,22 @@ namespace Asmuth.X86
 					return i;
 			return -1;
 		}
+		
+		public static readonly ImmutableLegacyPrefixList Empty;
 
 		#region Static Mutators
 		public static ImmutableLegacyPrefixList SetAt(ImmutableLegacyPrefixList list, int index, LegacyPrefix item)
 		{
-			var group = item.GetGroup();
-			for (int i = 0; i < list.Count; ++i)
-				if (i != index && list[i].GetGroup() == group)
-					throw new ArgumentException();
+			if ((int)item >= radix) throw new ArgumentOutOfRangeException(nameof(item));
 
-			var data = list.storage & 0xFFFFFF;
-			uint multiple = multiples[index];
-			data = (data / multiple / legacyPrefixCount * legacyPrefixCount
-				+ (uint)item) * multiple + data % multiple;
-			return new ImmutableLegacyPrefixList((list.storage & 0xFF000000) | data);
+			uint power = radixPowers[index];
+			uint nextPower = power * radix;
+			var itemsData = list.itemsData;
+			itemsData = itemsData / nextPower * nextPower // Preserve items to the left
+				+ (uint)item * power // Add new item
+				+ itemsData % power; // Preserve items to the right
+
+			return new ImmutableLegacyPrefixList(list.countData | itemsData);
 		}
 
 		public static ImmutableLegacyPrefixList Add(ImmutableLegacyPrefixList list, LegacyPrefix item)
@@ -135,14 +162,17 @@ namespace Asmuth.X86
 
 		public static ImmutableLegacyPrefixList Insert(ImmutableLegacyPrefixList list, int index, LegacyPrefix item)
 		{
-			if (index < 0 || index > list.Count) throw new ArgumentOutOfRangeException(nameof(index));
-			if (list.ContainsFromGroup(item.GetGroup())) throw new InvalidOperationException();
+			if ((uint)index > (uint)list.Count) throw new ArgumentOutOfRangeException(nameof(index));
+			if (list.Count == Capacity) throw new InvalidOperationException();
 
-			uint data = list.storage & 0xFFFFFF;
-			uint multiple = multiples[index];
-			data = (data / multiple * legacyPrefixCount + (uint)item) * multiple + data % multiple;
-			data |= (list.storage & 0xFF000000) + 0x01000000;
-			return new ImmutableLegacyPrefixList(data);
+			uint power = radixPowers[index];
+			uint nextPower = power * radix;
+			var itemsData = list.itemsData;
+			itemsData = itemsData / power * nextPower // Preserve items to the left and shift left
+				+ (uint)item * power // Add new item
+				+ itemsData % power; // Preserve items to the right
+
+			return new ImmutableLegacyPrefixList((list.countData + countUnit) | itemsData);
 		}
 
 		public static ImmutableLegacyPrefixList Remove(ImmutableLegacyPrefixList list, LegacyPrefix item)
@@ -153,13 +183,16 @@ namespace Asmuth.X86
 
 		public static ImmutableLegacyPrefixList RemoveAt(ImmutableLegacyPrefixList list, int index)
 		{
-			if (index < 0 || index >= list.Count) throw new ArgumentOutOfRangeException(nameof(index));
+			if ((uint)index >= (uint)list.Count) throw new ArgumentOutOfRangeException(nameof(index));
+			if (list.Count == 0) throw new InvalidOperationException();
 
-			uint newStorage = list.storage & 0xFFFFFF;
-			uint multiple = multiples[index];
-			newStorage = newStorage / multiple / legacyPrefixCount * multiple + newStorage % multiple;
-			newStorage |= (list.storage & 0xFF000000) - 0x01000000;
-			return new ImmutableLegacyPrefixList(newStorage);
+			uint power = radixPowers[index];
+			uint nextPower = power * radix;
+			var itemsData = list.itemsData;
+			itemsData = itemsData / nextPower * power // Preserve items to the left and shift right
+				+ itemsData % power; // Preserve items to the right
+
+			return new ImmutableLegacyPrefixList((list.countData - countUnit) | itemsData);
 		}
 
 		public override string ToString()

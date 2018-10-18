@@ -150,7 +150,7 @@ namespace Asmuth.X86.Nasm
 							if (token.Byte == 0x66 || token.Byte == 0xF2 || token.Byte == 0xF3)
 							{
 								var legacyPrefix = LegacyPrefixEnum.TryFromEncodingByte(token.Byte).Value;
-								if (!instruction.LegacyPrefixes.EndsWith(legacyPrefix)) return false;
+								if (instruction.LegacyPrefixes[instruction.LegacyPrefixes.Count - 1] != legacyPrefix) return false;
 								state = NasmEncodingParsingState.PostSimdPrefix;
 								continue;
 							}
