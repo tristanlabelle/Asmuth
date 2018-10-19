@@ -45,16 +45,16 @@ namespace Asmuth.X86.Encoding.Nasm
 				// Used with UD /r, where the ModRM value is irrelevant
 				case NasmOperandType.Reg: return OperandSpec.Reg.GprUnsized;
 
-				case NasmOperandType.Reg_AL: return OperandSpec.FixedReg.AL;
-				case NasmOperandType.Reg_CL: return OperandSpec.FixedReg.CL;
-				case NasmOperandType.Reg_AX: return OperandSpec.FixedReg.AX;
-				case NasmOperandType.Reg_CX: return OperandSpec.FixedReg.CX;
-				case NasmOperandType.Reg_DX: return OperandSpec.FixedReg.DX;
-				case NasmOperandType.Reg_Eax: return OperandSpec.FixedReg.Eax;
-				case NasmOperandType.Reg_Ecx: return OperandSpec.FixedReg.Ecx;
-				case NasmOperandType.Reg_Edx: return OperandSpec.FixedReg.Edx;
-				case NasmOperandType.Reg_Rax: return OperandSpec.FixedReg.Rax;
-				case NasmOperandType.Reg_Rcx: return OperandSpec.FixedReg.Rcx;
+				case NasmOperandType.Reg_AL: return OperandSpec.FixedReg.AL_Untyped;
+				case NasmOperandType.Reg_CL: return OperandSpec.FixedReg.CL_Untyped;
+				case NasmOperandType.Reg_AX: return OperandSpec.FixedReg.AX_Untyped;
+				case NasmOperandType.Reg_CX: return OperandSpec.FixedReg.CX_Untyped;
+				case NasmOperandType.Reg_DX: return OperandSpec.FixedReg.DX_Untyped;
+				case NasmOperandType.Reg_Eax: return OperandSpec.FixedReg.Eax_Untyped;
+				case NasmOperandType.Reg_Ecx: return OperandSpec.FixedReg.Ecx_Untyped;
+				case NasmOperandType.Reg_Edx: return OperandSpec.FixedReg.Edx_Untyped;
+				case NasmOperandType.Reg_Rax: return OperandSpec.FixedReg.Rax_Untyped;
+				case NasmOperandType.Reg_Rcx: return OperandSpec.FixedReg.Rcx_Untyped;
 				case NasmOperandType.Reg8: return OperandSpec.Reg.Gpr8;
 				case NasmOperandType.Reg16: return OperandSpec.Reg.Gpr16;
 				case NasmOperandType.Reg32: return OperandSpec.Reg.Gpr32;
@@ -70,7 +70,7 @@ namespace Asmuth.X86.Encoding.Nasm
 				case NasmOperandType.RM32: return GetGprOrMem(IntegerSize.Dword, flags);
 				case NasmOperandType.RM64: return GetGprOrMem(IntegerSize.Qword, flags);
 
-				case NasmOperandType.Fpu0: return OperandSpec.FixedReg.ST0;
+				case NasmOperandType.Fpu0: return OperandSpec.FixedReg.ST0_F80;
 				case NasmOperandType.FpuReg: return OperandSpec.Reg.X87;
 
 				case NasmOperandType.Reg_SReg: return OperandSpec.Reg.Segment;
@@ -88,7 +88,7 @@ namespace Asmuth.X86.Encoding.Nasm
 				case NasmOperandType.MmxRM: return MakeRM(OperandSpec.Reg.Mmx, defaultSizeInBytes);
 				case NasmOperandType.MmxRM64: return OperandSpec.RegOrMem.Mmx_Untyped;
 
-				case NasmOperandType.Xmm0: return OperandSpec.FixedReg.Xmm0;
+				case NasmOperandType.Xmm0: return OperandSpec.FixedReg.Xmm0_Untyped;
 				case NasmOperandType.XmmReg: return OperandSpec.Reg.Xmm;
 				case NasmOperandType.XmmRM: return MakeRM(OperandSpec.Reg.Xmm, defaultSizeInBytes);
 				case NasmOperandType.XmmRM8: return OperandSpec.Reg.Xmm.OrMem(OperandDataType.Byte);

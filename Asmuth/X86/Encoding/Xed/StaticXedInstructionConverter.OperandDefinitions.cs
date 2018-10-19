@@ -39,7 +39,7 @@ namespace Asmuth.X86.Encoding.Xed
 			}
 		}
 
-		private static OperandSpec GetSuppressedMemoryOperand(XedOperand memory, 
+		private static OperandSpec GetSuppressedMemoryOperand(XedOperand memory,
 			IEnumerator<XedOperand> enumerator, ref bool hasCurrent)
 		{
 			OperandSpec spec;
@@ -82,7 +82,8 @@ namespace Asmuth.X86.Encoding.Xed
 
 		private static OperandSpec GetMemOperandSpec(XedOperand operand)
 		{
-			throw new NotImplementedException();
+			var dataType = GetDataType(operand.Width, operand.XType);
+			return dataType.HasValue ? OperandSpec.Mem.WithDataType(dataType.Value) : OperandSpec.Mem.M;
 		}
 
 		private static OperandSpec GetSuppressedMemOperandSpec(XedOperand operand,
@@ -99,11 +100,15 @@ namespace Asmuth.X86.Encoding.Xed
 			{
 				var fieldType = (XedRegisterFieldType)operand.Field.Type;
 				var register = GetRegister(fieldType.RegisterTable.ByIndex[operand.Value.Value.Constant - 1]);
-				return new OperandSpec.FixedReg(register);
+				if (!register.HasValue) return null;
+
+				var dataType = new OperandDataType(ScalarType.Untyped, register.Value.SizeInBytes.Value);
+				return new OperandSpec.FixedReg(register.Value, dataType);
 			}
 			else if (registerBlotValue.Kind == XedBlotValueKind.CallResult)
 			{
 				var callee = registerBlotValue.Callee;
+				if (callee.Contains("X87")) return OperandSpec.Reg.X87;
 				if (callee.Contains("XMM")) return OperandSpec.Reg.Xmm;
 				if (callee.Contains("YMM")) return OperandSpec.Reg.Ymm;
 				if (callee.Contains("ZMM")) return OperandSpec.Reg.Zmm;
@@ -112,16 +117,18 @@ namespace Asmuth.X86.Encoding.Xed
 			throw new NotImplementedException();
 		}
 
-		private static Register GetRegister(XedRegister xedRegister)
+		private static Register? GetRegister(XedRegister xedRegister)
 		{
 			if (xedRegister.IsHighByte) throw new NotImplementedException();
 			var @class = GetRegisterClass(xedRegister.Class, xedRegister.WidthInBits_X64);
-			return new Register(@class, xedRegister.IndexInClass.GetValueOrDefault());
+			if (!@class.HasValue) return null;
+			return new Register(@class.Value, xedRegister.IndexInClass.GetValueOrDefault());
 		}
 
-		private static RegisterClass GetRegisterClass(string name, int width)
+		private static RegisterClass? GetRegisterClass(string name, int width)
 		{
 			if (name == "x87") return RegisterClass.X87;
+			if (name == "pseudox87") return null;
 			throw new NotImplementedException();
 		}
 
@@ -130,6 +137,36 @@ namespace Asmuth.X86.Encoding.Xed
 			if (!operand.Width.TryGetValue(out var width)) throw new FormatException();
 
 			throw new NotImplementedException();
+		}
+
+		private static OperandDataType? GetDataType(XedOperandWidth? width, XedXType? xtype)
+			=> width.HasValue ? GetDataType(width.Value, xtype.Value) : null;
+
+		private static OperandDataType? GetDataType(XedOperandWidth width, XedXType xtype)
+		{
+			if (xtype != width.XType) throw new NotImplementedException(); // Don't know what this means
+			if ((width.BitsPerElement & 0x7) != 0) throw new NotImplementedException(); // Can't represent bitfields
+			var (scalarType, scalarSizeInBytes) = GetScalarTypeAndSizeInBytes(width.BaseType);
+			if (scalarSizeInBytes.HasValue && width.XType.BitsPerElement != scalarSizeInBytes.Value * 8)
+				throw new ArgumentException();
+			if (width.WidthInBits == width.BitsPerElement)
+				return new OperandDataType(scalarType, width.BitsPerElement >> 3);
+			throw new NotImplementedException();
+		}
+
+		private static (ScalarType, byte?) GetScalarTypeAndSizeInBytes(XedBaseType baseType)
+		{
+			switch (baseType)
+			{
+				case XedBaseType.Struct: return (ScalarType.Untyped, null);
+				case XedBaseType.UInt: return (ScalarType.UnsignedInt, null);
+				case XedBaseType.Int: return (ScalarType.SignedInt, null);
+				case XedBaseType.Float16: return (ScalarType.Float, 2);
+				case XedBaseType.Single: return (ScalarType.Float, 4);
+				case XedBaseType.Double: return (ScalarType.Float, 8);
+				case XedBaseType.LongDouble: return (ScalarType.Float, 10);
+				default: throw new NotImplementedException();
+			}
 		}
 	}
 }

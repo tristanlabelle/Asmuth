@@ -8,6 +8,51 @@ using System.Threading.Tasks;
 
 namespace Asmuth.X86.Encoding
 {
+	public enum OpcodePrefixSupport : byte
+	{
+		None = 0,
+		Repeat = 1 << 0,
+		Lock = 1 << 1,
+		LockImplicit = 1 << 2,
+		XAcquire = 1 << 3,
+		XRelease = 1 << 4,
+		BranchHint = 1 << 5,
+		SegmentOverride = 1 << 6,
+	}
+
+	public static class OpcodePrefixSupportEnum
+	{
+		public static bool HasFlag(this OpcodePrefixSupport support, OpcodePrefixSupport flag)
+			=> (support & flag) == flag;
+
+		public static void Validate(this OpcodePrefixSupport support)
+		{
+			if (support.HasFlag(OpcodePrefixSupport.LockImplicit) && !support.HasFlag(OpcodePrefixSupport.Lock))
+				throw new ArgumentException("Implicit LOCK prefix support implies LOCK prefix support.");
+
+			if (support.HasFlag(OpcodePrefixSupport.Repeat) && support.HasFlag(OpcodePrefixSupport.Lock))
+				throw new ArgumentException("REP and LOCK prefixes are mutually exclusive.");
+
+			if ((support.HasFlag(OpcodePrefixSupport.XAcquire) || support.HasFlag(OpcodePrefixSupport.XRelease))
+				&& !support.HasFlag(OpcodePrefixSupport.Lock))
+				throw new ArgumentException("XAcquire/XRelease prefix support imply LOCK prefix support.");
+
+			if (support.HasFlag(OpcodePrefixSupport.BranchHint) && support != OpcodePrefixSupport.BranchHint)
+				throw new ArgumentException("Branch hint prefix support cannot be combined with other prefixes.");
+		}
+	}
+
+	public enum OpcodeEffectiveOperandSize
+	{
+		Byte,
+		Word,
+		Dword,
+		Qword,
+		WordOrDword,
+		WordOrDwordOrQword,
+		WordOrDwordOrQword_X64DefaultQword
+	}
+
 	public readonly struct OperandDefinition
 	{
 		public OperandSpec Spec { get; }
@@ -33,6 +78,8 @@ namespace Asmuth.X86.Encoding
 			public string Mnemonic;
 			public IReadOnlyList<OperandDefinition> Operands;
 			public OpcodeEncoding Encoding;
+			public OpcodePrefixSupport PrefixSupport;
+			public OpcodeEffectiveOperandSize? EffectiveOperandSize;
 			public CpuidFeatureFlags RequiredFeatureFlags;
 			public EFlags? AffectedFlags;
 		}
@@ -48,6 +95,18 @@ namespace Asmuth.X86.Encoding
 				throw new ArgumentException("Some data fields are null.", nameof(data));
 			this.data = data;
 			this.data.Operands = data.Operands.ToArray();
+
+			// Deduce some supported prefixes from the operands
+			foreach (var operand in this.data.Operands)
+			{
+				if (operand.Spec.DataLocation == OperandDataLocation.Register
+					|| operand.Spec.DataLocation == OperandDataLocation.RegisterOrMemory)
+				{
+					this.data.PrefixSupport |= OpcodePrefixSupport.SegmentOverride;
+				}
+			}
+
+			this.data.PrefixSupport.Validate();
 		}
 		#endregion
 
@@ -55,6 +114,8 @@ namespace Asmuth.X86.Encoding
 		public string Mnemonic => data.Mnemonic;
 		public IReadOnlyList<OperandDefinition> Operands => data.Operands;
 		public OpcodeEncoding Encoding => data.Encoding;
+		public OpcodePrefixSupport PrefixSupport => data.PrefixSupport;
+		public OpcodeEffectiveOperandSize? EffectiveOperandSize => data.EffectiveOperandSize;
 		public CpuidFeatureFlags RequiredFeatureFlags => data.RequiredFeatureFlags;
 		public EFlags? AffectedFlags => data.AffectedFlags;
 		#endregion
