@@ -12,12 +12,15 @@ namespace Asmuth.X86
 	{
 		public OperandSpec Spec { get; }
 		public OperandField? Field { get; }
-		// TODO: AccessType?
+		public AccessType Access { get; }
 
-		public OperandDefinition(OperandSpec spec, OperandField? field)
+		public OperandDefinition(OperandSpec spec, OperandField? field, AccessType access)
 		{
+			if (!spec.DataLocation.IsWritable() && (access & AccessType.Write) == AccessType.Write)
+				throw new ArgumentException();
 			this.Spec = spec ?? throw new ArgumentNullException(nameof(spec));
 			this.Field = field;
+			this.Access = access;
 		}
 
 		public override string ToString() => Spec.ToString();

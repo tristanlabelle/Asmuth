@@ -13,7 +13,7 @@ namespace Asmuth.X86.Nasm
 			var specs = GetOperandSpecs(addressSize, operandSize);
 			var defs = new OperandDefinition[specs.Length];
 			for (int i = 0; i < specs.Length; ++i)
-				defs[i] = new OperandDefinition(specs[i], Operands[i].Field);
+				defs[i] = new OperandDefinition(specs[i], Operands[i].Field, AccessType.None);
 			return defs;
 		}
 

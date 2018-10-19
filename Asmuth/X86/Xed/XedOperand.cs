@@ -7,6 +7,29 @@ using System.Text.RegularExpressions;
 
 namespace Asmuth.X86.Xed
 {
+	public enum XedOperandKind : byte
+	{
+		[XedEnumName("REG")] Register, // REG0=XED_REG_ST0:r:SUPP:f80 / REG1=MASK1():r:mskw:TXT=ZEROSTR
+		[XedEnumName("MEM")] Memory, // MEM0:cw:SUPP:b
+		[XedEnumName("SEG")] MemorySegment, // SEG0=FINAL_ESEG():r:SUPP
+		[XedEnumName("BASE")] MemoryBase, // BASE0=ArDI():rcw:SUPP
+		[XedEnumName("INDEX")] MemoryIndex, // INDEX=XED_REG_AL:r:SUPP
+		[XedEnumName("SCALE")] MemoryScale, // SCALE=1:r:SUPP
+		[XedEnumName("AGEN")] AddressGeneration, // AGEN:r, used by LEA
+		[XedEnumName("IMM")] Immediate, // IMM0:r:b:i8
+		[XedEnumName("PTR")] Pointer, // PTR:r:p
+		[XedEnumName("RELBR")] RelativeBranch, // RELBR:r:b:i8
+		[XedEnumName("BCAST")] Broadcast, // EMX_BROADCAST_1TO4_32 => BCAST=10
+	}
+
+	public static class XedOperandKindEnum
+	{
+		public static bool IsIndexed(this XedOperandKind kind)
+			=> kind == XedOperandKind.Register || kind == XedOperandKind.Memory
+			|| kind == XedOperandKind.MemorySegment || kind == XedOperandKind.MemoryBase
+			|| kind == XedOperandKind.Immediate;
+	}
+
 	public enum XedOperandVisibility : byte
 	{
 		[XedEnumName("EXPL")]
@@ -41,21 +64,6 @@ namespace Asmuth.X86.Xed
 
 	public sealed class XedOperand
 	{
-		// BCAST=10
-		// AGEN:r
-		// PTR:r:p
-		// RELBR:r:b:i8
-		// REG0=XED_REG_DX:r:SUPP
-		// REG0=XED_REG_ST0:r:SUPP:f80
-		// REG0=XED_REG_ST0:r:IMPL:f80
-		// REG1=XMM_N():r:dq:i32
-		// REG1=MASK1():r:mskw:TXT=ZEROSTR
-		// MEM0:w:d
-		// MEM0:cw:SUPP:b BASE0=ArDI():rcw:SUPP SEG0=FINAL_ESEG():r:SUPP
-		// INDEX=XED_REG_AL:r:SUPP
-		// IMM0:r:b
-		// IMM0:r:b:i8
-
 		[Flags]
 		private enum StateFlags : byte { None = 0, HasValue = 1, HasWidth = 2, HasMultiReg = 4 }
 
@@ -74,11 +82,13 @@ namespace Asmuth.X86.Xed
 			XedOperandMultiReg? multiReg = null, string txt = null)
 		{
 			this.Field = field ?? throw new ArgumentNullException(nameof(field));
+			GetKindAndIndex(field.Name); // As validation, throws on failure
+
 			this.value = value.GetValueOrDefault();
 			this.Access = access;
 			this.Visibility = visibility;
 			this.width = width.GetValueOrDefault();
-			this.xtype = width.HasValue ? xtype.GetValueOrDefault(width.Value.XType) : default;
+			this.xtype = width.HasValue ? xtype.GetValueOrDefault(this.width.XType) : default;
 			this.multiReg = multiReg.GetValueOrDefault();
 			this.Text = txt;
 
@@ -88,10 +98,16 @@ namespace Asmuth.X86.Xed
 			if (multiReg.HasValue) this.stateFlags |= StateFlags.HasMultiReg;
 		}
 
+		public XedOperandKind Kind => GetKindAndIndex(Field.Name).Item1;
+		public int IndexInKind => GetKindAndIndex(Field.Name).Item2;
 		public XedBlotValue? Value => (stateFlags & StateFlags.HasValue) == 0
 			? (XedBlotValue?)null : value;
 		public XedOperandWidth? Width => (stateFlags & StateFlags.HasWidth) == 0
 			? (XedOperandWidth?)null : width;
+		public XedXType? XType => (stateFlags & StateFlags.HasWidth) == 0
+			? (XedXType?)null : xtype;
+		public XedOperandMultiReg? MultiReg => (stateFlags & StateFlags.HasMultiReg) == 0
+			? (XedOperandMultiReg?)null : multiReg;
 
 		private static readonly Regex typeRegex = new Regex(
 			@"^(?<n>[A-Z]+\d?) (= (?<v>\w+) (?<vc>\(\))? )?$",
@@ -201,6 +217,26 @@ namespace Asmuth.X86.Xed
 
 			strParts.RemoveAt(index);
 			return visibility;
+		}
+
+		private static (XedOperandKind, int) GetKindAndIndex(string fieldName)
+		{
+			string kindStr;
+			int index;
+			if (char.IsDigit(fieldName[fieldName.Length - 1])) // Traling index
+			{
+				kindStr = fieldName.Substring(0, fieldName.Length - 1);
+				index = fieldName[fieldName.Length - 1] - '0';
+			}
+			else
+			{
+				kindStr = fieldName;
+				index = -1;
+			}
+
+			var kind = XedEnumNameAttribute.GetEnumerantOrNull<XedOperandKind>(kindStr).Value;
+			if (kind.IsIndexed() && index == -1) throw new FormatException();
+			return (kind, Math.Max(0, index));
 		}
 	}
 }

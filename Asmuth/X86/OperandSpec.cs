@@ -7,12 +7,42 @@ using System.Text;
 
 namespace Asmuth.X86
 {
+	public enum OperandDataLocation : byte
+	{
+		Constant,
+		Register,
+		Memory,
+		RegisterOrMemory,
+		InstructionStream,
+	}
+
+	public static class OperandDataLocationEnum
+	{
+		public static bool IsWritable(this OperandDataLocation location)
+			=> location != OperandDataLocation.Constant && location != OperandDataLocation.InstructionStream;
+
+		public static bool? GetIsRegister(this OperandDataLocation location)
+		{
+			if (location == OperandDataLocation.Register) return true;
+			if (location == OperandDataLocation.RegisterOrMemory) return null;
+			return false;
+		}
+
+		public static bool? GetIsMemory(this OperandDataLocation location)
+		{
+			if (location == OperandDataLocation.Memory) return true;
+			if (location == OperandDataLocation.RegisterOrMemory) return null;
+			return false;
+		}
+	}
+
 	public abstract class OperandSpec
 	{
 		private OperandSpec() { } // Disallow external inheritance
 
 		// Used for NASM's "size match"
 		public abstract IntegerSize? ImpliedIntegerOperandSize { get; }
+		public abstract OperandDataLocation DataLocation { get; }
 
 		public abstract bool IsValidField(OperandField field);
 
@@ -44,6 +74,7 @@ namespace Asmuth.X86
 
 			public override IntegerSize? ImpliedIntegerOperandSize => Register.IsSizedGpr
 				? IntegerSizeEnum.TryFromBytes(Register.SizeInBytes.Value) : null;
+			public override OperandDataLocation DataLocation => OperandDataLocation.Register;
 
 			public override bool IsValidField(OperandField field) => false;
 
@@ -89,6 +120,7 @@ namespace Asmuth.X86
 
 			public override IntegerSize? ImpliedIntegerOperandSize => RegisterClass.IsSized
 				? IntegerSizeEnum.TryFromBytes(RegisterClass.SizeInBytes.Value) : null;
+			public override OperandDataLocation DataLocation => OperandDataLocation.Register;
 
 			public override bool IsValidField(OperandField field)
 				=> field == OperandField.ModReg
@@ -168,6 +200,7 @@ namespace Asmuth.X86
 
 			public override IntegerSize? ImpliedIntegerOperandSize
 				=> DataType.HasValue ? DataType.Value.GetImpliedGprSize() : null;
+			public override OperandDataLocation DataLocation => OperandDataLocation.Memory;
 
 			public override bool IsValidField(OperandField field) => field == OperandField.BaseReg;
 
@@ -290,6 +323,7 @@ namespace Asmuth.X86
 			}
 
 			public override IntegerSize? ImpliedIntegerOperandSize => RegSpec.ImpliedIntegerOperandSize;
+			public override OperandDataLocation DataLocation => OperandDataLocation.RegisterOrMemory;
 
 			public override bool IsValidField(OperandField field)
 				=> field == OperandField.BaseReg;
@@ -346,6 +380,7 @@ namespace Asmuth.X86
 			public int MaxIndexCount => IndexRegSize.InBytes() / IndicesSize.InBytes();
 
 			public override IntegerSize? ImpliedIntegerOperandSize => null;
+			public override OperandDataLocation DataLocation => OperandDataLocation.Memory;
 
 			public override bool IsValidField(OperandField field) => field == OperandField.BaseReg;
 
@@ -381,6 +416,7 @@ namespace Asmuth.X86
 			}
 
 			public override IntegerSize? ImpliedIntegerOperandSize => DataType.GetImpliedGprSize();
+			public override OperandDataLocation DataLocation => OperandDataLocation.Memory;
 
 			public override bool IsValidField(OperandField field) => field == OperandField.Immediate;
 
@@ -415,6 +451,7 @@ namespace Asmuth.X86
 			}
 
 			public override IntegerSize? ImpliedIntegerOperandSize => DataType.GetImpliedGprSize();
+			public override OperandDataLocation DataLocation => OperandDataLocation.InstructionStream;
 
 			public override bool IsValidField(OperandField field)
 				=> field == OperandField.Immediate || field == OperandField.SecondImmediate;
@@ -520,6 +557,7 @@ namespace Asmuth.X86
 			public Const(byte value) => this.Value = value;
 
 			public override IntegerSize? ImpliedIntegerOperandSize => IntegerSize.Byte;
+			public override OperandDataLocation DataLocation => OperandDataLocation.Constant;
 
 			public override bool IsValidField(OperandField field) => false;
 
@@ -544,6 +582,7 @@ namespace Asmuth.X86
 			private Rel(IntegerSize offsetSize) => this.OffsetSize = offsetSize;
 
 			public override IntegerSize? ImpliedIntegerOperandSize => null;
+			public override OperandDataLocation DataLocation => OperandDataLocation.InstructionStream;
 
 			public override bool IsValidField(OperandField field) => field == OperandField.Immediate;
 
