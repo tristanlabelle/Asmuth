@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Nasm
+namespace Asmuth.X86.Encoding.Nasm
 {
 	[TestClass]
 	public sealed class NasmInsnsParsingTests

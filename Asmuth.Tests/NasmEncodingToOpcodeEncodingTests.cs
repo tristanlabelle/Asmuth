@@ -1,5 +1,5 @@
 ﻿using Asmuth.X86;
-using Asmuth.X86.Nasm;
+using Asmuth.X86.Encoding.Nasm;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Nasm
+namespace Asmuth.X86.Encoding.Nasm
 {
 	[TestClass]
 	public sealed class NasmEncodingToOpcodeEncodingTests

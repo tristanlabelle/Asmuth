@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Asmuth.X86.Xed
+namespace Asmuth.X86.Encoding.Xed
 {
 	[TestClass]
 	public sealed class XedBlotTests

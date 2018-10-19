@@ -1,5 +1,7 @@
 ﻿using Asmuth.X86;
-using Asmuth.X86.Nasm;
+using Asmuth.X86.Encoding;
+using Asmuth.X86.Encoding.Nasm;
+using Asmuth.X86.Encoding.Xed;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,6 +10,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Asmuth.Disassembler
 {
@@ -17,32 +20,41 @@ namespace Asmuth.Disassembler
 	{
 		static void Main(string[] args)
 		{
-			// Load instruction definitions from NASM's insns.dat file
-			var instructionTable = new OpcodeEncodingTable<InstructionDefinition>();
-			int succeeded = 0;
-			int total = 0;
-			foreach (var insnsEntry in NasmInsns.Read(new StreamReader(args[0])))
+			// StaticXedInstructionConverter test
+			var xedDatabase = XedDatabase.LoadDirectory(args[0]);
+			var xedInstructions = xedDatabase.EncodeDecodePatterns
+				.OfType<XedInstructionTable>()
+				.SelectMany(it => it.Instructions);
+			Dictionary<string, XedInstruction> encodingsToInstructions = new Dictionary<string, XedInstruction>();
+			foreach (var xedInstruction in xedInstructions)
 			{
-				if (!insnsEntry.CanConvertToOpcodeEncoding) continue;
+				if (Regex.IsMatch(xedInstruction.Class, @"^NOP\d$")) continue;
+				foreach (var xedForm in xedInstruction.Forms)
+				{
+					var instructionDefinition = StaticXedInstructionConverter.GetInstructionDefinition(xedInstruction.Class, xedForm);
+					Console.WriteLine($"{xedForm.Name ?? xedInstruction.Class}: {instructionDefinition.Encoding}");
 
-				total++;
-				try
-				{
-					foreach (var instructionDefinition in insnsEntry.ToInstructionDefinitions())
-						instructionTable.Add(instructionDefinition.Encoding, instructionDefinition);
-					
-					succeeded++;
-				}
-				catch (Exception e)
-				{
-					Console.ForegroundColor = ConsoleColor.Red;
-					Console.WriteLine($"{insnsEntry} - {e.Message}");
-					Console.ResetColor();
+					var opcodeEncodingStr = instructionDefinition.Encoding.ToString();
+					if (encodingsToInstructions.TryGetValue(opcodeEncodingStr, out var existing))
+					{
+						Console.ForegroundColor = ConsoleColor.Red;
+						Console.WriteLine($"Duplicate with {existing.Class}");
+						Console.ResetColor();
+					}
+					else encodingsToInstructions.Add(opcodeEncodingStr, xedInstruction);
 				}
 			}
 
-			Console.WriteLine();
-			Console.WriteLine($"{succeeded}/{total} = {succeeded*100/total}% successful");
+			// Engine test
+			var xedEngine = new XedEngine(xedDatabase);
+			xedEngine.TraceMessage += (i, m) => Console.WriteLine(new string(' ', i * 2) + m);
+
+			var xedNopInstruction = ((XedInstructionTable)xedDatabase.EncodeDecodePatterns.Get("INSTRUCTIONS"))
+				.Instructions.First(i => i.Class == "NOP");
+			xedEngine.Encode(xedNopInstruction, formIndex: 0, CodeSegmentType.X64);
+
+			// Load instruction definitions from NASM's insns.dat file
+			var instructionTable = new OpcodeEncodingTable<InstructionDefinition>();
 
 			var filePath = Path.GetFullPath(args[1]);
 			using (var memoryMappedFile = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))

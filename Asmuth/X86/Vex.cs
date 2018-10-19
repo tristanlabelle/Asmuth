@@ -143,18 +143,6 @@ namespace Asmuth.X86
 		public byte SecondByte => (byte)((xoredValue ^ XorMask) >> 8);
 		public byte ThirdByte => (byte)(xoredValue ^ XorMask);
 
-		public VexEncoding AsVexEncoding()
-		{
-			return new VexEncoding.Builder
-			{
-				Type = VexType,
-				VectorSize = VectorSize,
-				SimdPrefix = SimdPrefix,
-				OpcodeMap = OpcodeMap,
-				OperandSizePromotion = OperandSizePromotion
-			}.Build();
-		}
-
 		public bool Equals(Vex3Xop other) => xoredValue == other.xoredValue;
 		public override bool Equals(object obj) => obj is Vex3Xop && Equals((Vex3Xop)obj);
 		public override int GetHashCode() => xoredValue;

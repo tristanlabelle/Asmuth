@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 
-namespace Asmuth.X86.Xed
+namespace Asmuth.X86.Encoding.Xed
 {
 	public static class XedTestData
 	{

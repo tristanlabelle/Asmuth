@@ -3,7 +3,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Asmuth.X86
+namespace Asmuth.X86.Encoding
 {
 	[TestClass]
 	public sealed class InstructionDecoderTests

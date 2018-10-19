@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Asmuth.X86.Xed
+namespace Asmuth.X86.Encoding.Xed
 {
 	[TestClass]
 	public sealed class XedParsingTests
