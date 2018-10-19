@@ -78,24 +78,24 @@ namespace Asmuth.X86
 				default: return null;
 			}
 		}
-		public static string TryGetMnemonic(this LegacyPrefix prefix)
+		public static string GetMnemonic(this LegacyPrefix prefix)
 		{
 			switch (prefix)
 			{
-				case LegacyPrefix.CSSegmentOverride: return "CS";
-				case LegacyPrefix.DSSegmentOverride: return "DS";
-				case LegacyPrefix.ESSegmentOverride: return "ES";
-				case LegacyPrefix.FSSegmentOverride: return "FS";
-				case LegacyPrefix.GSSegmentOverride: return "GS";
-				case LegacyPrefix.SSSegmentOverride: return "SS";
-				case LegacyPrefix.Lock: return "LOCK";
-				case LegacyPrefix.RepeatNotEqual: return "REPNE";
-				case LegacyPrefix.RepeatEqual: return "REPE";
-				default: return null;
+				case LegacyPrefix.Lock: return "lock";
+				case LegacyPrefix.RepeatNotEqual: return "repne";
+				case LegacyPrefix.RepeatEqual: return "repe";
+				case LegacyPrefix.CSSegmentOverride: return "cs";
+				case LegacyPrefix.DSSegmentOverride: return "ds";
+				case LegacyPrefix.ESSegmentOverride: return "es";
+				case LegacyPrefix.FSSegmentOverride: return "fs";
+				case LegacyPrefix.GSSegmentOverride: return "gs";
+				case LegacyPrefix.SSSegmentOverride: return "ss";
+				case LegacyPrefix.OperandSizeOverride: return "oso";
+				case LegacyPrefix.AddressSizeOverride: return "aso";
+				default: throw new ArgumentOutOfRangeException(nameof(prefix));
 			}
 		}
-		public static string GetMnemonicOrHexValue(this LegacyPrefix prefix)
-			=> TryGetMnemonic(prefix) ?? prefix.GetEncodingByte().ToString("X2", CultureInfo.InvariantCulture);
 
 		public static byte GetEncodingByte(this LegacyPrefix prefix)
 		{

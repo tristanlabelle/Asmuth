@@ -24,26 +24,16 @@ namespace Asmuth.X86
 		// Multiple prefixes of the same group are legal, merely not "useful", although this
 		// is contradicted by the "XAquire/XRelease Lock" sequence, both of which are from intel's group 1.
 		// A prefix can even be repeated, such as in "66 66 90" (a wide NOP sequence seen in the wild).
+		// When multiple prefixes are not supported, this should not be a decode failure but higher-level
+		// failure (#UD when executed).
 
 		// Hence we need to support an arbitrary list of prefixes, of at least length 4, though this
-		// may be only bounded by the maximum instruction length of 15 bytes (hence 14 legacy prefixes).
-		// We allocate 32 bits to storing this list and maximize the storage potential by encoding using
-		// a radix based on the number of different legacy prefixes, and reserve a few bits for storing
-		// the size of the list.
-		private const uint radix = 11; // Number of different legacy prefixes
-		public const int Capacity = 7; // Solve 32 - ceil(log2(n+1)) - ceil(log2(11^n))
-
-		private static readonly uint[] radixPowers = new uint[Capacity]
-		{
-			1,
-			radix,
-			radix * radix,
-			radix * radix * radix,
-			radix * radix * radix * radix,
-			radix * radix * radix * radix * radix,
-			radix * radix * radix * radix * radix * radix,
-		};
-		private const int countShift = 29;
+		// may be only bounded by the maximum instruction length of 15 bytes (so 14 legacy prefixes).
+		// We allocate 32 bits to storing this list, and use one nibble per prefix, leaving the
+		// top one to use as a count.
+		public const int Capacity = 7;
+		
+		private const int countShift = 28;
 		private const uint countUnit = 1U << countShift;
 		private const uint itemsMask = countUnit - 1;
 		private const uint countMask = ~itemsMask;
@@ -105,7 +95,7 @@ namespace Asmuth.X86
 			get
 			{
 				if ((uint)index >= (uint)Count) throw new ArgumentOutOfRangeException(nameof(index));
-				return (LegacyPrefix)(itemsData / radixPowers[index] % radix);
+				return (LegacyPrefix)((data >> (index * 4)) & 0xF);
 			}
 		}
 
@@ -145,16 +135,13 @@ namespace Asmuth.X86
 		#region Static Mutators
 		public static ImmutableLegacyPrefixList SetAt(ImmutableLegacyPrefixList list, int index, LegacyPrefix item)
 		{
-			if ((int)item >= radix) throw new ArgumentOutOfRangeException(nameof(item));
+			if ((int)item > 0xF) throw new ArgumentOutOfRangeException(nameof(item));
 
-			uint power = radixPowers[index];
-			uint nextPower = power * radix;
-			var itemsData = list.itemsData;
-			itemsData = itemsData / nextPower * nextPower // Preserve items to the left
-				+ (uint)item * power // Add new item
-				+ itemsData % power; // Preserve items to the right
+			var data = list.data;
+			data &= ~(0xFU << (index * 4)); // Clear item
+			data |= (uint)item << (index * 4); // Set item
 
-			return new ImmutableLegacyPrefixList(list.countData | itemsData);
+			return new ImmutableLegacyPrefixList(data);
 		}
 
 		public static ImmutableLegacyPrefixList Add(ImmutableLegacyPrefixList list, LegacyPrefix item)
@@ -164,13 +151,12 @@ namespace Asmuth.X86
 		{
 			if ((uint)index > (uint)list.Count) throw new ArgumentOutOfRangeException(nameof(index));
 			if (list.Count == Capacity) throw new InvalidOperationException();
-
-			uint power = radixPowers[index];
-			uint nextPower = power * radix;
+			
 			var itemsData = list.itemsData;
-			itemsData = itemsData / power * nextPower // Preserve items to the left and shift left
-				+ (uint)item * power // Add new item
-				+ itemsData % power; // Preserve items to the right
+			var shift = index * 4;
+			itemsData = ((itemsData >> shift) << (shift + 4)) // Preserve items to the left and shift left
+				| ((uint)item << shift) // Add new item
+				| (itemsData & ((1U << shift) - 1)); // Preserve items to the right
 
 			return new ImmutableLegacyPrefixList((list.countData + countUnit) | itemsData);
 		}
@@ -184,13 +170,11 @@ namespace Asmuth.X86
 		public static ImmutableLegacyPrefixList RemoveAt(ImmutableLegacyPrefixList list, int index)
 		{
 			if ((uint)index >= (uint)list.Count) throw new ArgumentOutOfRangeException(nameof(index));
-			if (list.Count == 0) throw new InvalidOperationException();
 
-			uint power = radixPowers[index];
-			uint nextPower = power * radix;
+			var shift = index * 4;
 			var itemsData = list.itemsData;
-			itemsData = itemsData / nextPower * power // Preserve items to the left and shift right
-				+ itemsData % power; // Preserve items to the right
+			itemsData = ((itemsData >> (shift + 4)) << shift) // Preserve items to the left and shift right
+				| (itemsData & ((1U << shift) - 1)); // Preserve items to the right
 
 			return new ImmutableLegacyPrefixList((list.countData - countUnit) | itemsData);
 		}
@@ -202,7 +186,7 @@ namespace Asmuth.X86
 			for (int i = 0; i < Count; ++i)
 			{
 				if (i > 0) str.Append(", ");
-				str.Append(this[i].GetMnemonicOrHexValue());
+				str.Append(this[i].GetMnemonic());
 			}
 			str.Append(']');
 			return str.ToString();
