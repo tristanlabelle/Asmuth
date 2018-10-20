@@ -189,10 +189,13 @@ namespace Asmuth.X86.Encoding
 							if (dataType.ScalarSizeInBytes == 8) return I64;
 							break;
 
-						case ScalarType.Float:
+						case ScalarType.Ieee754Float:
 							if (dataType.ScalarSizeInBytes == 2) return F16;
 							if (dataType.ScalarSizeInBytes == 4) return F32;
 							if (dataType.ScalarSizeInBytes == 8) return F64;
+							break;
+
+						case ScalarType.X87Float80:
 							if (dataType.ScalarSizeInBytes == 10) return F80;
 							break;
 
@@ -437,7 +440,7 @@ namespace Asmuth.X86.Encoding
 					: "0x" + value.ToString("x", CultureInfo.InvariantCulture));
 			}
 
-			public override string ToString() => "imm" + DataType.ScalarSizeInBytes;
+			public override string ToString() => "imm" + DataType.TotalSizeInBits;
 
 			public static Imm WithDataType(OperandDataType dataType)
 			{

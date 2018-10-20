@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -62,6 +63,7 @@ namespace Asmuth.X86.Encoding.Xed
 		public byte Index => (byte)(kindAndIndex & 0xF);
 	}
 
+	[DebuggerDisplay("{Field.Name}")]
 	public sealed class XedOperand
 	{
 		[Flags]
@@ -71,14 +73,13 @@ namespace Asmuth.X86.Encoding.Xed
 		private readonly XedBlotValue value;
 		public XedField Field { get; }
 		public string Text { get; }
-		private readonly XedXType xtype;
 		public XedOperandAccess Access { get; }
 		public XedOperandVisibility Visibility { get; }
 		private readonly StateFlags stateFlags;
 		private readonly XedOperandMultiReg multiReg;
 
 		public XedOperand(XedField field, XedBlotValue? value, XedOperandAccess access,
-			XedOperandVisibility visibility, XedOperandWidth? width = null, XedXType? xtype = null,
+			XedOperandVisibility visibility, XedOperandWidth? width = null,
 			XedOperandMultiReg? multiReg = null, string txt = null)
 		{
 			this.Field = field ?? throw new ArgumentNullException(nameof(field));
@@ -88,7 +89,6 @@ namespace Asmuth.X86.Encoding.Xed
 			this.Access = access;
 			this.Visibility = visibility;
 			this.width = width.GetValueOrDefault();
-			this.xtype = width.HasValue ? xtype.GetValueOrDefault(this.width.XType) : default;
 			this.multiReg = multiReg.GetValueOrDefault();
 			this.Text = txt;
 
@@ -104,8 +104,6 @@ namespace Asmuth.X86.Encoding.Xed
 			? (XedBlotValue?)null : value;
 		public XedOperandWidth? Width => (stateFlags & StateFlags.HasWidth) == 0
 			? (XedOperandWidth?)null : width;
-		public XedXType? XType => (stateFlags & StateFlags.HasWidth) == 0
-			? (XedXType?)null : xtype;
 		public XedOperandMultiReg? MultiReg => (stateFlags & StateFlags.HasMultiReg) == 0
 			? (XedOperandMultiReg?)null : multiReg;
 
@@ -188,7 +186,6 @@ namespace Asmuth.X86.Encoding.Xed
 
 			// Width field (optional)
 			XedOperandWidth? width = null;
-			XedXType? xtype = null;
 			if (strParts.Count > 0)
 			{
 				width = resolvers.OperandWidth(strParts[0]);
@@ -199,15 +196,22 @@ namespace Asmuth.X86.Encoding.Xed
 				{
 					try
 					{
-						xtype = resolvers.XType(strParts[0]);
+						var xtype = resolvers.XType(strParts[0]);
 						strParts.RemoveAt(0);
+
+						// The width specifies the default data type, but that can be overriden
+						// Workaround VGATHERPF0DPD with bogus operand MEM0:r:b:f64
+						if (width.Value.WidthInBits == 8)
+							width = new XedOperandWidth(xtype, widthInBits: xtype.BitsPerElement);
+						else
+							width = width.Value.WithXType(xtype);
 					}
 					catch (KeyNotFoundException) { }
 				}
 			}
 
 			if (strParts.Count > 0) throw new FormatException();
-			return new XedOperand(field, value, access, visibility.Value, width, xtype, multiReg, text);
+			return new XedOperand(field, value, access, visibility.Value, width, multiReg, text);
 		}
 
 		private static XedOperandVisibility? TryParseAsVisibility(List<string> strParts, int index)

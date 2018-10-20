@@ -82,7 +82,7 @@ namespace Asmuth.X86.Encoding.Xed
 
 		private static OperandSpec GetMemOperandSpec(XedOperand operand)
 		{
-			var dataType = GetDataType(operand.Width, operand.XType);
+			var dataType = GetDataType(operand.Width);
 			return dataType.HasValue ? OperandSpec.Mem.WithDataType(dataType.Value) : OperandSpec.Mem.M;
 		}
 
@@ -108,6 +108,7 @@ namespace Asmuth.X86.Encoding.Xed
 			else if (registerBlotValue.Kind == XedBlotValueKind.CallResult)
 			{
 				var callee = registerBlotValue.Callee;
+				if (callee.Contains("GPR8")) return OperandSpec.Reg.Gpr8;
 				if (callee.Contains("X87")) return OperandSpec.Reg.X87;
 				if (callee.Contains("XMM")) return OperandSpec.Reg.Xmm;
 				if (callee.Contains("YMM")) return OperandSpec.Reg.Ymm;
@@ -125,26 +126,34 @@ namespace Asmuth.X86.Encoding.Xed
 			return new Register(@class.Value, xedRegister.IndexInClass.GetValueOrDefault());
 		}
 
-		private static RegisterClass? GetRegisterClass(string name, int width)
+		private static RegisterClass? GetRegisterClass(string name, int widthInBits)
 		{
-			if (name == "x87") return RegisterClass.X87;
-			if (name == "pseudox87") return null;
-			throw new NotImplementedException();
+			switch (name)
+			{
+				case "gpr":
+					if (widthInBits == 8) return RegisterClass.GprByte;
+					if (widthInBits == 16) return RegisterClass.GprWord;
+					if (widthInBits == 32) return RegisterClass.GprDword;
+					if (widthInBits == 64) return RegisterClass.GprQword;
+					throw new InvalidOperationException();
+
+				case "x87": return RegisterClass.X87;
+				case "pseudox87": return null;
+				default: throw new NotImplementedException();
+			}
 		}
 
 		private static OperandSpec GetImmOperandSpec(XedOperand operand)
 		{
 			if (!operand.Width.TryGetValue(out var width)) throw new FormatException();
-
-			throw new NotImplementedException();
+			return OperandSpec.Imm.WithDataType(GetDataType(operand.Width).Value);
 		}
 
-		private static OperandDataType? GetDataType(XedOperandWidth? width, XedXType? xtype)
-			=> width.HasValue ? GetDataType(width.Value, xtype.Value) : null;
+		private static OperandDataType? GetDataType(XedOperandWidth? width)
+			=> width.HasValue ? GetDataType(width.Value) : null;
 
-		private static OperandDataType? GetDataType(XedOperandWidth width, XedXType xtype)
+		private static OperandDataType? GetDataType(XedOperandWidth width)
 		{
-			if (xtype != width.XType) throw new NotImplementedException(); // Don't know what this means
 			if ((width.BitsPerElement & 0x7) != 0) throw new NotImplementedException(); // Can't represent bitfields
 			var (scalarType, scalarSizeInBytes) = GetScalarTypeAndSizeInBytes(width.BaseType);
 			if (scalarSizeInBytes.HasValue && width.XType.BitsPerElement != scalarSizeInBytes.Value * 8)
@@ -161,10 +170,11 @@ namespace Asmuth.X86.Encoding.Xed
 				case XedBaseType.Struct: return (ScalarType.Untyped, null);
 				case XedBaseType.UInt: return (ScalarType.UnsignedInt, null);
 				case XedBaseType.Int: return (ScalarType.SignedInt, null);
-				case XedBaseType.Float16: return (ScalarType.Float, 2);
-				case XedBaseType.Single: return (ScalarType.Float, 4);
-				case XedBaseType.Double: return (ScalarType.Float, 8);
-				case XedBaseType.LongDouble: return (ScalarType.Float, 10);
+				case XedBaseType.Float16: return (ScalarType.Ieee754Float, 2);
+				case XedBaseType.Single: return (ScalarType.Ieee754Float, 4);
+				case XedBaseType.Double: return (ScalarType.Ieee754Float, 8);
+				case XedBaseType.LongDouble: return (ScalarType.X87Float80, 10);
+				case XedBaseType.LongBCD: return (ScalarType.LongPackedBcd, 10);
 				default: throw new NotImplementedException();
 			}
 		}
