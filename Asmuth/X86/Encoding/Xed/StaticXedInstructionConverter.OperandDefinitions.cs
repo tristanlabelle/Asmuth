@@ -95,27 +95,44 @@ namespace Asmuth.X86.Encoding.Xed
 		private static OperandSpec GetRegOperandSpec(XedOperand operand)
 		{
 			if (!operand.Value.HasValue) throw new FormatException();
+			if (!operand.Width.HasValue) return null; // Probably a pseudo register
+
+			var dataType = GetDataType(operand.Width.Value).Value;
+
 			var registerBlotValue = operand.Value.Value;
 			if (registerBlotValue.Kind == XedBlotValueKind.Constant)
 			{
 				var fieldType = (XedRegisterFieldType)operand.Field.Type;
 				var register = GetRegister(fieldType.RegisterTable.ByIndex[operand.Value.Value.Constant - 1]);
 				if (!register.HasValue) return null;
-
-				var dataType = new DataType(ScalarType.Untyped, register.Value.SizeInBytes.Value);
+				
 				return new OperandSpec.FixedReg(register.Value, dataType);
 			}
-			else if (registerBlotValue.Kind == XedBlotValueKind.CallResult)
-			{
-				var callee = registerBlotValue.Callee;
-				if (callee.Contains("GPR8")) return OperandSpec.Reg.Gpr8;
-				if (callee.Contains("X87")) return OperandSpec.Reg.X87;
-				if (callee.Contains("XMM")) return OperandSpec.Reg.Xmm;
-				if (callee.Contains("YMM")) return OperandSpec.Reg.Ymm;
-				if (callee.Contains("ZMM")) return OperandSpec.Reg.Zmm;
-			}
 
-			throw new NotImplementedException();
+			if (registerBlotValue.Kind != XedBlotValueKind.CallResult)
+				throw new FormatException();
+			
+			var callee = registerBlotValue.Callee;
+
+			// Handle specific registers
+			Register? fixedRegister = null;
+			if (callee == "OrAX") fixedRegister = Register.A;
+			else if (callee == "OrDX") fixedRegister = Register.D;
+
+			if (fixedRegister.HasValue)
+				return new OperandSpec.FixedReg(fixedRegister.Value, dataType);
+
+			// Handle register classes
+			RegisterClass registerClass;
+			if (callee.Contains("GPR8_")) registerClass = RegisterClass.GprByte;
+			else if (callee.Contains("GPRv_")) registerClass = RegisterClass.GprUnsized;
+			else if (callee.Contains("X87")) registerClass = RegisterClass.X87;
+			else if (callee.Contains("XMM")) registerClass = RegisterClass.Xmm;
+			else if (callee.Contains("YMM")) registerClass = RegisterClass.Ymm;
+			else if (callee.Contains("ZMM")) registerClass = RegisterClass.Zmm;
+			else throw new NotImplementedException();
+
+			return new OperandSpec.Reg(registerClass, dataType);
 		}
 
 		private static Register? GetRegister(XedRegister xedRegister)
@@ -138,6 +155,7 @@ namespace Asmuth.X86.Encoding.Xed
 					throw new InvalidOperationException();
 
 				case "x87": return RegisterClass.X87;
+				case "pseudo": return null;
 				case "pseudox87": return null;
 				default: throw new NotImplementedException();
 			}
@@ -149,18 +167,30 @@ namespace Asmuth.X86.Encoding.Xed
 			return OperandSpec.Imm.WithDataType(GetDataType(operand.Width).Value);
 		}
 
-		private static DataType? GetDataType(XedOperandWidth? width)
+		private static OperandDataType? GetDataType(XedOperandWidth? width)
 			=> width.HasValue ? GetDataType(width.Value) : null;
 
-		private static DataType? GetDataType(XedOperandWidth width)
+		private static OperandDataType? GetDataType(XedOperandWidth width)
 		{
 			if ((width.BitsPerElement & 0x7) != 0) throw new NotImplementedException(); // Can't represent bitfields
 			var (scalarType, scalarSizeInBytes) = GetScalarTypeAndSizeInBytes(width.BaseType);
 			if (scalarSizeInBytes.HasValue && width.XType.BitsPerElement != scalarSizeInBytes.Value * 8)
 				throw new ArgumentException();
-			if (width.WidthInBits == width.BitsPerElement)
-				return new DataType(scalarType, width.BitsPerElement >> 3);
-			throw new NotImplementedException();
+
+			if (width.InBits.HasValue)
+			{
+				if (width.InBits == width.BitsPerElement)
+					return new OperandDataType(scalarType, width.BitsPerElement >> 3);
+				throw new NotImplementedException();
+			}
+			else
+			{
+				if (width.BitsPerElement != 0) throw new FormatException();
+				if (width.InBits_16 % 8 != 0 || width.InBits_32 % 8 != 0 || width.InBits_64 % 8 != 0)
+					throw new InvalidOperationException();
+				return OperandDataType.FromVariableSizeInBytes(scalarType,
+					width.InBits_16 / 8, width.InBits_32 / 8, width.InBits_64 / 8);
+			}
 		}
 
 		private static (ScalarType, byte?) GetScalarTypeAndSizeInBytes(XedBaseType baseType)

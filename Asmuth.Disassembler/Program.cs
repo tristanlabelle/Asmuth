@@ -32,7 +32,18 @@ namespace Asmuth.Disassembler
 				foreach (var xedForm in xedInstruction.Forms)
 				{
 					var instructionDefinition = StaticXedInstructionConverter.GetInstructionDefinition(xedInstruction.Class, xedForm);
-					Console.WriteLine($"{xedForm.Name ?? xedInstruction.Class}: {instructionDefinition.Encoding}");
+
+					Console.ForegroundColor = ConsoleColor.Yellow;
+					Console.Write(instructionDefinition.Mnemonic);
+					for (int i = 0; i < instructionDefinition.Operands.Count; ++i)
+					{
+						Console.Write(i == 0 ? " " : ", ");
+						Console.Write(instructionDefinition.Operands[i]);
+					}
+					Console.ResetColor();
+
+					Console.Write(": ");
+					Console.WriteLine(instructionDefinition.Encoding);
 
 					var opcodeEncodingStr = instructionDefinition.Encoding.ToString();
 					if (encodingsToInstructions.TryGetValue(opcodeEncodingStr, out var existing))

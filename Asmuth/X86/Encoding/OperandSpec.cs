@@ -39,14 +39,12 @@ namespace Asmuth.X86.Encoding
 	public abstract partial class OperandSpec
 	{
 		private OperandSpec() { } // Disallow external inheritance
-
-		// Used for NASM's "size match"
-		public abstract IntegerSize? ImpliedIntegerOperandSize { get; }
+		
 		public abstract OperandDataLocation DataLocation { get; }
 
 		public abstract bool IsValidField(OperandField field);
 
-		public virtual DataType? TryGetDataType(AddressSize addressSize, IntegerSize operandSize) => null;
+		public virtual OperandDataType? TryGetDataType(AddressSize addressSize, IntegerSize operandSize) => null;
 
 		public abstract void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip = null);
 

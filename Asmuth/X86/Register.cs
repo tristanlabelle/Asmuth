@@ -232,6 +232,11 @@ namespace Asmuth.X86
 		public static bool operator ==(Register lhs, Register rhs) => Equals(lhs, rhs);
 		public static bool operator !=(Register lhs, Register rhs) => !Equals(lhs, rhs);
 
+		public static readonly Register A = new Register(RegisterClass.GprUnsized, 0);
+		public static readonly Register C = new Register(RegisterClass.GprUnsized, 0);
+		public static readonly Register D = new Register(RegisterClass.GprUnsized, 0);
+		public static readonly Register B = new Register(RegisterClass.GprUnsized, 0);
+
 		public static readonly Register AL = new Register(RegisterClass.GprByte, 0);
 		public static readonly Register CL = new Register(RegisterClass.GprByte, 1);
 		public static readonly Register DL = new Register(RegisterClass.GprByte, 2);

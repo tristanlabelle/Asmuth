@@ -201,8 +201,8 @@ namespace Asmuth.X86.Encoding.Xed
 
 						// The width specifies the default data type, but that can be overriden
 						// Workaround VGATHERPF0DPD with bogus operand MEM0:r:b:f64
-						if (width.Value.WidthInBits == 8)
-							width = new XedOperandWidth(xtype, widthInBits: xtype.BitsPerElement);
+						if (width.Value.InBits == 8)
+							width = new XedOperandWidth(xtype, inBits: xtype.BitsPerElement);
 						else
 							width = width.Value.WithXType(xtype);
 					}

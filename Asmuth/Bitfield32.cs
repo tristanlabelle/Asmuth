@@ -4,11 +4,13 @@ using System.Text;
 
 namespace Asmuth
 {
-	public partial struct Bitfield32
+	public partial struct Bitfield32 : IEquatable<Bitfield32>
 	{
 		public sealed class Builder
 		{
 			private byte shift;
+
+			public Builder Clone() => new Builder { shift = shift };
 			
 			internal byte Alloc(byte width)
 			{
@@ -18,10 +20,16 @@ namespace Asmuth
 				return fieldShift;
 			}
 		}
-
-
-		public uint RawValue { get; set; }
 		
+		public uint RawValue { get; set; }
+
+		public bool Equals(Bitfield32 other) => RawValue == other.RawValue;
+		public override bool Equals(object obj) => obj is Bitfield32 && Equals((Bitfield32)obj);
+		public override int GetHashCode() => (int)RawValue;
+		public static bool Equals(Bitfield32 lhs, Bitfield32 rhs) => lhs.Equals(rhs);
+		public static bool operator ==(Bitfield32 lhs, Bitfield32 rhs) => Equals(lhs, rhs);
+		public static bool operator !=(Bitfield32 lhs, Bitfield32 rhs) => !Equals(lhs, rhs);
+
 		private uint Get(byte width, byte shift) => (RawValue >> shift) & GetUnshiftedMask(width);
 		private uint GetUnshiftedMask(byte width) => (1U << width) - 1;
 		private uint GetShiftedMask(byte width, byte shift) => GetUnshiftedMask(width) << shift;

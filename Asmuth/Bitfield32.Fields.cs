@@ -105,5 +105,26 @@ namespace Asmuth
 			get => (byte)Get(8, field.shift);
 			set => Set(8, field.shift, value);
 		}
+
+		public struct UInt
+		{
+			internal readonly byte shift;
+			internal readonly byte width;
+
+			public UInt(Builder builder, int width)
+			{
+				this.width = checked((byte)width);
+				shift = builder.Alloc(this.width);
+			}
+
+			public int Width => width;
+			public uint MaxValue => width == 32 ? uint.MaxValue : (1U << width) - 1;
+		}
+		
+		public uint this[UInt field]
+		{
+			get => (byte)Get(field.width, field.shift);
+			set => Set(field.width, field.shift, value);
+		}
 	}
 }

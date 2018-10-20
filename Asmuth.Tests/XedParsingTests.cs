@@ -106,9 +106,9 @@ namespace Asmuth.X86.Encoding.Xed
 			var result = XedDataFiles.ParseOperandWidth(str, xtypeLookup);
 			Assert.AreEqual(name, result.Key);
 			Assert.AreEqual(type, result.Value.BaseType);
-			Assert.AreEqual(widthInBits_16, result.Value.WidthInBits_16);
-			Assert.AreEqual(widthInBits_32, result.Value.WidthInBits_32);
-			Assert.AreEqual(widthInBits_64, result.Value.WidthInBits_64);
+			Assert.AreEqual(widthInBits_16, result.Value.InBits_16);
+			Assert.AreEqual(widthInBits_32, result.Value.InBits_32);
+			Assert.AreEqual(widthInBits_64, result.Value.InBits_64);
 		}
 
 		[TestMethod]

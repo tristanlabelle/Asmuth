@@ -12,68 +12,67 @@ namespace Asmuth.X86.Encoding.Xed
 	public readonly struct XedOperandWidth : IEquatable<XedOperandWidth>
 	{
 		public XedXType XType { get; }
-		private readonly ushort widthInBits_16, widthInBits_32, widthInBits_64;
+		private readonly ushort inBits_16, inBits_32, inBits_64;
 
-		public XedOperandWidth(XedXType xtype, int widthInBits)
+		public XedOperandWidth(XedXType xtype, int inBits)
 		{
-			if (widthInBits >= 8 && widthInBits % 8 != 0)
-				throw new ArgumentOutOfRangeException(nameof(widthInBits));
-			if (xtype.IsUnsized) xtype = new XedXType(xtype.BaseType, widthInBits);
+			if (inBits >= 8 && inBits % 8 != 0)
+				throw new ArgumentOutOfRangeException(nameof(inBits));
+			if (xtype.IsUnsized) xtype = new XedXType(xtype.BaseType, inBits);
 			
 			this.XType = xtype;
-			widthInBits_16 = widthInBits_32 = widthInBits_64 = (ushort)widthInBits;
+			inBits_16 = inBits_32 = inBits_64 = (ushort)inBits;
 		}
 
-		public XedOperandWidth(XedXType xtype, int widthInBits_16,
-			int widthInBits_32, int widthInBits_64)
+		public XedOperandWidth(XedXType xtype, int inBits_16, int inBits_32, int inBits_64)
 		{
 			// Must be multiples of the XType bits per element (vector)
 			if (xtype.BitsPerElement > 0)
 			{
-				if (widthInBits_16 % xtype.BitsPerElement != 0)
-					throw new ArgumentOutOfRangeException(nameof(widthInBits_16));
-				if (widthInBits_32 % xtype.BitsPerElement != 0)
-					throw new ArgumentOutOfRangeException(nameof(widthInBits_32));
-				if (widthInBits_64 % xtype.BitsPerElement != 0)
-					throw new ArgumentOutOfRangeException(nameof(widthInBits_64));
+				if (inBits_16 % xtype.BitsPerElement != 0)
+					throw new ArgumentOutOfRangeException(nameof(inBits_16));
+				if (inBits_32 % xtype.BitsPerElement != 0)
+					throw new ArgumentOutOfRangeException(nameof(inBits_32));
+				if (inBits_64 % xtype.BitsPerElement != 0)
+					throw new ArgumentOutOfRangeException(nameof(inBits_64));
 			}
 
 			// Bits sized are only between 1 and 7
-			if (widthInBits_16 >= 8 && widthInBits_16 % 8 != 0)
-				throw new ArgumentOutOfRangeException(nameof(widthInBits_16));
-			if (widthInBits_32 % 8 != 0 && widthInBits_32 != widthInBits_16)
-				throw new ArgumentOutOfRangeException(nameof(widthInBits_32));
-			if (widthInBits_64 % 8 != 0 && widthInBits_64 != widthInBits_16)
-				throw new ArgumentOutOfRangeException(nameof(widthInBits_64));
-			if (widthInBits_32 < widthInBits_16 && widthInBits_32 != 0)
-				throw new ArgumentOutOfRangeException(nameof(widthInBits_32));
-			if ((widthInBits_64 < widthInBits_16 || widthInBits_64 < widthInBits_32) && widthInBits_64 != 0)
-				throw new ArgumentOutOfRangeException(nameof(widthInBits_64));
+			if (inBits_16 >= 8 && inBits_16 % 8 != 0)
+				throw new ArgumentOutOfRangeException(nameof(inBits_16));
+			if (inBits_32 % 8 != 0 && inBits_32 != inBits_16)
+				throw new ArgumentOutOfRangeException(nameof(inBits_32));
+			if (inBits_64 % 8 != 0 && inBits_64 != inBits_16)
+				throw new ArgumentOutOfRangeException(nameof(inBits_64));
+			if (inBits_32 < inBits_16 && inBits_32 != 0)
+				throw new ArgumentOutOfRangeException(nameof(inBits_32));
+			if ((inBits_64 < inBits_16 || inBits_64 < inBits_32) && inBits_64 != 0)
+				throw new ArgumentOutOfRangeException(nameof(inBits_64));
 
 			this.XType = xtype;
-			this.widthInBits_16 = (ushort)widthInBits_16;
-			this.widthInBits_32 = (ushort)widthInBits_32;
-			this.widthInBits_64 = (ushort)widthInBits_64;
+			this.inBits_16 = (ushort)inBits_16;
+			this.inBits_32 = (ushort)inBits_32;
+			this.inBits_64 = (ushort)inBits_64;
 		}
 		
 		public XedBaseType BaseType => XType.BaseType;
 		public int BitsPerElement => XType.BitsPerElement;
-		public int WidthInBits_16 => widthInBits_16;
-		public int WidthInBits_32 => widthInBits_32;
-		public int WidthInBits_64 => widthInBits_64;
-		public int? WidthInBits => (widthInBits_16 == widthInBits_32 && widthInBits_32 == widthInBits_64)
-			? widthInBits_16 : (int?)null;
-		public bool IsVector => BitsPerElement > 0 && WidthInBits_16 > BitsPerElement;
+		public int InBits_16 => inBits_16;
+		public int InBits_32 => inBits_32;
+		public int InBits_64 => inBits_64;
+		public int? InBits => (inBits_16 == inBits_32 && inBits_32 == inBits_64)
+			? inBits_16 : (int?)null;
+		public bool IsVector => BitsPerElement > 0 && InBits_16 > BitsPerElement;
 
 		public XedOperandWidth WithXType(XedXType xtype)
-			=> new XedOperandWidth(xtype, widthInBits_16, widthInBits_32, widthInBits_64);
+			=> new XedOperandWidth(xtype, inBits_16, inBits_32, inBits_64);
 
 		public bool Equals(XedOperandWidth other) => XType == other.XType
-			&& widthInBits_16 == other.widthInBits_16
-			&& widthInBits_32 == other.widthInBits_32
-			&& widthInBits_64 == other.widthInBits_64;
+			&& inBits_16 == other.inBits_16
+			&& inBits_32 == other.inBits_32
+			&& inBits_64 == other.inBits_64;
 		public override bool Equals(object obj) => obj is XedOperandWidth && Equals((XedOperandWidth)obj);
-		public override int GetHashCode() => (XType.GetHashCode() << 17) ^ widthInBits_16;
+		public override int GetHashCode() => (XType.GetHashCode() << 17) ^ inBits_16;
 		public static bool Equals(XedOperandWidth lhs, XedOperandWidth rhs) => lhs.Equals(rhs);
 		public static bool operator ==(XedOperandWidth lhs, XedOperandWidth rhs) => Equals(lhs, rhs);
 		public static bool operator !=(XedOperandWidth lhs, XedOperandWidth rhs) => !Equals(lhs, rhs);
@@ -85,28 +84,28 @@ namespace Asmuth.X86.Encoding.Xed
 			str.Append(':');
 			if (BitsPerElement == 0)
 			{
-				str.Append(WidthInBits_16);
-				if (WidthInBits_64 != WidthInBits_16)
+				str.Append(InBits_16);
+				if (InBits_64 != InBits_16)
 				{
 					str.Append('/');
-					str.Append(WidthInBits_32);
+					str.Append(InBits_32);
 					str.Append('/');
-					str.Append(WidthInBits_64);
+					str.Append(InBits_64);
 				}
 			}
 			else
 			{
 				str.Append(BitsPerElement);
-				if (WidthInBits_64 > BitsPerElement)
+				if (InBits_64 > BitsPerElement)
 				{
 					str.Append('x');
-					str.Append(WidthInBits_16 / BitsPerElement);
-					if (WidthInBits_64 != WidthInBits_16)
+					str.Append(InBits_16 / BitsPerElement);
+					if (InBits_64 != InBits_16)
 					{
 						str.Append('/');
-						str.Append(WidthInBits_32 / BitsPerElement);
+						str.Append(InBits_32 / BitsPerElement);
 						str.Append('/');
-						str.Append(WidthInBits_64 / BitsPerElement);
+						str.Append(InBits_64 / BitsPerElement);
 					}
 				}
 			}

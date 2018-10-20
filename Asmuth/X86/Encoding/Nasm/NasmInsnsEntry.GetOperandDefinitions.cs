@@ -53,21 +53,23 @@ namespace Asmuth.X86.Encoding.Nasm
 			int? impliedSizeInBytes = null;
 			for (int i = 0; i < Operands.Count; ++i)
 			{
-				var operandFormat = TryToOperandSpec(i, addressSize, defaultSizeInBytes);
-				if (operandFormat == null)
+				var operandSpec = TryToOperandSpec(i, addressSize, defaultSizeInBytes);
+				if (operandSpec == null)
 				{
 					if (!sizeMatch) throw new FormatException("Unspecified operand size.");
 					// If we're size matching, allow null as we'll do a second pass
 				}
 				else
 				{
-					operandFormats[i] = operandFormat;
+					operandFormats[i] = operandSpec;
 
 					// Determine the size we'll match on the second pass
 					if (sizeMatch && !impliedSizeInBytes.HasValue)
 					{
-						var operandSize = operandFormat.ImpliedIntegerOperandSize;
-						if (operandSize.HasValue) impliedSizeInBytes = operandSize.Value.InBytes();
+						// Regressed NASM size matching (TryToOperandSpec should output it)
+						throw new NotImplementedException();
+						//var operandSize = operandSpec.ImpliedIntegerOperandSize;
+						//if (operandSize.HasValue) impliedSizeInBytes = operandSize.Value.InBytes();
 					}
 				}
 			}
