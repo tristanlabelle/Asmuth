@@ -102,7 +102,7 @@ namespace Asmuth.X86.Encoding.Xed
 				var register = GetRegister(fieldType.RegisterTable.ByIndex[operand.Value.Value.Constant - 1]);
 				if (!register.HasValue) return null;
 
-				var dataType = new OperandDataType(ScalarType.Untyped, register.Value.SizeInBytes.Value);
+				var dataType = new DataType(ScalarType.Untyped, register.Value.SizeInBytes.Value);
 				return new OperandSpec.FixedReg(register.Value, dataType);
 			}
 			else if (registerBlotValue.Kind == XedBlotValueKind.CallResult)
@@ -149,17 +149,17 @@ namespace Asmuth.X86.Encoding.Xed
 			return OperandSpec.Imm.WithDataType(GetDataType(operand.Width).Value);
 		}
 
-		private static OperandDataType? GetDataType(XedOperandWidth? width)
+		private static DataType? GetDataType(XedOperandWidth? width)
 			=> width.HasValue ? GetDataType(width.Value) : null;
 
-		private static OperandDataType? GetDataType(XedOperandWidth width)
+		private static DataType? GetDataType(XedOperandWidth width)
 		{
 			if ((width.BitsPerElement & 0x7) != 0) throw new NotImplementedException(); // Can't represent bitfields
 			var (scalarType, scalarSizeInBytes) = GetScalarTypeAndSizeInBytes(width.BaseType);
 			if (scalarSizeInBytes.HasValue && width.XType.BitsPerElement != scalarSizeInBytes.Value * 8)
 				throw new ArgumentException();
 			if (width.WidthInBits == width.BitsPerElement)
-				return new OperandDataType(scalarType, width.BitsPerElement >> 3);
+				return new DataType(scalarType, width.BitsPerElement >> 3);
 			throw new NotImplementedException();
 		}
 

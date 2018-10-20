@@ -46,7 +46,7 @@ namespace Asmuth.X86.Encoding
 
 		public abstract bool IsValidField(OperandField field);
 
-		public virtual OperandDataType? TryGetDataType(AddressSize addressSize, IntegerSize operandSize) => null;
+		public virtual DataType? TryGetDataType(AddressSize addressSize, IntegerSize operandSize) => null;
 
 		public abstract void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip = null);
 

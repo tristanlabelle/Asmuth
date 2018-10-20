@@ -14,9 +14,9 @@ namespace Asmuth.X86.Encoding
 		{
 			public Register Register { get; }
 			public RegisterClass RegisterClass => Register.Class;
-			public OperandDataType DataType { get; }
+			public DataType DataType { get; }
 
-			public FixedReg(Register register, OperandDataType dataType)
+			public FixedReg(Register register, DataType dataType)
 			{
 				if (dataType.TotalSizeInBytes > register.SizeInBytes)
 					throw new ArgumentException("Incompatible register data type.");
@@ -24,7 +24,7 @@ namespace Asmuth.X86.Encoding
 				this.DataType = dataType;
 			}
 
-			public FixedReg(RegisterClass @class, byte index, OperandDataType dataType)
+			public FixedReg(RegisterClass @class, byte index, DataType dataType)
 				: this(new Register(@class, index), dataType) { }
 
 			public override IntegerSize? ImpliedIntegerOperandSize => Register.IsSizedGpr
@@ -33,7 +33,7 @@ namespace Asmuth.X86.Encoding
 
 			public override bool IsValidField(OperandField field) => false;
 
-			public override OperandDataType? TryGetDataType(AddressSize addressSize, IntegerSize operandSize)
+			public override DataType? TryGetDataType(AddressSize addressSize, IntegerSize operandSize)
 				=> DataType;
 
 			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
@@ -41,26 +41,26 @@ namespace Asmuth.X86.Encoding
 
 			public override string ToString() => Register.Name;
 
-			public static readonly FixedReg AL_Untyped = new FixedReg(Register.AL, OperandDataType.Byte);
-			public static readonly FixedReg CL_Untyped = new FixedReg(Register.CL, OperandDataType.Byte);
-			public static readonly FixedReg AX_Untyped = new FixedReg(Register.AX, OperandDataType.Word);
-			public static readonly FixedReg CX_Untyped = new FixedReg(Register.CX, OperandDataType.Word);
-			public static readonly FixedReg DX_Untyped = new FixedReg(Register.DX, OperandDataType.Word);
-			public static readonly FixedReg Eax_Untyped = new FixedReg(Register.Eax, OperandDataType.Dword);
-			public static readonly FixedReg Ecx_Untyped = new FixedReg(Register.Ecx, OperandDataType.Dword);
-			public static readonly FixedReg Edx_Untyped = new FixedReg(Register.Edx, OperandDataType.Dword);
-			public static readonly FixedReg Rax_Untyped = new FixedReg(Register.Rax, OperandDataType.Dword);
-			public static readonly FixedReg Rcx_Untyped = new FixedReg(Register.Rcx, OperandDataType.Dword);
+			public static readonly FixedReg AL_Untyped = new FixedReg(Register.AL, DataType.Byte);
+			public static readonly FixedReg CL_Untyped = new FixedReg(Register.CL, DataType.Byte);
+			public static readonly FixedReg AX_Untyped = new FixedReg(Register.AX, DataType.Word);
+			public static readonly FixedReg CX_Untyped = new FixedReg(Register.CX, DataType.Word);
+			public static readonly FixedReg DX_Untyped = new FixedReg(Register.DX, DataType.Word);
+			public static readonly FixedReg Eax_Untyped = new FixedReg(Register.Eax, DataType.Dword);
+			public static readonly FixedReg Ecx_Untyped = new FixedReg(Register.Ecx, DataType.Dword);
+			public static readonly FixedReg Edx_Untyped = new FixedReg(Register.Edx, DataType.Dword);
+			public static readonly FixedReg Rax_Untyped = new FixedReg(Register.Rax, DataType.Dword);
+			public static readonly FixedReg Rcx_Untyped = new FixedReg(Register.Rcx, DataType.Dword);
 
-			public static readonly FixedReg ST0_F80 = new FixedReg(Register.ST0, OperandDataType.F80);
-			public static readonly FixedReg Xmm0_Untyped = new FixedReg(Register.Xmm0, OperandDataType.Untyped128);
+			public static readonly FixedReg ST0_F80 = new FixedReg(Register.ST0, DataType.F80);
+			public static readonly FixedReg Xmm0_Untyped = new FixedReg(Register.Xmm0, DataType.Untyped128);
 
-			public static readonly FixedReg ES = new FixedReg(Register.ES, OperandDataType.U16);
-			public static readonly FixedReg CS = new FixedReg(Register.CS, OperandDataType.U16);
-			public static readonly FixedReg SS = new FixedReg(Register.SS, OperandDataType.U16);
-			public static readonly FixedReg DS = new FixedReg(Register.DS, OperandDataType.U16);
-			public static readonly FixedReg FS = new FixedReg(Register.FS, OperandDataType.U16);
-			public static readonly FixedReg GS = new FixedReg(Register.GS, OperandDataType.U16);
+			public static readonly FixedReg ES = new FixedReg(Register.ES, DataType.U16);
+			public static readonly FixedReg CS = new FixedReg(Register.CS, DataType.U16);
+			public static readonly FixedReg SS = new FixedReg(Register.SS, DataType.U16);
+			public static readonly FixedReg DS = new FixedReg(Register.DS, DataType.U16);
+			public static readonly FixedReg FS = new FixedReg(Register.FS, DataType.U16);
+			public static readonly FixedReg GS = new FixedReg(Register.GS, DataType.U16);
 		}
 
 		// PUSH r32
@@ -74,7 +74,7 @@ namespace Asmuth.X86.Encoding
 				this.RegisterClass = @class;
 			}
 
-			public RegOrMem OrMem(OperandDataType dataType) => new RegOrMem(this, Mem.WithDataType(dataType));
+			public RegOrMem OrMem(DataType dataType) => new RegOrMem(this, Mem.WithDataType(dataType));
 
 			public override IntegerSize? ImpliedIntegerOperandSize => RegisterClass.IsSized
 				? IntegerSizeEnum.TryFromBytes(RegisterClass.SizeInBytes.Value) : null;
@@ -150,11 +150,11 @@ namespace Asmuth.X86.Encoding
 		public sealed class Mem : OperandSpec
 		{
 			// Can be null for LEA, which doesn't actually access the address
-			public OperandDataType? DataType { get; }
+			public DataType? DataType { get; }
 			public int SizeInBytes => DataType.HasValue ? DataType.Value.TotalSizeInBytes : 0;
 			public int SizeInBits => SizeInBytes * 8;
 
-			private Mem(OperandDataType? dataType) => this.DataType = dataType;
+			private Mem(DataType? dataType) => this.DataType = dataType;
 
 			public override IntegerSize? ImpliedIntegerOperandSize
 				=> DataType.HasValue ? DataType.Value.GetImpliedGprSize() : null;
@@ -164,17 +164,17 @@ namespace Asmuth.X86.Encoding
 
 			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
 			{
-				if (DataType == OperandDataType.Byte) textWriter.Write("byte ptr ");
-				else if (DataType == OperandDataType.Word) textWriter.Write("word ptr ");
-				else if (DataType == OperandDataType.Dword) textWriter.Write("dword ptr ");
-				else if (DataType == OperandDataType.Qword) textWriter.Write("qword ptr ");
+				if (DataType == Encoding.DataType.Byte) textWriter.Write("byte ptr ");
+				else if (DataType == Encoding.DataType.Word) textWriter.Write("word ptr ");
+				else if (DataType == Encoding.DataType.Dword) textWriter.Write("dword ptr ");
+				else if (DataType == Encoding.DataType.Qword) textWriter.Write("qword ptr ");
 				textWriter.Write(instruction.GetRMEffectiveAddress().ToString(ip, vectorSib: false));
 			}
 
 			public override string ToString()
 				=> SizeInBytes == 0 ? "m" : ("m" + SizeInBits.ToString());
 
-			public static Mem WithDataType(OperandDataType dataType)
+			public static Mem WithDataType(DataType dataType)
 			{
 				if (!dataType.IsVector)
 				{
@@ -228,37 +228,37 @@ namespace Asmuth.X86.Encoding
 					case 16: return M128;
 					case 32: return M256;
 					case 64: return M512;
-					default: return new Mem(new OperandDataType(ScalarType.Untyped, sizeInBytes));
+					default: return new Mem(new DataType(ScalarType.Untyped, sizeInBytes));
 				}
 			}
 
 			public static readonly Mem M = new Mem(null);
-			public static readonly Mem M8 = new Mem(OperandDataType.Byte);
-			public static readonly Mem M16 = new Mem(OperandDataType.Word);
-			public static readonly Mem M32 = new Mem(OperandDataType.Dword);
-			public static readonly Mem M64 = new Mem(OperandDataType.Qword);
-			public static readonly Mem M80 = new Mem(OperandDataType.Untyped80);
-			public static readonly Mem M128 = new Mem(OperandDataType.Untyped128);
-			public static readonly Mem M256 = new Mem(OperandDataType.Untyped256);
-			public static readonly Mem M512 = new Mem(OperandDataType.Untyped512);
+			public static readonly Mem M8 = new Mem(Encoding.DataType.Byte);
+			public static readonly Mem M16 = new Mem(Encoding.DataType.Word);
+			public static readonly Mem M32 = new Mem(Encoding.DataType.Dword);
+			public static readonly Mem M64 = new Mem(Encoding.DataType.Qword);
+			public static readonly Mem M80 = new Mem(Encoding.DataType.Untyped80);
+			public static readonly Mem M128 = new Mem(Encoding.DataType.Untyped128);
+			public static readonly Mem M256 = new Mem(Encoding.DataType.Untyped256);
+			public static readonly Mem M512 = new Mem(Encoding.DataType.Untyped512);
 
-			public static readonly Mem I8 = new Mem(OperandDataType.I8);
-			public static readonly Mem I16 = new Mem(OperandDataType.I16);
-			public static readonly Mem I32 = new Mem(OperandDataType.I32);
-			public static readonly Mem I64 = new Mem(OperandDataType.I64);
+			public static readonly Mem I8 = new Mem(Encoding.DataType.I8);
+			public static readonly Mem I16 = new Mem(Encoding.DataType.I16);
+			public static readonly Mem I32 = new Mem(Encoding.DataType.I32);
+			public static readonly Mem I64 = new Mem(Encoding.DataType.I64);
 
-			public static readonly Mem F16 = new Mem(OperandDataType.F16);
-			public static readonly Mem F32 = new Mem(OperandDataType.F32);
-			public static readonly Mem F64 = new Mem(OperandDataType.F64);
-			public static readonly Mem F80 = new Mem(OperandDataType.F80);
+			public static readonly Mem F16 = new Mem(Encoding.DataType.F16);
+			public static readonly Mem F32 = new Mem(Encoding.DataType.F32);
+			public static readonly Mem F64 = new Mem(Encoding.DataType.F64);
+			public static readonly Mem F80 = new Mem(Encoding.DataType.F80);
 
-			public static readonly Mem NearPtr16 = new Mem(OperandDataType.NearPtr16);
-			public static readonly Mem NearPtr32 = new Mem(OperandDataType.NearPtr32);
-			public static readonly Mem NearPtr64 = new Mem(OperandDataType.NearPtr64);
+			public static readonly Mem NearPtr16 = new Mem(Encoding.DataType.NearPtr16);
+			public static readonly Mem NearPtr32 = new Mem(Encoding.DataType.NearPtr32);
+			public static readonly Mem NearPtr64 = new Mem(Encoding.DataType.NearPtr64);
 
-			public static readonly Mem FarPtr16 = new Mem(OperandDataType.FarPtr16);
-			public static readonly Mem FarPtr32 = new Mem(OperandDataType.FarPtr32);
-			public static readonly Mem FarPtr64 = new Mem(OperandDataType.FarPtr64);
+			public static readonly Mem FarPtr16 = new Mem(Encoding.DataType.FarPtr16);
+			public static readonly Mem FarPtr32 = new Mem(Encoding.DataType.FarPtr32);
+			public static readonly Mem FarPtr64 = new Mem(Encoding.DataType.FarPtr64);
 		}
 
 		// NEG r/m8
@@ -368,9 +368,9 @@ namespace Asmuth.X86.Encoding
 		public sealed class MOffs : OperandSpec
 		{
 			public AddressSize AddressSize { get; }
-			public OperandDataType DataType { get; }
+			public DataType DataType { get; }
 
-			public MOffs(AddressSize addressSize, OperandDataType dataType)
+			public MOffs(AddressSize addressSize, DataType dataType)
 			{
 				this.AddressSize = addressSize;
 				this.DataType = dataType;
@@ -403,9 +403,9 @@ namespace Asmuth.X86.Encoding
 		// PUSH imm32 
 		public sealed class Imm : OperandSpec
 		{
-			public OperandDataType DataType { get; }
+			public DataType DataType { get; }
 
-			private Imm(OperandDataType dataType)
+			private Imm(DataType dataType)
 			{
 				Debug.Assert(!dataType.IsVector);
 				this.DataType = dataType;
@@ -442,7 +442,7 @@ namespace Asmuth.X86.Encoding
 
 			public override string ToString() => "imm" + DataType.TotalSizeInBits;
 
-			public static Imm WithDataType(OperandDataType dataType)
+			public static Imm WithDataType(DataType dataType)
 			{
 				if (dataType.IsVector)
 					throw new ArgumentException("Immediates cannot be vectored.", nameof(dataType));
@@ -486,28 +486,28 @@ namespace Asmuth.X86.Encoding
 				return new Imm(dataType);
 			}
 
-			public static readonly Imm Byte = new Imm(OperandDataType.Byte);
-			public static readonly Imm Word = new Imm(OperandDataType.Word);
-			public static readonly Imm Dword = new Imm(OperandDataType.Dword);
-			public static readonly Imm Qword = new Imm(OperandDataType.Qword);
+			public static readonly Imm Byte = new Imm(DataType.Byte);
+			public static readonly Imm Word = new Imm(DataType.Word);
+			public static readonly Imm Dword = new Imm(DataType.Dword);
+			public static readonly Imm Qword = new Imm(DataType.Qword);
 
-			public static readonly Imm I8 = new Imm(OperandDataType.I8);
-			public static readonly Imm I16 = new Imm(OperandDataType.I16);
-			public static readonly Imm I32 = new Imm(OperandDataType.I32);
-			public static readonly Imm I64 = new Imm(OperandDataType.I64);
+			public static readonly Imm I8 = new Imm(DataType.I8);
+			public static readonly Imm I16 = new Imm(DataType.I16);
+			public static readonly Imm I32 = new Imm(DataType.I32);
+			public static readonly Imm I64 = new Imm(DataType.I64);
 
-			public static readonly Imm U8 = new Imm(OperandDataType.U8);
-			public static readonly Imm U16 = new Imm(OperandDataType.U16);
-			public static readonly Imm U32 = new Imm(OperandDataType.U32);
-			public static readonly Imm U64 = new Imm(OperandDataType.U64);
+			public static readonly Imm U8 = new Imm(DataType.U8);
+			public static readonly Imm U16 = new Imm(DataType.U16);
+			public static readonly Imm U32 = new Imm(DataType.U32);
+			public static readonly Imm U64 = new Imm(DataType.U64);
 
-			public static readonly Imm NearPtr16 = new Imm(OperandDataType.NearPtr16);
-			public static readonly Imm NearPtr32 = new Imm(OperandDataType.NearPtr32);
-			public static readonly Imm NearPtr64 = new Imm(OperandDataType.NearPtr64);
+			public static readonly Imm NearPtr16 = new Imm(DataType.NearPtr16);
+			public static readonly Imm NearPtr32 = new Imm(DataType.NearPtr32);
+			public static readonly Imm NearPtr64 = new Imm(DataType.NearPtr64);
 
-			public static readonly Imm FarPtr16 = new Imm(OperandDataType.FarPtr16);
-			public static readonly Imm FarPtr32 = new Imm(OperandDataType.FarPtr32);
-			public static readonly Imm FarPtr64 = new Imm(OperandDataType.FarPtr64);
+			public static readonly Imm FarPtr16 = new Imm(DataType.FarPtr16);
+			public static readonly Imm FarPtr32 = new Imm(DataType.FarPtr32);
+			public static readonly Imm FarPtr64 = new Imm(DataType.FarPtr64);
 		}
 
 		// SAL r/m8, 1 

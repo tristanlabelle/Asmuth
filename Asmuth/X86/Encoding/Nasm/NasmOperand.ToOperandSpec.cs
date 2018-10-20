@@ -91,10 +91,10 @@ namespace Asmuth.X86.Encoding.Nasm
 				case NasmOperandType.Xmm0: return OperandSpec.FixedReg.Xmm0_Untyped;
 				case NasmOperandType.XmmReg: return OperandSpec.Reg.Xmm;
 				case NasmOperandType.XmmRM: return MakeRM(OperandSpec.Reg.Xmm, defaultSizeInBytes);
-				case NasmOperandType.XmmRM8: return OperandSpec.Reg.Xmm.OrMem(OperandDataType.Byte);
-				case NasmOperandType.XmmRM16: return OperandSpec.Reg.Xmm.OrMem(OperandDataType.Word);
-				case NasmOperandType.XmmRM32: return OperandSpec.Reg.Xmm.OrMem(OperandDataType.Dword);
-				case NasmOperandType.XmmRM64: return OperandSpec.Reg.Xmm.OrMem(OperandDataType.Qword);
+				case NasmOperandType.XmmRM8: return OperandSpec.Reg.Xmm.OrMem(DataType.Byte);
+				case NasmOperandType.XmmRM16: return OperandSpec.Reg.Xmm.OrMem(DataType.Word);
+				case NasmOperandType.XmmRM32: return OperandSpec.Reg.Xmm.OrMem(DataType.Dword);
+				case NasmOperandType.XmmRM64: return OperandSpec.Reg.Xmm.OrMem(DataType.Qword);
 				case NasmOperandType.XmmRM128: return OperandSpec.RegOrMem.Mmx_Untyped;
 
 				case NasmOperandType.YmmReg: return OperandSpec.Reg.Ymm;
@@ -105,10 +105,10 @@ namespace Asmuth.X86.Encoding.Nasm
 				case NasmOperandType.ZmmRM512: return OperandSpec.RegOrMem.Zmm_Untyped;
 
 				case NasmOperandType.KReg: return OperandSpec.Reg.AvxOpmask;
-				case NasmOperandType.KRM8: return OperandSpec.Reg.AvxOpmask.OrMem(OperandDataType.Byte);
-				case NasmOperandType.KRM16: return OperandSpec.Reg.AvxOpmask.OrMem(OperandDataType.Word);
-				case NasmOperandType.KRM32: return OperandSpec.Reg.AvxOpmask.OrMem(OperandDataType.Dword);
-				case NasmOperandType.KRM64: return OperandSpec.Reg.AvxOpmask.OrMem(OperandDataType.Qword);
+				case NasmOperandType.KRM8: return OperandSpec.Reg.AvxOpmask.OrMem(DataType.Byte);
+				case NasmOperandType.KRM16: return OperandSpec.Reg.AvxOpmask.OrMem(DataType.Word);
+				case NasmOperandType.KRM32: return OperandSpec.Reg.AvxOpmask.OrMem(DataType.Dword);
+				case NasmOperandType.KRM64: return OperandSpec.Reg.AvxOpmask.OrMem(DataType.Qword);
 
 				case NasmOperandType.BndReg: return OperandSpec.Reg.Bound;
 
@@ -155,19 +155,19 @@ namespace Asmuth.X86.Encoding.Nasm
 				case NasmOperandType.Mem_Offs:
 					if (!addressSize.HasValue || !defaultSizeInBytes.HasValue) return null;
 					return new OperandSpec.MOffs(addressSize.Value,
-						new OperandDataType(ScalarType.Untyped, defaultSizeInBytes.Value));
+						new DataType(ScalarType.Untyped, defaultSizeInBytes.Value));
 			}
 
 			throw new NotImplementedException($"Unimplemented NasmOperandType > OperandSpec conversion case: {type}.");
 		}
 
-		private static OperandDataType GetDataType(int sizeInBytes, NasmOperandFlags flags)
+		private static DataType GetDataType(int sizeInBytes, NasmOperandFlags flags)
 		{
 			if ((flags & NasmOperandFlags.NearPointer) != 0)
-				return new OperandDataType(ScalarType.NearPointer, sizeInBytes);
+				return new DataType(ScalarType.NearPointer, sizeInBytes);
 			if ((flags & NasmOperandFlags.FarPointer) != 0)
-				return new OperandDataType(ScalarType.FarPointer, sizeInBytes + 2);
-			return new OperandDataType(ScalarType.Untyped, sizeInBytes);
+				return new DataType(ScalarType.FarPointer, sizeInBytes + 2);
+			return new DataType(ScalarType.Untyped, sizeInBytes);
 		}
 
 		private static OperandSpec.RegOrMem GetGprOrMem(IntegerSize size, NasmOperandFlags flags)
@@ -201,7 +201,7 @@ namespace Asmuth.X86.Encoding.Nasm
 				defaultSizeInBytes = reg.RegisterClass.SizeInBytes;
 			}
 
-			return reg.OrMem(new OperandDataType(ScalarType.Untyped, defaultSizeInBytes.Value));
+			return reg.OrMem(new DataType(ScalarType.Untyped, defaultSizeInBytes.Value));
 		}
 	}
 }
