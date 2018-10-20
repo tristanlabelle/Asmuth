@@ -31,12 +31,13 @@ namespace Asmuth.X86.Encoding
 
 		public static bool IsValidSizeInBytes(this ScalarType type, int size)
 		{
-			if (type == ScalarType.Untyped) return size > 0;
+			if (size <= 0) return false;
+			if (type == ScalarType.Untyped) return true;
 
-			uint packedValidSizes = GetPackedValidSizes(type);
+			ulong packedValidSizes = GetPackedValidSizes(type);
 			while (packedValidSizes != 0)
 			{
-				if (size == (packedValidSizes & 0xFF)) return true;
+				if ((uint)size == (packedValidSizes & 0xFF)) return true;
 				packedValidSizes >>= 8;
 			}
 
@@ -56,12 +57,13 @@ namespace Asmuth.X86.Encoding
 			}
 		}
 
-		private static uint GetPackedValidSizes(ScalarType type)
+		private static ulong GetPackedValidSizes(ScalarType type)
 		{
 			switch (type)
 			{
-				case ScalarType.SignedInt: return 0x08_04_02_01;
-				case ScalarType.UnsignedInt: return 0x08_04_02_01;
+				// Some SSE instruction operate on double quadwords
+				case ScalarType.SignedInt: return 0x16_08_04_02_01;
+				case ScalarType.UnsignedInt: return 0x16_08_04_02_01;
 				case ScalarType.Ieee754Float: return 0x08_04_02;
 				case ScalarType.X87Float80: return 10;
 				case ScalarType.NearPointer: return 0x08_04_02;
