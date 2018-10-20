@@ -23,6 +23,12 @@ namespace Asmuth.X86.Encoding
 
 	public static class ScalarTypeEnum
 	{
+		public static bool IsInt(this ScalarType type)
+			=> type == ScalarType.SignedInt || type == ScalarType.UnsignedInt;
+
+		public static bool IsFloat(this ScalarType type)
+			=> type == ScalarType.Ieee754Float || type == ScalarType.X87Float80;
+
 		public static bool IsValidSizeInBytes(this ScalarType type, int size)
 		{
 			if (type == ScalarType.Untyped) return size > 0;
@@ -76,7 +82,7 @@ namespace Asmuth.X86.Encoding
 		private readonly Bitfield32 bitfield;
 
 		private static readonly Bitfield32.UInt4 scalarTypeField = bitfieldBuilder;
-		private static readonly Bitfield32.UInt3 vectorSizeLog2Field = bitfieldBuilder;
+		private static readonly Bitfield32.UInt3 vectorLengthLog2Field = bitfieldBuilder;
 		private static readonly Bitfield32.Bool isVariableScalarSizeField = bitfieldBuilder;
 
 		// Either it's a single size which can be very big,
@@ -125,8 +131,8 @@ namespace Asmuth.X86.Encoding
 		public int ScalarSizeInBytes_32 => GetVariableScalarSize(scalarSize32Field);
 		public int ScalarSizeInBytes_64 => GetVariableScalarSize(scalarSize64Field);
 
-		public int VectorLength => 1 << bitfield[vectorSizeLog2Field];
-		public bool IsVector => bitfield[vectorSizeLog2Field] != 0;
+		public int VectorLength => 1 << bitfield[vectorLengthLog2Field];
+		public bool IsVector => bitfield[vectorLengthLog2Field] != 0;
 
 		public int? TotalSizeInBytes => ScalarSizeInBytes * VectorLength;
 		public int? TotalSizeInBits => TotalSizeInBytes * 8;
@@ -141,7 +147,16 @@ namespace Asmuth.X86.Encoding
 			bitfield[scalarTypeField] = (byte)scalarType;
 			bitfield[singleScalarSizeMinusOneField] = (uint)(sizeInBytes - 1);
 
-			if (vectorLength != 1) throw new NotImplementedException();
+			if (vectorLength != 1)
+			{
+				if (vectorLength == 0 || vectorLength > 64 || !Bits.IsSingle((uint)vectorLength))
+					throw new ArgumentException();
+
+				// Lazy way to compute log2
+				byte vectorLengthLog2 = 0;
+				while ((1 << vectorLengthLog2) != vectorLength) vectorLengthLog2++;
+				bitfield[vectorLengthLog2Field] = vectorLengthLog2;
+			}
 
 			return bitfield;
 		}

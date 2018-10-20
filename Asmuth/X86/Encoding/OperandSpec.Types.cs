@@ -537,9 +537,9 @@ namespace Asmuth.X86.Encoding
 		// JMP rel8
 		public sealed class Rel : OperandSpec
 		{
-			public IntegerSize OffsetSize { get; }
+			public BranchOffsetSize OffsetSize { get; }
 
-			private Rel(IntegerSize offsetSize) => this.OffsetSize = offsetSize;
+			private Rel(BranchOffsetSize offsetSize) => this.OffsetSize = offsetSize;
 			
 			public override OperandDataLocation DataLocation => OperandDataLocation.InstructionStream;
 
@@ -547,10 +547,11 @@ namespace Asmuth.X86.Encoding
 
 			public override void Format(TextWriter textWriter, in Instruction instruction, OperandField? field, ulong? ip)
 			{
-				if (OffsetSize.InBytes() != instruction.ImmediateSizeInBytes)
+				var integerSize = OffsetSize.ToIntegerSize(instruction.Prefixes.IntegerOperandSize);
+				if (integerSize.InBytes() != instruction.ImmediateSizeInBytes)
 					throw new InvalidOperationException("Instruction immediate size doesn't match operand.");
 
-				long offset = instruction.ImmediateData.AsInt(OffsetSize);
+				long offset = instruction.ImmediateData.AsInt(integerSize);
 				if (ip.HasValue)
 				{
 					ulong address = (ulong)((long)ip.Value + offset);
@@ -565,7 +566,26 @@ namespace Asmuth.X86.Encoding
 				}
 			}
 
-			public override string ToString() => "rel" + OffsetSize.InBits();
+			public override string ToString()
+			{
+				switch (OffsetSize)
+				{
+					case BranchOffsetSize.Short: return "rel8";
+					case BranchOffsetSize.Long16: return "rel16";
+					case BranchOffsetSize.Long32: return "rel32";
+					case BranchOffsetSize.Long16Or32: return "rel16/32";
+					default: throw new UnreachableException();
+				}
+			}
+
+			public static Rel WithOffsetSize(BranchOffsetSize offsetSize)
+			{
+				if (offsetSize == BranchOffsetSize.Short) return Short;
+				if (offsetSize == BranchOffsetSize.Long16) return Long16;
+				if (offsetSize == BranchOffsetSize.Long32) return Long32;
+				if (offsetSize == BranchOffsetSize.Long16Or32) return Long16Or32;
+				throw new ArgumentOutOfRangeException(nameof(offsetSize));
+			}
 
 			public static Rel WithOffsetSize(IntegerSize offsetSize)
 			{
@@ -575,9 +595,10 @@ namespace Asmuth.X86.Encoding
 				throw new ArgumentOutOfRangeException(nameof(offsetSize));
 			}
 
-			public static readonly Rel Short = new Rel(IntegerSize.Byte);
-			public static readonly Rel Long16 = new Rel(IntegerSize.Word);
-			public static readonly Rel Long32 = new Rel(IntegerSize.Dword);
+			public static readonly Rel Short = new Rel(BranchOffsetSize.Short);
+			public static readonly Rel Long16 = new Rel(BranchOffsetSize.Long16);
+			public static readonly Rel Long32 = new Rel(BranchOffsetSize.Long32);
+			public static readonly Rel Long16Or32 = new Rel(BranchOffsetSize.Long16Or32);
 		}
 	}
 }

@@ -23,12 +23,14 @@ namespace Asmuth.X86.Encoding.Xed
 				{
 					if (operand.Visibility == XedOperandVisibility.Suppressed)
 					{
-						spec = GetSuppressedMemoryOperand(operand, enumerator, ref hasCurrent);
+						spec = GetSuppressedMemoryOperandSpec(operand, enumerator, ref hasCurrent);
 					}
 					else spec = GetMemOperandSpec(operand);
 				}
 				else if (operandKind == XedOperandKind.Register) spec = GetRegOperandSpec(operand);
 				else if (operandKind == XedOperandKind.Immediate) spec = GetImmOperandSpec(operand);
+				else if (operandKind == XedOperandKind.RelativeBranch) spec = GetRelOperandSpec(operand);
+				else if (operandKind == XedOperandKind.AddressGeneration) spec = OperandSpec.Mem.M;
 				else if (operand.Visibility == XedOperandVisibility.Explicit)
 					throw new NotImplementedException();
 
@@ -39,7 +41,7 @@ namespace Asmuth.X86.Encoding.Xed
 			}
 		}
 
-		private static OperandSpec GetSuppressedMemoryOperand(XedOperand memory,
+		private static OperandSpec GetSuppressedMemoryOperandSpec(XedOperand memory,
 			IEnumerator<XedOperand> enumerator, ref bool hasCurrent)
 		{
 			OperandSpec spec;
@@ -89,7 +91,7 @@ namespace Asmuth.X86.Encoding.Xed
 		private static OperandSpec GetSuppressedMemOperandSpec(XedOperand operand,
 			XedOperand baseOperand, XedOperand segmentOperand, XedOperand indexOperand)
 		{
-			throw new NotImplementedException();
+			return null; // Not implemented
 		}
 
 		private static OperandSpec GetRegOperandSpec(XedOperand operand)
@@ -124,12 +126,13 @@ namespace Asmuth.X86.Encoding.Xed
 
 			// Handle register classes
 			RegisterClass registerClass;
-			if (callee.Contains("GPR8_")) registerClass = RegisterClass.GprByte;
-			else if (callee.Contains("GPRv_")) registerClass = RegisterClass.GprUnsized;
-			else if (callee.Contains("X87")) registerClass = RegisterClass.X87;
-			else if (callee.Contains("XMM")) registerClass = RegisterClass.Xmm;
-			else if (callee.Contains("YMM")) registerClass = RegisterClass.Ymm;
-			else if (callee.Contains("ZMM")) registerClass = RegisterClass.Zmm;
+			if (callee.StartsWith("GPR8")) registerClass = RegisterClass.GprByte;
+			else if (callee.StartsWith("GPRv")) registerClass = RegisterClass.GprUnsized;
+			else if (callee.StartsWith("MMX")) registerClass = RegisterClass.Mmx;
+			else if (callee.StartsWith("X87")) registerClass = RegisterClass.X87;
+			else if (callee.StartsWith("XMM")) registerClass = RegisterClass.Xmm;
+			else if (callee.StartsWith("YMM")) registerClass = RegisterClass.Ymm;
+			else if (callee.StartsWith("ZMM")) registerClass = RegisterClass.Zmm;
 			else throw new NotImplementedException();
 
 			return new OperandSpec.Reg(registerClass, dataType);
@@ -166,6 +169,26 @@ namespace Asmuth.X86.Encoding.Xed
 			if (!operand.Width.TryGetValue(out var width)) throw new FormatException();
 			return OperandSpec.Imm.WithDataType(GetDataType(operand.Width).Value);
 		}
+		
+		private static OperandSpec GetRelOperandSpec(XedOperand operand)
+		{
+			if (!operand.Width.TryGetValue(out var width)) throw new FormatException();
+			if (width.BaseType != XedBaseType.Int) throw new FormatException();
+			if (width.BitsPerElement == 0)
+			{
+				if (width.InBits_16 == 16 && width.InBits_32 == 32 && width.InBits_64 == 32)
+					return OperandSpec.Rel.Long16Or32;
+			}
+			else
+			{
+				if (width.InBits != width.BitsPerElement) throw new FormatException();
+				if (width.BitsPerElement == 8) return OperandSpec.Rel.Short;
+				if (width.BitsPerElement == 16) return OperandSpec.Rel.Long16;
+				if (width.BitsPerElement == 32) return OperandSpec.Rel.Long32;
+			}
+
+			throw new FormatException();
+		}
 
 		private static OperandDataType? GetDataType(XedOperandWidth? width)
 			=> width.HasValue ? GetDataType(width.Value) : null;
@@ -173,21 +196,34 @@ namespace Asmuth.X86.Encoding.Xed
 		private static OperandDataType? GetDataType(XedOperandWidth width)
 		{
 			if ((width.BitsPerElement & 0x7) != 0) throw new NotImplementedException(); // Can't represent bitfields
+			var bytesPerElement = width.BitsPerElement / 8;
+
 			var (scalarType, scalarSizeInBytes) = GetScalarTypeAndSizeInBytes(width.BaseType);
-			if (scalarSizeInBytes.HasValue && width.XType.BitsPerElement != scalarSizeInBytes.Value * 8)
+			if (scalarSizeInBytes.HasValue && bytesPerElement != scalarSizeInBytes.Value)
 				throw new ArgumentException();
 
-			if (width.InBits.HasValue)
+			if (width.InBits.TryGetValue(out int widthInBits))
 			{
-				if (width.InBits == width.BitsPerElement)
-					return new OperandDataType(scalarType, width.BitsPerElement >> 3);
-				throw new NotImplementedException();
+				var widthInBytes = widthInBits / 8;
+
+				// Scalar case
+				if (bytesPerElement == 0 || widthInBytes == bytesPerElement)
+				{
+					if (scalarType.IsInt() && bytesPerElement > 8) scalarType = ScalarType.Untyped;
+					return new OperandDataType(scalarType, widthInBytes);
+				}
+
+				// Vector case
+				var vectorLength = widthInBits / width.BitsPerElement;
+				return OperandDataType.FromVector(scalarType, bytesPerElement, vectorLength);
 			}
 			else
 			{
 				if (width.BitsPerElement != 0) throw new FormatException();
 				if (width.InBits_16 % 8 != 0 || width.InBits_32 % 8 != 0 || width.InBits_64 % 8 != 0)
 					throw new InvalidOperationException();
+				if (scalarType.IsInt() && (width.InBits_16 > 64 || width.InBits_32 > 64 || width.InBits_64 > 64))
+					scalarType = ScalarType.Untyped;
 				return OperandDataType.FromVariableSizeInBytes(scalarType,
 					width.InBits_16 / 8, width.InBits_32 / 8, width.InBits_64 / 8);
 			}
