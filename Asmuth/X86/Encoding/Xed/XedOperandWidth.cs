@@ -64,6 +64,12 @@ namespace Asmuth.X86.Encoding.Xed
 			? inBits_16 : (int?)null;
 		public bool IsVector => BitsPerElement > 0 && InBits_16 > BitsPerElement;
 
+		public bool IsInBits(int value16, int value32, int value64)
+			=> InBits_16 == value16 && inBits_32 == value32 && inBits_64 == value64;
+
+		public bool IsInBytes(int value16, int value32, int value64)
+			=> IsInBits(value16 * 8, value32 * 8, value64 * 8);
+
 		public XedOperandWidth WithXType(XedXType xtype)
 			=> new XedOperandWidth(xtype, inBits_16, inBits_32, inBits_64);
 
